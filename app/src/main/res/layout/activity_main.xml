@@ -1,0 +1,358 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.drawerlayout.widget.DrawerLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/drawer_layout"
+    android:layout_width="match_parent" android:layout_height="match_parent">
+
+<LinearLayout android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:background="#050508">
+
+    <!-- Scrollable content -->
+    <ScrollView android:layout_width="match_parent" android:layout_height="0dp"
+        android:layout_weight="1" android:scrollbars="none">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:gravity="center_horizontal"
+            android:paddingStart="20dp" android:paddingEnd="20dp"
+            android:paddingTop="16dp" android:paddingBottom="8dp">
+
+            <!-- TOP BAR -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:gravity="center_vertical"
+                android:layout_marginBottom="16dp">
+                <android.widget.ImageView android:id="@+id/btn_about"
+                    android:layout_width="26dp" android:layout_height="26dp"
+                    android:src="@drawable/ic_info" android:layout_marginEnd="8dp"
+                    android:clickable="true"
+                    android:foreground="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="About"/>
+                <TextView android:text="THIEVES TRAP" android:layout_width="0dp"
+                    android:layout_height="wrap_content" android:layout_weight="1"
+                    android:textSize="12sp" android:textStyle="bold"
+                    android:textColor="#AAAAAA" android:letterSpacing="0.2"/>
+                <TextView android:id="@+id/tv_uptime" android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" android:text=""
+                    android:textSize="11sp" android:textColor="#666666"
+                    android:layout_marginEnd="8dp"/>
+                <TextView android:id="@+id/btn_menu"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="&#8801;" android:textSize="22sp" android:textColor="#888888"
+                    android:padding="6dp" android:clickable="true"
+                    android:foreground="?attr/selectableItemBackgroundBorderless"/>
+            </LinearLayout>
+
+            <!-- SHIELD CENTER STAGE -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:gravity="center"
+                android:background="#0D0D10" android:padding="28dp"
+                android:layout_marginBottom="10dp">
+                <ImageView android:id="@+id/iv_shield_main"
+                    android:layout_width="88dp" android:layout_height="88dp"
+                    android:src="@drawable/ic_shield" android:layout_marginBottom="12dp"/>
+                <TextView android:id="@+id/tv_status" android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" android:text="@string/status_disarmed"
+                    android:textSize="20sp" android:textStyle="bold" android:textColor="#AAAAAA"
+                    android:layout_marginBottom="2dp"/>
+                <TextView android:id="@+id/tv_sub_status"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="" android:textSize="11sp" android:textColor="#FF8C00"
+                    android:letterSpacing="0.05" android:layout_marginBottom="6dp"/>
+                <TextView android:id="@+id/tv_mode_desc" android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/tap_to_arm"
+                    android:textSize="12sp" android:textColor="#777777" android:gravity="center"/>
+            </LinearLayout>
+
+            <!-- ACTIVITY LOG -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:background="#0D0D10"
+                android:padding="16dp" android:layout_marginBottom="10dp">
+                <TextView android:text="@string/activity_log" android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" android:textSize="9sp"
+                    android:textColor="#CC0000" android:textStyle="bold"
+                    android:letterSpacing="0.2" android:layout_marginBottom="8dp"/>
+                <TextView android:id="@+id/tv_activity_log" android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/system_idle"
+                    android:textSize="12sp" android:textColor="#888888"
+                    android:layout_marginBottom="10dp"/>
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:orientation="vertical">
+                        <TextView android:id="@+id/tv_alert_count" android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" android:text="0"
+                            android:textSize="22sp" android:textColor="#CC0000" android:textStyle="bold"/>
+                        <TextView android:text="@string/stat_alerts" android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" android:textSize="10sp"
+                            android:textColor="#666666"/>
+                    </LinearLayout>
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:orientation="vertical">
+                        <TextView android:id="@+id/tv_contact_log" android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" android:text="@string/not_set"
+                            android:textSize="12sp" android:textColor="#AAAAAA" android:textStyle="bold"
+                            android:maxLines="1" android:ellipsize="end"/>
+                        <TextView android:text="@string/stat_contact" android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" android:textSize="10sp"
+                            android:textColor="#666666"/>
+                    </LinearLayout>
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:orientation="vertical">
+                        <TextView android:id="@+id/tv_admin_log" android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" android:text="@string/stat_inactive"
+                            android:textSize="12sp" android:textColor="#AAAAAA" android:textStyle="bold"/>
+                        <TextView android:text="@string/stat_admin" android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" android:textSize="10sp"
+                            android:textColor="#666666"/>
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- THEFT MODE -->
+            <Button android:id="@+id/btn_theft_mode" android:layout_width="match_parent"
+                android:layout_height="46dp" android:text="@string/activate_theft"
+                android:textSize="13sp" android:textStyle="bold"
+                android:backgroundTint="#1A1200" android:textColor="#FFAA00"
+                android:layout_marginBottom="8dp"/>
+
+            <!-- ARM -->
+            <Button android:id="@+id/btn_arm" android:layout_width="match_parent"
+                android:layout_height="56dp" android:text="@string/arm"
+                android:textSize="20sp" android:textStyle="bold"
+                android:backgroundTint="#CC0000" android:textColor="#FFFFFF"
+                android:layout_marginBottom="6dp"/>
+
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="@string/sms_credit_warning"
+                android:textSize="10sp" android:textColor="#777777"
+                android:gravity="center" android:layout_marginBottom="12dp"/>
+
+            <!-- PREMIUM -->
+            <Button android:id="@+id/btn_premium" android:layout_width="match_parent"
+                android:layout_height="50dp" android:text="@string/unlock_full"
+                android:textSize="14sp" android:textStyle="bold"
+                android:backgroundTint="#1A1300" android:textColor="#FFD700"
+                android:layout_marginBottom="4dp"/>
+
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- BOTTOM BAR: Gallery + SOS -->
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:gravity="center_vertical"
+        android:background="#0A0A0D" android:paddingStart="16dp" android:paddingEnd="16dp"
+        android:paddingTop="10dp" android:paddingBottom="10dp">
+
+        <!-- Gallery icon (left) -->
+        <LinearLayout android:id="@+id/btn_selfies"
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:orientation="vertical" android:gravity="center"
+            android:clickable="true" android:foreground="?attr/selectableItemBackground"
+            android:padding="6dp">
+            <TextView android:text="📸" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:textSize="22sp"
+                android:gravity="center"/>
+            <TextView android:text="@string/gallery" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:textSize="9sp"
+                android:textColor="#666666" android:gravity="center"/>
+        </LinearLayout>
+
+        <!-- Copyright center -->
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="2" android:gravity="center"
+            android:text="@string/copyright_text" android:textSize="8sp"
+            android:textColor="#252525" android:letterSpacing="0.1"/>
+
+        <!-- Remote Guide icon (right) -->
+        <LinearLayout android:id="@+id/btn_remote_guide_icon"
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:orientation="vertical" android:gravity="center"
+            android:clickable="true" android:foreground="?attr/selectableItemBackground"
+            android:padding="6dp">
+            <TextView android:text="📡" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:textSize="22sp"
+                android:gravity="center"/>
+            <TextView android:text="@string/commands" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:textSize="9sp"
+                android:textColor="#666666" android:gravity="center"/>
+        </LinearLayout>
+
+    </LinearLayout>
+
+
+
+</LinearLayout>
+
+<!-- RIGHT NAVIGATION DRAWER -->
+<LinearLayout
+    android:id="@+id/nav_drawer"
+    android:layout_width="280dp"
+    android:layout_height="match_parent"
+    android:layout_gravity="end"
+    android:orientation="vertical"
+    android:background="#0A0A0D"
+    android:paddingTop="48dp"
+    android:paddingStart="0dp">
+
+    <TextView android:text="THIEVES TRAP"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:textSize="13sp" android:textStyle="bold" android:textColor="#AAAAAA"
+        android:letterSpacing="0.2" android:paddingStart="24dp" android:paddingBottom="6dp"/>
+    <TextView android:text="@string/copyright_text"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:textSize="9sp" android:textColor="#333333"
+        android:paddingStart="24dp" android:paddingBottom="20dp"/>
+
+    <View android:layout_width="match_parent" android:layout_height="1dp"
+        android:background="#1A1A1A" android:layout_marginBottom="8dp"/>
+
+    <!-- MAIN NAV -->
+    <LinearLayout android:id="@+id/nav_settings"
+        android:layout_width="match_parent" android:layout_height="52dp"
+        android:orientation="horizontal" android:gravity="center_vertical"
+        android:paddingStart="24dp" android:paddingEnd="16dp"
+        android:clickable="true" android:foreground="?attr/selectableItemBackground">
+        <TextView android:text="&#9881;" android:layout_width="32dp" android:layout_height="wrap_content"
+            android:textSize="18sp" android:textColor="#AAAAAA"/>
+        <TextView android:text="@string/nav_settings" android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1"
+            android:textSize="14sp" android:textColor="#DDDDDD"/>
+    </LinearLayout>
+
+    <LinearLayout android:id="@+id/nav_premium"
+        android:layout_width="match_parent" android:layout_height="52dp"
+        android:orientation="horizontal" android:gravity="center_vertical"
+        android:paddingStart="24dp" android:paddingEnd="16dp"
+        android:clickable="true" android:foreground="?attr/selectableItemBackground">
+        <TextView android:text="&#128081;" android:layout_width="32dp" android:layout_height="wrap_content"
+            android:textSize="18sp"/>
+        <TextView android:text="@string/nav_premium" android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1"
+            android:textSize="14sp" android:textColor="#FFD700"/>
+    </LinearLayout>
+
+    <!-- SECURITY SECTION -->
+    <View android:layout_width="match_parent" android:layout_height="1dp"
+        android:background="#1A1A1A" android:layout_marginTop="8dp" android:layout_marginBottom="4dp"/>
+    <TextView android:text="@string/security_app"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:textSize="9sp" android:textColor="#CC0000" android:textStyle="bold"
+        android:letterSpacing="0.2" android:paddingStart="24dp" android:paddingBottom="4dp"/>
+
+    <LinearLayout android:id="@+id/nav_fingerprint"
+        android:layout_width="match_parent" android:layout_height="52dp"
+        android:orientation="horizontal" android:gravity="center_vertical"
+        android:paddingStart="24dp" android:paddingEnd="16dp"
+        android:clickable="true" android:foreground="?attr/selectableItemBackground">
+        <TextView android:text="&#128274;" android:layout_width="32dp" android:layout_height="wrap_content"
+            android:textSize="16sp" android:textColor="#AAAAAA"/>
+        <TextView android:text="@string/fingerprint_unlock" android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1"
+            android:textSize="14sp" android:textColor="#DDDDDD"/>
+        <Switch android:id="@+id/sw_biometric_drawer"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+    </LinearLayout>
+    <LinearLayout android:id="@+id/nav_change_pin"
+        android:layout_width="match_parent" android:layout_height="52dp"
+        android:orientation="horizontal" android:gravity="center_vertical"
+        android:paddingStart="24dp" android:paddingEnd="16dp"
+        android:clickable="true" android:foreground="?attr/selectableItemBackground">
+        <TextView android:text="&#128273;" android:layout_width="32dp" android:layout_height="wrap_content"
+            android:textSize="16sp" android:textColor="#AAAAAA"/>
+        <TextView android:text="@string/change_pin_nav" android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1"
+            android:textSize="14sp" android:textColor="#DDDDDD"/>
+    </LinearLayout>
+
+    <!-- Language selector (stays in SECURITY APP section) -->
+    <LinearLayout android:id="@+id/nav_language"
+        android:layout_width="match_parent" android:layout_height="52dp"
+        android:orientation="horizontal" android:gravity="center_vertical"
+        android:paddingStart="24dp" android:paddingEnd="16dp"
+        android:clickable="true" android:foreground="?attr/selectableItemBackground">
+        <TextView android:text="&#127760;" android:layout_width="32dp"
+            android:layout_height="wrap_content"
+            android:textSize="16sp" android:textColor="#AAAAAA"/>
+        <TextView android:text="@string/language_nav" android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1"
+            android:textSize="14sp" android:textColor="#DDDDDD"/>
+    </LinearLayout>
+
+    <View android:layout_width="match_parent" android:layout_height="1dp"
+        android:background="#1A1A1A" android:layout_marginTop="4dp" android:layout_marginBottom="4dp"/>
+
+    <!-- PERSONAL SAFETY section -->
+    <TextView android:text="PERSONAL SAFETY"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:textSize="9sp" android:textColor="#CC0000" android:textStyle="bold"
+        android:paddingStart="24dp" android:paddingEnd="16dp"
+        android:paddingTop="10dp" android:paddingBottom="6dp"/>
+
+    <!-- Survival Timer toggle row -->
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:gravity="center_vertical"
+        android:paddingStart="24dp" android:paddingEnd="16dp"
+        android:paddingTop="4dp" android:paddingBottom="4dp">
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:orientation="vertical">
+            <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:gravity="center_vertical">
+                <TextView android:text="Survival Timer"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="13sp" android:textColor="#FFFFFF" android:textStyle="bold"/>
+                <TextView android:id="@+id/nav_survival_info"
+                    android:text=" &#8505;&#65039;"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="14sp" android:paddingStart="6dp"
+                    android:clickable="true"
+                    android:foreground="?attr/selectableItemBackgroundBorderless"/>
+            </LinearLayout>
+            <TextView android:id="@+id/tv_survival_status"
+                android:text="Off"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textSize="10sp" android:textColor="#555555"/>
+        </LinearLayout>
+        <Switch android:id="@+id/sw_survival_timer"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+    </LinearLayout>
+
+    <!-- Expandable options (only visible when timer is ON) -->
+    <LinearLayout android:id="@+id/survival_options_panel"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <!-- Set Duration button -->
+        <LinearLayout android:id="@+id/nav_survival_duration"
+            android:layout_width="match_parent" android:layout_height="44dp"
+            android:orientation="horizontal" android:gravity="center_vertical"
+            android:paddingStart="32dp" android:paddingEnd="16dp"
+            android:clickable="true"
+            android:foreground="?attr/selectableItemBackground">
+            <TextView android:text="&#9203; Set Duration"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="12sp" android:textColor="#AAAAAA"/>
+        </LinearLayout>
+
+        <!-- Emergency Recipient button -->
+        <LinearLayout android:id="@+id/nav_survival_recipient"
+            android:layout_width="match_parent" android:layout_height="44dp"
+            android:orientation="horizontal" android:gravity="center_vertical"
+            android:paddingStart="32dp" android:paddingEnd="16dp"
+            android:clickable="true"
+            android:foreground="?attr/selectableItemBackground">
+            <TextView android:text="&#128222; Emergency Recipient"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="12sp" android:textColor="#AAAAAA"/>
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <View android:layout_width="match_parent" android:layout_height="1dp"
+        android:background="#1A1A1A" android:layout_marginTop="4dp" android:layout_marginBottom="4dp"/>
+
+</LinearLayout>
+
+</androidx.drawerlayout.widget.DrawerLayout>

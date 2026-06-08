@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+
+    <!-- Deep shadow/drop shadow behind shield -->
+    <path android:fillColor="#33000000"
+        android:pathData="M54,97C54,97 16,80 16,55V30L54,16L92,30V55C92,80 54,97 54,97Z"
+        android:translateX="2" android:translateY="3"/>
+
+    <!-- Outer dark metallic border (darkest ring) -->
+    <path android:fillColor="#1A1A1A"
+        android:pathData="M54,94C54,94 18,77 18,53V31L54,18L90,31V53C90,77 54,94 54,94Z"/>
+
+    <!-- Dark steel rim -->
+    <path android:fillColor="#2D2D2D"
+        android:pathData="M54,91C54,91 21,75 21,52V33L54,21L87,33V52C87,75 54,91 54,91Z"/>
+
+    <!-- Red metallic rim edge -->
+    <path android:fillColor="#8B0000"
+        android:pathData="M54,89C54,89 23,73 23,51V34L54,22L85,34V51C85,73 54,89 54,89Z"/>
+
+    <!-- Main shield body — deep crimson -->
+    <path android:fillColor="#CC0000"
+        android:pathData="M54,86C54,86 25,71 25,50V36L54,25L83,36V50C83,71 54,86 54,86Z"/>
+
+    <!-- Gradient highlight — top light reflection (bright red) -->
+    <path android:fillColor="#FF2222"
+        android:pathData="M54,25L83,36V44C83,44 68,38 54,38C40,38 25,44 25,44V36Z"/>
+
+    <!-- Subtle center gloss reflection -->
+    <path android:fillColor="#22FFFFFF"
+        android:pathData="M54,26L80,36V42C72,39 63,37 54,37C45,37 36,39 28,42V36Z"/>
+
+    <!-- Inner shield panel — darker red for depth -->
+    <path android:fillColor="#AA0000"
+        android:pathData="M54,82C54,82 29,68 29,49V39L54,29L79,39V49C79,68 54,82 54,82Z"/>
+
+    <!-- Inner highlight reflection line -->
+    <path android:fillColor="#44FF4444"
+        android:pathData="M54,29L79,39V43C71,40 63,38 54,38C45,38 37,40 29,43V39Z"/>
+
+    <!-- Glowing red edge left -->
+    <path android:fillColor="#88FF0000"
+        android:pathData="M25,36L25,51C25,60 29,68 34,74L34,36Z"/>
+
+    <!-- Glowing red edge right -->
+    <path android:fillColor="#55FF0000"
+        android:pathData="M83,36L83,51C83,60 79,68 74,74L74,36Z"/>
+
+    <!-- White checkmark — thick, bold, premium -->
+    <!-- Left arm of checkmark -->
+    <path android:fillColor="#FFFFFF"
+        android:pathData="M37,54L44,62L70,36L76,42L44,74L31,60Z"/>
+
+    <!-- Checkmark shadow for depth -->
+    <path android:fillColor="#33000000"
+        android:pathData="M38,56L44,63L70,38L75,43L44,75L32,62Z"/>
+
+    <!-- Top specular shine on shield -->
+    <path android:fillColor="#1AFFFFFF"
+        android:pathData="M42,26C46,24 50,23 54,23C58,23 62,24 66,26L54,22Z"/>
+
+</vector>

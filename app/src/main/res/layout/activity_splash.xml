@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="#050508">
+
+    <!-- Center content -->
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_gravity="center" android:orientation="vertical"
+        android:gravity="center" android:paddingBottom="80dp">
+
+        <!-- Shield logo container (for laser overlay) -->
+        <FrameLayout android:layout_width="120dp" android:layout_height="120dp"
+            android:layout_gravity="center" android:layout_marginBottom="20dp">
+
+            <ImageView android:id="@+id/splash_logo"
+                android:layout_width="120dp" android:layout_height="120dp"
+                android:src="@drawable/ic_shield_logo"/>
+
+            <!-- Laser scan line -->
+            <View android:id="@+id/laser_line"
+                android:layout_width="match_parent" android:layout_height="2dp"
+                android:background="#FFCC0000"
+                android:alpha="0.9"
+                android:translationY="-60dp"/>
+        </FrameLayout>
+
+        <TextView android:id="@+id/splash_title"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="THIEVES TRAP"
+            android:textSize="28sp" android:textStyle="bold"
+            android:textColor="#FFFFFF" android:letterSpacing="0.25"
+            android:layout_marginBottom="8dp"/>
+
+        <TextView android:id="@+id/splash_subtitle"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="@string/splash_powered"
+            android:textSize="11sp" android:textColor="#CC0000"
+            android:letterSpacing="0.3" android:alpha="0"/>
+
+    </LinearLayout>
+
+    <!-- Fixed footer -->
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:text="@string/copyright_text"
+        android:textSize="9sp" android:textColor="#2A2A2A"
+        android:gravity="center" android:padding="16dp"/>
+
+</FrameLayout>

@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="#050508">
+
+    <ScrollView android:layout_width="match_parent" android:layout_height="match_parent">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:padding="24dp"
+        android:paddingBottom="40dp">
+
+        <!-- Logo + Title -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:gravity="center"
+            android:layout_marginTop="44dp" android:layout_marginBottom="28dp">
+            <ImageView android:layout_width="68dp" android:layout_height="68dp"
+                android:src="@drawable/ic_shield_logo" android:layout_marginBottom="14dp"/>
+            <TextView android:text="THIEVES TRAP"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textSize="22sp" android:textStyle="bold" android:textColor="#FFFFFF"
+                android:letterSpacing="0.2" android:layout_marginBottom="4dp"/>
+            <TextView android:text="@string/consent_title"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textSize="12sp" android:textColor="#CC0000"/>
+        </LinearLayout>
+
+        <!-- Card 1: Direct Transmission -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical"
+            android:background="#0E0E12" android:padding="16dp"
+            android:layout_marginBottom="10dp">
+            <TextView android:text="&#128247;"
+                android:layout_width="36dp" android:layout_height="wrap_content"
+                android:textSize="22sp" android:gravity="center"/>
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:orientation="vertical"
+                android:layout_marginStart="14dp">
+                <TextView android:text="@string/consent_card1_title"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="13sp" android:textStyle="bold" android:textColor="#FFFFFF"
+                    android:layout_marginBottom="4dp"/>
+                <TextView android:text="@string/consent_card1_body"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="11sp" android:textColor="#888888"
+                    android:lineSpacingMultiplier="1.4"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Card 2: Absolute Privacy -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical"
+            android:background="#0E0E12" android:padding="16dp"
+            android:layout_marginBottom="10dp">
+            <TextView android:text="&#128274;"
+                android:layout_width="36dp" android:layout_height="wrap_content"
+                android:textSize="22sp" android:gravity="center"/>
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:orientation="vertical"
+                android:layout_marginStart="14dp">
+                <TextView android:text="@string/consent_card2_title"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="13sp" android:textStyle="bold" android:textColor="#FFFFFF"
+                    android:layout_marginBottom="4dp"/>
+                <TextView android:text="@string/consent_card2_body"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="11sp" android:textColor="#888888"
+                    android:lineSpacingMultiplier="1.4"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Card 3: Security Permissions -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical"
+            android:background="#0E0E12" android:padding="16dp"
+            android:layout_marginBottom="24dp">
+            <TextView android:text="&#128737;"
+                android:layout_width="36dp" android:layout_height="wrap_content"
+                android:textSize="22sp" android:gravity="center"/>
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:orientation="vertical"
+                android:layout_marginStart="14dp">
+                <TextView android:text="@string/consent_card3_title"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="13sp" android:textStyle="bold" android:textColor="#FFFFFF"
+                    android:layout_marginBottom="4dp"/>
+                <TextView android:text="@string/consent_card3_body"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="11sp" android:textColor="#888888"
+                    android:lineSpacingMultiplier="1.4"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Checkbox row -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical"
+            android:layout_marginBottom="24dp" android:padding="4dp">
+            <CheckBox android:id="@+id/cb_consent"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:buttonTint="#CC0000"/>
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:orientation="horizontal">
+                <TextView android:text="@string/consent_checkbox"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="12sp" android:textColor="#CCCCCC"/>
+                <TextView android:id="@+id/tv_privacy_link"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="@string/consent_privacy_link"
+                    android:textSize="12sp" android:textColor="#CC0000"
+                    android:clickable="true"
+                    android:foreground="?attr/selectableItemBackgroundBorderless"/>
+                <TextView android:text="@string/consent_and"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="12sp" android:textColor="#CCCCCC"/>
+                <TextView android:id="@+id/tv_terms_link"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="@string/consent_terms_link"
+                    android:textSize="12sp" android:textColor="#CC0000"
+                    android:clickable="true"
+                    android:foreground="?attr/selectableItemBackgroundBorderless"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- GET STARTED button -->
+        <Button android:id="@+id/btn_get_started"
+            android:layout_width="match_parent" android:layout_height="54dp"
+            android:text="@string/get_started"
+            android:textSize="16sp" android:textStyle="bold"
+            android:backgroundTint="#CC0000" android:textColor="#FFFFFF"
+            android:enabled="false" android:alpha="0.4"
+            android:layout_marginBottom="20dp"/>
+
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/copyright_text"
+            android:textSize="9sp" android:textColor="#1A1A1A"
+            android:gravity="center"/>
+
+    </LinearLayout>
+    </ScrollView>
+    <!-- Globe language button — top right corner -->
+    <TextView android:id="@+id/btn_consent_language"
+        android:layout_width="44dp" android:layout_height="44dp"
+        android:text="&#127760;" android:textSize="22sp"
+        android:gravity="center"
+        android:layout_gravity="top|end"
+        android:layout_margin="8dp"
+        android:clickable="true"
+        android:foreground="?attr/selectableItemBackgroundBorderless"/>
+
+</FrameLayout>

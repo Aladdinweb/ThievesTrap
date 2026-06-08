@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Thieves Trap</string>
+    <string name="admin_description">Thieves Trap needs device admin to protect your phone.</string>
+    <string name="status_disarmed">DISARMED</string>
+    <string name="status_armed">ARMED</string>
+    <string name="status_unprotected">UNPROTECTED</string>
+    <string name="tap_to_arm">Tap ARM to protect this phone</string>
+    <string name="activity_log">ACTIVITY LOG</string>
+    <string name="system_idle">System idle — no activity yet</string>
+    <string name="stat_alerts">Alerts</string>
+    <string name="stat_contact">Contact</string>
+    <string name="stat_admin">Admin</string>
+    <string name="stat_inactive">Inactive</string>
+    <string name="activate_theft">ACTIVATE THEFT MODE</string>
+    <string name="sms_credit_warning">Ensure your SIM has sufficient credit to send SMS alerts</string>
+    <string name="unlock_full">UNLOCK FULL PROTECTION</string>
+    <string name="gallery">Gallery</string>
+    <string name="commands">Commands</string>
+    <string name="nav_settings">Settings</string>
+    <string name="nav_premium">Full Protection</string>
+    <string name="security_app">SECURITY APP</string>
+    <string name="fingerprint_unlock">Fingerprint Unlock</string>
+    <string name="change_pin_nav">Change PIN</string>
+    <string name="language_nav">Language</string>
+    <string name="settings_title">Settings</string>
+    <string name="back_btn">Back</string>
+    <string name="save_btn">Save</string>
+    <string name="telegram_section">TELEGRAM ALERTS</string>
+    <string name="how_to_get_id">How to get your Chat ID:</string>
+    <string name="telegram_steps">1. Tap Open ID Bot below
+2. Press Start in Telegram
+3. Copy the ID number
+4. Paste it in the field below</string>
+    <string name="paste_chat_id">Paste your Chat ID(s) here (comma-separated):</string>
+    <string name="open_id_bot">Open ID Bot (@User_iinfobot)</string>
+    <string name="connect_bot">Connect Bot</string>
+    <string name="share_bot">Share Bot Link</string>
+    <string name="theft_alerts_section">THEFT ALERTS</string>
+    <string name="sms_failed_always">Always active</string>
+    <string name="alert_after_n">Alert after N failed attempts:</string>
+    <string name="grace_section">SMART GRACE PERIOD</string>
+    <string name="grace_wrong_pin">Wrong PIN detected — wait before alerting</string>
+    <string name="grace_5s">5s</string>
+    <string name="grace_60s">60s</string>
+    <string name="device_status_section">DEVICE STATUS ALERTS — Premium</string>
+    <string name="selfie_sub_tg">Photo via Telegram</string>
+    <string name="sim_premium_label">Premium</string>
+    <string name="airplane_mode_label">Airplane mode</string>
+    <string name="silent_mode_label">Silent mode change</string>
+    <string name="remote_section">REMOTE CONTROL — Premium</string>
+    <string name="ping_note">Note: You can only enable and disable auto location ping remotely. Commands: (PING 2), (PING 5), or (STOP PING).</string>
+    <string name="notifications_section">NOTIFICATIONS</string>
+    <string name="notif_status_label">Persistent Status Notification</string>
+    <string name="notif_status_sub">Show protection status in notification bar</string>
+    <string name="change_pin_btn">Change Security PIN</string>
+    <string name="setup_header">THIEVES TRAP</string>
+    <string name="setup_subtitle2">First Setup — Required before arming</string>
+    <string name="identity_section">DEVICE IDENTITY</string>
+    <string name="imei_label2">IMEI (Dial *#06# to find)</string>
+    <string name="phone_label">Your phone number</string>
+    <string name="pin_section">SECURITY PIN</string>
+    <string name="pin_hint_label">This PIN is used to disarm the app</string>
+    <string name="contacts_section">EMERGENCY CONTACTS</string>
+    <string name="contact1_label">Emergency Contact 1 (required)</string>
+    <string name="contact2_label">Emergency Contact 2</string>
+    <string name="finish_setup_btn">FINISH SETUP</string>
+    <string name="remote_title">Remote Control Guide</string>
+    <string name="remote_sub">Send from ANY phone number — no registration needed</string>
+    <string name="back_arrow">Back</string>
+    <string name="how_to_use_title">HOW TO USE</string>
+    <string name="how_to_use_body">These keywords are your remote commands. Send them from any phone to trigger actions on your device.
+
+Open SMS app on any phone. Type command (e.g. WHERE). Send to your stolen phone number. The phone responds automatically.</string>
+    <string name="cmd_location_section">LOCATION COMMANDS</string>
+    <string name="cmd_device_section">DEVICE INFORMATION</string>
+    <string name="cmd_security_section">SECURITY ACTIONS</string>
+    <string name="cmd_tracking_section">TRACKING</string>
+    <string name="cmd_control_section">CONTROL</string>
+    <string name="about_title">About Thieves Trap</string>
+    <string name="about_version_label">Version</string>
+    <string name="about_developer">Developer</string>
+    <string name="about_copyright">Copyright 2026 iLine Tech by Ferak Aladdin</string>
+    <string name="consent_title">Privacy Policy &amp; Legal Consent</string>
+    <string name="consent_card1_title">Direct Transmission</string>
+    <string name="consent_card1_body">Photos and GPS location are sent instantly and exclusively to your private Telegram Bot or SMS contact.</string>
+    <string name="consent_card2_title">Absolute Privacy</string>
+    <string name="consent_card2_body">We do not own, store, or host any of your personal data on external servers.</string>
+    <string name="consent_card3_title">Security Permissions</string>
+    <string name="consent_card3_body">To detect intruders, the app requires Device Administrator, Camera, and Location access.</string>
+    <string name="consent_checkbox">I have read and agree to the </string>
+    <string name="consent_privacy_link">Privacy Policy</string>
+    <string name="consent_and"> and </string>
+    <string name="consent_terms_link">Terms of Use.</string>
+    <string name="get_started">GET STARTED</string>
+    <string name="test_sms">Send Test SMS</string>
+    <string name="reset_stats">Reset Statistics</string>
+    <string name="copyright_text">Copyright 2026 iLine Tech by Ferak Aladdin</string>
+    <string name="arm">ARM</string>
+    <string name="not_set">Not set</string>
+    <string name="section_identity">DEVICE IDENTITY</string>
+    <string name="section_contacts">EMERGENCY CONTACTS</string>
+    <string name="save_contacts">Save Contacts</string>
+    <string name="sms_failed_label">SMS on failed attempts</string>
+    <string name="grace_toggle_label">Enable Smart Grace Period</string>
+    <string name="grace_off_label">Smart Grace Period: OFF</string>
+    <string name="selfie_label">Selfie on failed attempts</string>
+    <string name="sim_change_label">SMS on SIM change</string>
+    <string name="intruder_selfies">📸 Intruder Selfies</string>
+    <string name="delete_all_btn">🗑 Delete All</string>
+    <string name="back_arrow_left">← Back</string>
+    <string name="splash_powered">POWERED BY ILINE TECH</string>
+    <string name="premium_full_title">FULL PROTECTION</string>
+    <string name="premium_brand">Thieves Trap by ILINE TECH</string>
+    <string name="about_app_name">Thieves Trap</string>
+    <string name="copyright_iline">© 2026 ILINE TECH</string>
+    <string name="free_version">FREE VERSION</string>
+    <string name="no_photos_yet">No intruder photos captured yet.</string>
+    <string name="premium_lock">🔒 Premium</string>
+    <string name="rate_app">Rate this app</string>
+    <string name="lifetime_plan">Lifetime — One-time payment, no subscription</string>
+    <string name="price_premium">4.99</string>
+    <string name="device_id_label">Device ID: ...</string>
+    <string name="cmd_copy">COPY</string>
+    <string name="about_credit">BY FERAK ALADDIN</string>
+    <string name="survival_info_title">What is Survival Timer?</string>
+    <string name="survival_info_body">Designed to protect you in high-risk situations:
+• Ride-share drivers (Yassir, Uber, Heetch).
+• Mountain / wilderness trips.
+• Unfamiliar or dangerous locations.
+
+Automatically sends your GPS location if you do not confirm your safety before the timer expires.</string>
+</resources>

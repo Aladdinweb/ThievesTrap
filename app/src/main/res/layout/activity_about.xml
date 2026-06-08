@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="#050508">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Header -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:gravity="center"
+            android:background="#0D0D10" android:paddingTop="36dp" android:paddingBottom="28dp"
+            android:paddingStart="20dp" android:paddingEnd="20dp">
+            <ImageView android:layout_width="72dp" android:layout_height="72dp"
+                android:src="@drawable/ic_shield_logo" android:layout_marginBottom="12dp"/>
+            <TextView android:text="@string/about_app_name"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textSize="22sp" android:textStyle="bold"
+                android:textColor="#FFFFFF" android:layout_marginBottom="4dp"/>
+            <TextView android:id="@+id/tv_about_version"
+                android:text="Version 11.4.3"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textSize="12sp" android:textColor="#888888"
+                android:layout_marginBottom="6dp"/>
+            <TextView android:text="@string/copyright_iline"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textSize="11sp" android:textColor="#666666" android:layout_marginBottom="2dp"/>
+            <TextView android:text="@string/about_credit"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textSize="10sp" android:textColor="#444444"/>
+        </LinearLayout>
+
+        <!-- Divider -->
+        <View android:layout_width="match_parent" android:layout_height="1dp"
+            android:background="#1A1A1A" android:layout_marginTop="8dp"/>
+
+        <!-- OPTIONS LIST -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:padding="16dp">
+
+            <!-- Rate this app -->
+            <LinearLayout android:id="@+id/item_rate"
+                android:layout_width="match_parent" android:layout_height="56dp"
+                android:orientation="horizontal" android:gravity="center_vertical"
+                android:background="#0D0D10" android:paddingStart="16dp" android:paddingEnd="16dp"
+                android:layout_marginBottom="2dp" android:clickable="true"
+                android:foreground="?attr/selectableItemBackground">
+                <TextView android:text="&#11088;"
+                    android:layout_width="32dp" android:layout_height="wrap_content"
+                    android:textSize="20sp" android:layout_marginEnd="14dp"/>
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:orientation="vertical">
+                    <TextView android:text="@string/rate_app"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textColor="#FFFFFF" android:textSize="14sp" android:textStyle="bold"/>
+                    <TextView android:text="Leave a review on the Play Store"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textColor="#666666" android:textSize="11sp"/>
+                </LinearLayout>
+                <TextView android:text="&#8250;"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="20sp" android:textColor="#333333"/>
+            </LinearLayout>
+
+            <!-- Share this app -->
+            <LinearLayout android:id="@+id/item_share"
+                android:layout_width="match_parent" android:layout_height="56dp"
+                android:orientation="horizontal" android:gravity="center_vertical"
+                android:background="#0D0D10" android:paddingStart="16dp" android:paddingEnd="16dp"
+                android:layout_marginBottom="2dp" android:clickable="true"
+                android:foreground="?attr/selectableItemBackground">
+                <TextView android:text="&#128279;"
+                    android:layout_width="32dp" android:layout_height="wrap_content"
+                    android:textSize="20sp" android:layout_marginEnd="14dp"/>
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:orientation="vertical">
+                    <TextView android:text="Share this app"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textColor="#FFFFFF" android:textSize="14sp" android:textStyle="bold"/>
+                    <TextView android:text="Recommend to friends and family"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textColor="#666666" android:textSize="11sp"/>
+                </LinearLayout>
+                <TextView android:text="&#8250;"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="20sp" android:textColor="#333333"/>
+            </LinearLayout>
+
+            <!-- Terms of Use -->
+            <LinearLayout android:id="@+id/item_terms"
+                android:layout_width="match_parent" android:layout_height="56dp"
+                android:orientation="horizontal" android:gravity="center_vertical"
+                android:background="#0D0D10" android:paddingStart="16dp" android:paddingEnd="16dp"
+                android:layout_marginBottom="2dp" android:clickable="true"
+                android:foreground="?attr/selectableItemBackground">
+                <TextView android:text="&#128196;"
+                    android:layout_width="32dp" android:layout_height="wrap_content"
+                    android:textSize="20sp" android:layout_marginEnd="14dp"/>
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:orientation="vertical">
+                    <TextView android:text="Terms of Use"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textColor="#FFFFFF" android:textSize="14sp" android:textStyle="bold"/>
+                    <TextView android:text="Read our terms and conditions"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textColor="#666666" android:textSize="11sp"/>
+                </LinearLayout>
+                <TextView android:text="&#8250;"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="20sp" android:textColor="#333333"/>
+            </LinearLayout>
+
+            <!-- Privacy Policy -->
+            <LinearLayout android:id="@+id/item_privacy"
+                android:layout_width="match_parent" android:layout_height="56dp"
+                android:orientation="horizontal" android:gravity="center_vertical"
+                android:background="#0D0D10" android:paddingStart="16dp" android:paddingEnd="16dp"
+                android:layout_marginBottom="16dp" android:clickable="true"
+                android:foreground="?attr/selectableItemBackground">
+                <TextView android:text="&#128737;"
+                    android:layout_width="32dp" android:layout_height="wrap_content"
+                    android:textSize="20sp" android:layout_marginEnd="14dp"/>
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:orientation="vertical">
+                    <TextView android:text="Privacy Policy"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textColor="#FFFFFF" android:textSize="14sp" android:textStyle="bold"/>
+                    <TextView android:text="How we handle your data"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textColor="#666666" android:textSize="11sp"/>
+                </LinearLayout>
+                <TextView android:text="&#8250;"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="20sp" android:textColor="#333333"/>
+            </LinearLayout>
+
+
+            <!-- Privacy & Mission -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:background="#0D0D10"
+                android:padding="16dp" android:layout_marginTop="8dp" android:layout_marginBottom="2dp">
+
+                <TextView android:text="&#128274; Privacy Commitment"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="11sp" android:textColor="#CC0000" android:textStyle="bold"
+                    android:layout_marginBottom="4dp"/>
+                <TextView android:text="We value your privacy. Photos and location data are sent directly to your private Telegram bot or emergency SMS. We do not store any of your personal media on our servers."
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:textSize="11sp" android:textColor="#888888" android:layout_marginBottom="14dp"/>
+
+                <TextView android:text="&#9889; Modern Efficiency"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="11sp" android:textColor="#4A90D9" android:textStyle="bold"
+                    android:layout_marginBottom="4dp"/>
+                <TextView android:text="We upgraded our system to support Telegram Integration. Receive instant intruder selfies and security alerts faster and more reliably than traditional methods."
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:textSize="11sp" android:textColor="#888888" android:layout_marginBottom="14dp"/>
+
+                <TextView android:text="&#127919; Our Mission"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="11sp" android:textColor="#00FF66" android:textStyle="bold"
+                    android:layout_marginBottom="4dp"/>
+                <TextView android:text="Providing a dual-protection layer through SMS and Telegram to ensure you recover your phone and stay informed of its status in real-time."
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:textSize="11sp" android:textColor="#888888"/>
+            </LinearLayout>
+
+            <Button android:id="@+id/btn_back_about"
+                android:layout_width="match_parent" android:layout_height="48dp"
+                android:text="&#8592; Back"
+                android:backgroundTint="#1A1A1A" android:textColor="#AAAAAA" android:textSize="13sp"/>
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>

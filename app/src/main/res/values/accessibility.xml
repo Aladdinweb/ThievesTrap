@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_service_description">Thieves Trap uses the Accessibility Service to detect simultaneous Volume Up + Volume Down key presses for instant SOS triggering, even when the screen is locked.</string>
+</resources>

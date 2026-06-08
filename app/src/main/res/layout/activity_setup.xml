@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="#050508">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:padding="24dp">
+
+        <!-- Header -->
+        <ImageView android:layout_width="72dp" android:layout_height="72dp"
+            android:src="@drawable/ic_shield_logo" android:layout_gravity="center"
+            android:layout_marginTop="8dp" android:layout_marginBottom="8dp"/>
+        <TextView android:text="@string/setup_header"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textSize="22sp" android:textStyle="bold" android:textColor="#FFFFFF"
+            android:layout_gravity="center" android:letterSpacing="0.15"
+            android:layout_marginBottom="4dp"/>
+        <TextView android:text="@string/setup_subtitle2"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textSize="11sp" android:textColor="#CC0000"
+            android:layout_gravity="center" android:layout_marginBottom="24dp"/>
+
+
+        <!-- ── SECTION 1: DEVICE IDENTITY ── -->
+        <TextView android:text="@string/identity_section"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="9sp" android:textColor="#CC0000" android:textStyle="bold"
+            android:letterSpacing="0.2" android:background="#0D0D10"
+            android:padding="10dp" android:layout_marginBottom="2dp"/>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:background="#0D0D10"
+            android:padding="14dp" android:layout_marginBottom="12dp">
+
+            <!-- IMEI — manual entry, 15 digits -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:gravity="center_vertical"
+                android:layout_marginBottom="4dp">
+                <TextView android:text="@string/imei_label2"
+                    android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textSize="10sp" android:textColor="#AAAAAA"/>
+                <TextView android:id="@+id/tv_imei_hint_setup"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="  &#9432;  "
+                    android:textSize="16sp" android:textColor="#4A90D9"
+                    android:padding="4dp"/>
+            </LinearLayout>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:gravity="center_vertical"
+                android:layout_marginBottom="12dp">
+                <EditText android:id="@+id/et_setup_imei"
+                    android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:hint="15-digit IMEI number"
+                    android:inputType="number"
+                    android:maxLength="15"
+                    android:textColor="#FFFFFF" android:textColorHint="#333333"/>
+                <ImageButton android:id="@+id/btn_paste_imei"
+                    android:layout_width="44dp" android:layout_height="44dp"
+                    android:src="@drawable/ic_paste"
+                    android:background="#1A1A1A"
+                    android:contentDescription="Paste IMEI"
+                    android:layout_marginStart="8dp"/>
+            </LinearLayout>
+
+            <!-- Your own phone number -->
+            <TextView android:text="@string/phone_label"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textSize="10sp" android:textColor="#444444"
+                android:layout_marginBottom="4dp"/>
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:hint="+213 XXX XXX XXX"
+                android:inputType="phone" android:textColor="#FFFFFF"
+                android:textColorHint="#333333" android:layout_marginBottom="0dp"/>
+        </LinearLayout>
+
+        <!-- ── SECTION 2: SECURITY PIN ── -->
+        <TextView android:text="@string/pin_section"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="9sp" android:textColor="#CC0000" android:textStyle="bold"
+            android:letterSpacing="0.2" android:background="#0D0D10"
+            android:padding="10dp" android:layout_marginBottom="2dp"/>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:background="#0D0D10"
+            android:padding="14dp" android:layout_marginBottom="12dp">
+            <TextView android:text="@string/pin_hint_label"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textSize="10sp" android:textColor="#444444"
+                android:layout_marginBottom="4dp"/>
+            <EditText android:id="@+id/et_setup_pin"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:hint="4–6 digit PIN"
+                android:inputType="numberPassword" android:textColor="#FFFFFF"
+                android:textColorHint="#333333"/>
+        </LinearLayout>
+
+        <!-- ── SECTION 3: EMERGENCY CONTACTS ── -->
+        <TextView android:text="@string/contacts_section"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="9sp" android:textColor="#CC0000" android:textStyle="bold"
+            android:letterSpacing="0.2" android:background="#0D0D10"
+            android:padding="10dp" android:layout_marginBottom="2dp"/>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:background="#0D0D10"
+            android:padding="14dp" android:layout_marginBottom="12dp">
+
+            <!-- Contact 1 — FREE, with contacts picker -->
+            <TextView android:text="@string/contact1_label"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textSize="10sp" android:textColor="#AAAAAA"
+                android:layout_marginBottom="4dp"/>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:gravity="center_vertical"
+                android:layout_marginBottom="14dp">
+                <EditText android:id="@+id/et_setup_phone"
+                    android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:hint="+213 XXX XXX XXX"
+                    android:inputType="phone" android:textColor="#FFFFFF"
+                    android:textColorHint="#333333"/>
+                <ImageButton android:id="@+id/btn_pick_contact1"
+                    android:layout_width="44dp" android:layout_height="44dp"
+                    android:src="@drawable/ic_add_contact"
+                    android:background="#1A1A1A"
+                    android:contentDescription="Pick from contacts"
+                    android:layout_marginStart="8dp"/>
+            </LinearLayout>
+
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:gravity="center_vertical"
+                android:layout_marginBottom="4dp">
+                    android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textSize="10sp" android:textColor="#444444"/>
+                <TextView android:text="@string/premium_lock"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="9sp" android:textColor="#CC0000"
+                    android:background="#1A0000" android:padding="4dp"/>
+            </LinearLayout>
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:focusable="false" android:focusableInTouchMode="false"
+                android:textColor="#444444" android:textColorHint="#2A2A2A"
+                android:alpha="0.4"
+                android:layout_marginBottom="14dp"/>
+
+            <!-- Contact 2 — LOCKED (Premium), with contacts picker -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:gravity="center_vertical"
+                android:layout_marginBottom="4dp">
+                <TextView android:text="@string/contact2_label"
+                    android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textSize="10sp" android:textColor="#444444"/>
+                <TextView android:text="@string/premium_lock"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="9sp" android:textColor="#CC0000"
+                    android:background="#1A0000" android:padding="4dp"/>
+            </LinearLayout>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:gravity="center_vertical"
+                android:alpha="0.4">
+                <EditText android:id="@+id/et_setup_phone2"
+                    android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:hint="&#128274; Emergency Contact 2 — Premium Only"
+                    android:inputType="phone"
+                    android:focusable="false" android:focusableInTouchMode="false"
+                    android:textColor="#444444" android:textColorHint="#2A2A2A"/>
+                <ImageButton android:id="@+id/btn_pick_contact2"
+                    android:layout_width="44dp" android:layout_height="44dp"
+                    android:src="@drawable/ic_add_contact"
+                    android:background="#1A1A1A"
+                    android:alpha="0.35"
+                    android:contentDescription="Pick from contacts"
+                    android:layout_marginStart="8dp"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- FINISH SETUP button -->
+        <Button android:id="@+id/btn_setup_done"
+            android:layout_width="match_parent" android:layout_height="56dp"
+            android:text="@string/finish_setup_btn"
+            android:textSize="16sp" android:textStyle="bold"
+            android:backgroundTint="#CC0000" android:textColor="#FFFFFF"
+            android:layout_marginBottom="16dp"/>
+
+        <!-- Copyright -->
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/copyright_text"
+            android:textSize="9sp" android:textColor="#1A1A1A"
+            android:gravity="center"/>
+
+    </LinearLayout>
+</ScrollView>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <external-files-path name="pictures" path="." />
+    <external-path name="external_pictures" path="Pictures/ThievesTrap/" />
+    <external-path name="external_dcim" path="DCIM/ThievesTrap/" />
+</paths>

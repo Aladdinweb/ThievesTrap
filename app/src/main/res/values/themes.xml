@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.ThievesTrap" parent="Theme.MaterialComponents.NoActionBar">
+        <item name="colorPrimary">#CC0000</item>
+        <item name="colorPrimaryVariant">#990000</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="android:windowBackground">#050508</item>
+        <item name="android:statusBarColor">#050508</item>
+        <item name="android:navigationBarColor">#050508</item>
+    </style>
+
+    <!-- Used by SplashActivity -->
+    <style name="Theme.App.NoActionBar" parent="Theme.MaterialComponents.NoActionBar">
+        <item name="colorPrimary">#CC0000</item>
+        <item name="colorPrimaryVariant">#990000</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="android:windowBackground">#050508</item>
+        <item name="android:statusBarColor">#050508</item>
+        <item name="android:navigationBarColor">#050508</item>
+        <item name="android:windowFullscreen">false</item>
+    </style>
+</resources>
