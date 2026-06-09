@@ -4,25 +4,31 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.app.NotificationManager
-import android.widget.EditText
-import android.text.InputType
 
 /**
- * Receives the "I'm Safe" broadcast from the Survival Timer notification.
- * Shows a PIN dialog, then stops the timer if correct.
+ * FIX 6: "I'm Safe" now stops the timer INSTANTLY — no PIN dialog.
+ * Just cancels the notification and stops SurvivalTimerService directly.
  */
 class SafeConfirmReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != SurvivalTimerService.ACTION_IM_SAFE) return
 
-        val prefs = context.getSharedPreferences("tt_prefs", Context.MODE_PRIVATE)
-        val savedPin = prefs.getString("password", "") ?: ""
+        // Cancel the survival timer notification immediately
+        try {
+            val nm = context.getSystemService(NotificationManager::class.java)
+            nm?.cancel(SurvivalTimerService.NOTIF_ID)
+        } catch (e: Exception) {}
 
-        // Build PIN dialog — must run on UI thread via Activity
-        val launchIntent = Intent(context, SafeConfirmActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        context.startActivity(launchIntent)
+        // Stop the service — no PIN required
+        context.stopService(Intent(context, SurvivalTimerService::class.java))
+
+        // Update prefs and broadcast refresh so UI syncs
+        context.getSharedPreferences("tt_prefs", Context.MODE_PRIVATE)
+            .edit().putBoolean("survival_timer_on", false).apply()
+
+        context.sendBroadcast(Intent("com.thievestrap.SETTINGS_REFRESH").apply {
+            setPackage(context.packageName)
+        })
     }
 }

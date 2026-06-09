@@ -137,13 +137,12 @@
         </LinearLayout>
     </ScrollView>
 
-    <!-- BOTTOM BAR: Gallery + SOS -->
+    <!-- BOTTOM BAR -->
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="horizontal" android:gravity="center_vertical"
         android:background="#0A0A0D" android:paddingStart="16dp" android:paddingEnd="16dp"
         android:paddingTop="10dp" android:paddingBottom="10dp">
 
-        <!-- Gallery icon (left) -->
         <LinearLayout android:id="@+id/btn_selfies"
             android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="1" android:orientation="vertical" android:gravity="center"
@@ -157,13 +156,11 @@
                 android:textColor="#666666" android:gravity="center"/>
         </LinearLayout>
 
-        <!-- Copyright center -->
         <TextView android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="2" android:gravity="center"
             android:text="@string/copyright_text" android:textSize="8sp"
             android:textColor="#252525" android:letterSpacing="0.1"/>
 
-        <!-- Remote Guide icon (right) -->
         <LinearLayout android:id="@+id/btn_remote_guide_icon"
             android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="1" android:orientation="vertical" android:gravity="center"
@@ -178,8 +175,6 @@
         </LinearLayout>
 
     </LinearLayout>
-
-
 
 </LinearLayout>
 
@@ -252,6 +247,7 @@
         <Switch android:id="@+id/sw_biometric_drawer"
             android:layout_width="wrap_content" android:layout_height="wrap_content"/>
     </LinearLayout>
+
     <LinearLayout android:id="@+id/nav_change_pin"
         android:layout_width="match_parent" android:layout_height="52dp"
         android:orientation="horizontal" android:gravity="center_vertical"
@@ -264,19 +260,7 @@
             android:textSize="14sp" android:textColor="#DDDDDD"/>
     </LinearLayout>
 
-    <!-- Language selector (stays in SECURITY APP section) -->
-    <LinearLayout android:id="@+id/nav_language"
-        android:layout_width="match_parent" android:layout_height="52dp"
-        android:orientation="horizontal" android:gravity="center_vertical"
-        android:paddingStart="24dp" android:paddingEnd="16dp"
-        android:clickable="true" android:foreground="?attr/selectableItemBackground">
-        <TextView android:text="&#127760;" android:layout_width="32dp"
-            android:layout_height="wrap_content"
-            android:textSize="16sp" android:textColor="#AAAAAA"/>
-        <TextView android:text="@string/language_nav" android:layout_width="0dp"
-            android:layout_height="wrap_content" android:layout_weight="1"
-            android:textSize="14sp" android:textColor="#DDDDDD"/>
-    </LinearLayout>
+    <!-- FIX 7: Language text item REMOVED from here -->
 
     <View android:layout_width="match_parent" android:layout_height="1dp"
         android:background="#1A1A1A" android:layout_marginTop="4dp" android:layout_marginBottom="4dp"/>
@@ -316,13 +300,12 @@
             android:layout_width="wrap_content" android:layout_height="wrap_content"/>
     </LinearLayout>
 
-    <!-- Expandable options (only visible when timer is ON) -->
+    <!-- Expandable options -->
     <LinearLayout android:id="@+id/survival_options_panel"
         android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="vertical"
         android:visibility="gone">
 
-        <!-- Set Duration button -->
         <LinearLayout android:id="@+id/nav_survival_duration"
             android:layout_width="match_parent" android:layout_height="44dp"
             android:orientation="horizontal" android:gravity="center_vertical"
@@ -335,7 +318,6 @@
                 android:textSize="12sp" android:textColor="#AAAAAA"/>
         </LinearLayout>
 
-        <!-- Emergency Recipient button -->
         <LinearLayout android:id="@+id/nav_survival_recipient"
             android:layout_width="match_parent" android:layout_height="44dp"
             android:orientation="horizontal" android:gravity="center_vertical"
@@ -352,6 +334,27 @@
 
     <View android:layout_width="match_parent" android:layout_height="1dp"
         android:background="#1A1A1A" android:layout_marginTop="4dp" android:layout_marginBottom="4dp"/>
+
+    <!-- FIX 7: Spacer pushes language icon to bottom -->
+    <View android:layout_width="match_parent" android:layout_height="0dp"
+        android:layout_weight="1"/>
+
+    <!-- FIX 7: Language icon — small, clean, at very bottom of sidebar -->
+    <LinearLayout android:id="@+id/nav_language"
+        android:layout_width="match_parent" android:layout_height="48dp"
+        android:orientation="horizontal" android:gravity="center_vertical"
+        android:paddingStart="24dp" android:paddingEnd="24dp"
+        android:paddingBottom="4dp"
+        android:clickable="true" android:foreground="?attr/selectableItemBackground">
+        <TextView android:text="&#127760;"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textSize="20sp" android:textColor="#444444"
+            android:layout_marginEnd="10dp"/>
+        <TextView android:text="@string/language_nav"
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="12sp" android:textColor="#444444"/>
+    </LinearLayout>
 
 </LinearLayout>
 
