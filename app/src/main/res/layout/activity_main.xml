@@ -7,7 +7,6 @@
 <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent"
     android:orientation="vertical" android:background="#050508">
 
-    <!-- Scrollable content -->
     <ScrollView android:layout_width="match_parent" android:layout_height="0dp"
         android:layout_weight="1" android:scrollbars="none">
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
@@ -40,7 +39,7 @@
                     android:foreground="?attr/selectableItemBackgroundBorderless"/>
             </LinearLayout>
 
-            <!-- SHIELD CENTER STAGE -->
+            <!-- SHIELD -->
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:orientation="vertical" android:gravity="center"
                 android:background="#0D0D10" android:padding="28dp"
@@ -57,8 +56,7 @@
                     android:text="" android:textSize="11sp" android:textColor="#FF8C00"
                     android:letterSpacing="0.05" android:layout_marginBottom="6dp"/>
                 <TextView android:id="@+id/tv_mode_desc" android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/tap_to_arm"
+                    android:layout_height="wrap_content" android:text="@string/tap_to_arm"
                     android:textSize="12sp" android:textColor="#777777" android:gravity="center"/>
             </LinearLayout>
 
@@ -71,8 +69,7 @@
                     android:textColor="#CC0000" android:textStyle="bold"
                     android:letterSpacing="0.2" android:layout_marginBottom="8dp"/>
                 <TextView android:id="@+id/tv_activity_log" android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/system_idle"
+                    android:layout_height="wrap_content" android:text="@string/system_idle"
                     android:textSize="12sp" android:textColor="#888888"
                     android:layout_marginBottom="10dp"/>
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
@@ -106,6 +103,54 @@
                             android:textColor="#666666"/>
                     </LinearLayout>
                 </LinearLayout>
+            </LinearLayout>
+
+            <!-- ── SMARTWATCH TETHER — v2.7.6 NEW FEATURE ── -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:background="#0D0D10"
+                android:layout_marginBottom="10dp">
+
+                <!-- Section header -->
+                <TextView android:text="SMARTWATCH TETHER"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:textSize="9sp" android:textColor="#CC0000" android:textStyle="bold"
+                    android:letterSpacing="0.2" android:padding="10dp"/>
+
+                <!-- Toggle row -->
+                <LinearLayout android:layout_width="match_parent" android:layout_height="56dp"
+                    android:orientation="horizontal" android:gravity="center_vertical"
+                    android:paddingStart="14dp" android:paddingEnd="14dp">
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:orientation="vertical">
+                        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:orientation="horizontal" android:gravity="center_vertical">
+                            <TextView android:text="&#128368;  Watch Tether"
+                                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:textSize="13sp" android:textColor="#FFFFFF"
+                                android:textStyle="bold"/>
+                            <TextView android:id="@+id/tv_watch_status"
+                                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:text="  OFF" android:textSize="11sp"
+                                android:textColor="#444444" android:layout_marginStart="6dp"/>
+                        </LinearLayout>
+                        <TextView android:text="Loss Alert via Bluetooth disconnect"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:textSize="10sp" android:textColor="#444444"
+                            android:layout_marginTop="2dp"/>
+                    </LinearLayout>
+                    <Switch android:id="@+id/sw_watch_tether"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:thumbTint="#CC0000" android:trackTint="#330000"/>
+                </LinearLayout>
+
+                <!-- Info hint shown when tether is OFF -->
+                <TextView android:id="@+id/tv_watch_hint"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:text="Pair your smartwatch via Bluetooth, then enable tether. If connection drops, phone locks and an emergency SMS fires after 5 minutes."
+                    android:textSize="10sp" android:textColor="#333333"
+                    android:paddingStart="14dp" android:paddingEnd="14dp" android:paddingBottom="10dp"
+                    android:lineSpacingMultiplier="1.3"/>
+
             </LinearLayout>
 
             <!-- THEFT MODE -->
@@ -149,8 +194,7 @@
             android:clickable="true" android:foreground="?attr/selectableItemBackground"
             android:padding="6dp">
             <TextView android:text="📸" android:layout_width="wrap_content"
-                android:layout_height="wrap_content" android:textSize="22sp"
-                android:gravity="center"/>
+                android:layout_height="wrap_content" android:textSize="22sp" android:gravity="center"/>
             <TextView android:text="@string/gallery" android:layout_width="wrap_content"
                 android:layout_height="wrap_content" android:textSize="9sp"
                 android:textColor="#666666" android:gravity="center"/>
@@ -167,8 +211,7 @@
             android:clickable="true" android:foreground="?attr/selectableItemBackground"
             android:padding="6dp">
             <TextView android:text="📡" android:layout_width="wrap_content"
-                android:layout_height="wrap_content" android:textSize="22sp"
-                android:gravity="center"/>
+                android:layout_height="wrap_content" android:textSize="22sp" android:gravity="center"/>
             <TextView android:text="@string/commands" android:layout_width="wrap_content"
                 android:layout_height="wrap_content" android:textSize="9sp"
                 android:textColor="#666666" android:gravity="center"/>
@@ -186,8 +229,7 @@
     android:layout_gravity="end"
     android:orientation="vertical"
     android:background="#0A0A0D"
-    android:paddingTop="48dp"
-    android:paddingStart="0dp">
+    android:paddingTop="48dp">
 
     <TextView android:text="THIEVES TRAP"
         android:layout_width="match_parent" android:layout_height="wrap_content"
@@ -207,8 +249,8 @@
         android:orientation="horizontal" android:gravity="center_vertical"
         android:paddingStart="24dp" android:paddingEnd="16dp"
         android:clickable="true" android:foreground="?attr/selectableItemBackground">
-        <TextView android:text="&#9881;" android:layout_width="32dp" android:layout_height="wrap_content"
-            android:textSize="18sp" android:textColor="#AAAAAA"/>
+        <TextView android:text="&#9881;" android:layout_width="32dp"
+            android:layout_height="wrap_content" android:textSize="18sp" android:textColor="#AAAAAA"/>
         <TextView android:text="@string/nav_settings" android:layout_width="0dp"
             android:layout_height="wrap_content" android:layout_weight="1"
             android:textSize="14sp" android:textColor="#DDDDDD"/>
@@ -219,8 +261,8 @@
         android:orientation="horizontal" android:gravity="center_vertical"
         android:paddingStart="24dp" android:paddingEnd="16dp"
         android:clickable="true" android:foreground="?attr/selectableItemBackground">
-        <TextView android:text="&#128081;" android:layout_width="32dp" android:layout_height="wrap_content"
-            android:textSize="18sp"/>
+        <TextView android:text="&#128081;" android:layout_width="32dp"
+            android:layout_height="wrap_content" android:textSize="18sp"/>
         <TextView android:text="@string/nav_premium" android:layout_width="0dp"
             android:layout_height="wrap_content" android:layout_weight="1"
             android:textSize="14sp" android:textColor="#FFD700"/>
@@ -239,8 +281,8 @@
         android:orientation="horizontal" android:gravity="center_vertical"
         android:paddingStart="24dp" android:paddingEnd="16dp"
         android:clickable="true" android:foreground="?attr/selectableItemBackground">
-        <TextView android:text="&#128274;" android:layout_width="32dp" android:layout_height="wrap_content"
-            android:textSize="16sp" android:textColor="#AAAAAA"/>
+        <TextView android:text="&#128274;" android:layout_width="32dp"
+            android:layout_height="wrap_content" android:textSize="16sp" android:textColor="#AAAAAA"/>
         <TextView android:text="@string/fingerprint_unlock" android:layout_width="0dp"
             android:layout_height="wrap_content" android:layout_weight="1"
             android:textSize="14sp" android:textColor="#DDDDDD"/>
@@ -253,26 +295,26 @@
         android:orientation="horizontal" android:gravity="center_vertical"
         android:paddingStart="24dp" android:paddingEnd="16dp"
         android:clickable="true" android:foreground="?attr/selectableItemBackground">
-        <TextView android:text="&#128273;" android:layout_width="32dp" android:layout_height="wrap_content"
-            android:textSize="16sp" android:textColor="#AAAAAA"/>
+        <TextView android:text="&#128273;" android:layout_width="32dp"
+            android:layout_height="wrap_content" android:textSize="16sp" android:textColor="#AAAAAA"/>
         <TextView android:text="@string/change_pin_nav" android:layout_width="0dp"
             android:layout_height="wrap_content" android:layout_weight="1"
             android:textSize="14sp" android:textColor="#DDDDDD"/>
     </LinearLayout>
 
-    <!-- FIX 7: Language text item REMOVED from here -->
+    <!-- Airplane mode: COMPLETELY REMOVED (v2.7.6 cleanup) -->
 
     <View android:layout_width="match_parent" android:layout_height="1dp"
         android:background="#1A1A1A" android:layout_marginTop="4dp" android:layout_marginBottom="4dp"/>
 
-    <!-- PERSONAL SAFETY section -->
+    <!-- PERSONAL SAFETY -->
     <TextView android:text="PERSONAL SAFETY"
         android:layout_width="match_parent" android:layout_height="wrap_content"
         android:textSize="9sp" android:textColor="#CC0000" android:textStyle="bold"
         android:paddingStart="24dp" android:paddingEnd="16dp"
         android:paddingTop="10dp" android:paddingBottom="6dp"/>
 
-    <!-- Survival Timer toggle row -->
+    <!-- Survival Timer -->
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="horizontal" android:gravity="center_vertical"
         android:paddingStart="24dp" android:paddingEnd="16dp"
@@ -287,12 +329,10 @@
                 <TextView android:id="@+id/nav_survival_info"
                     android:text=" &#8505;&#65039;"
                     android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:textSize="14sp" android:paddingStart="6dp"
-                    android:clickable="true"
+                    android:textSize="14sp" android:paddingStart="6dp" android:clickable="true"
                     android:foreground="?attr/selectableItemBackgroundBorderless"/>
             </LinearLayout>
-            <TextView android:id="@+id/tv_survival_status"
-                android:text="Off"
+            <TextView android:id="@+id/tv_survival_status" android:text="Off"
                 android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:textSize="10sp" android:textColor="#555555"/>
         </LinearLayout>
@@ -300,34 +340,29 @@
             android:layout_width="wrap_content" android:layout_height="wrap_content"/>
     </LinearLayout>
 
-    <!-- Expandable options -->
+    <!-- Survival expandable options -->
     <LinearLayout android:id="@+id/survival_options_panel"
         android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:visibility="gone">
+        android:orientation="vertical" android:visibility="gone">
 
         <LinearLayout android:id="@+id/nav_survival_duration"
             android:layout_width="match_parent" android:layout_height="44dp"
             android:orientation="horizontal" android:gravity="center_vertical"
             android:paddingStart="32dp" android:paddingEnd="16dp"
-            android:clickable="true"
-            android:foreground="?attr/selectableItemBackground">
+            android:clickable="true" android:foreground="?attr/selectableItemBackground">
             <TextView android:text="&#9203; Set Duration"
                 android:layout_width="0dp" android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:textSize="12sp" android:textColor="#AAAAAA"/>
+                android:layout_weight="1" android:textSize="12sp" android:textColor="#AAAAAA"/>
         </LinearLayout>
 
         <LinearLayout android:id="@+id/nav_survival_recipient"
             android:layout_width="match_parent" android:layout_height="44dp"
             android:orientation="horizontal" android:gravity="center_vertical"
             android:paddingStart="32dp" android:paddingEnd="16dp"
-            android:clickable="true"
-            android:foreground="?attr/selectableItemBackground">
+            android:clickable="true" android:foreground="?attr/selectableItemBackground">
             <TextView android:text="&#128222; Emergency Recipient"
                 android:layout_width="0dp" android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:textSize="12sp" android:textColor="#AAAAAA"/>
+                android:layout_weight="1" android:textSize="12sp" android:textColor="#AAAAAA"/>
         </LinearLayout>
 
     </LinearLayout>
@@ -335,24 +370,21 @@
     <View android:layout_width="match_parent" android:layout_height="1dp"
         android:background="#1A1A1A" android:layout_marginTop="4dp" android:layout_marginBottom="4dp"/>
 
-    <!-- FIX 7: Spacer pushes language icon to bottom -->
+    <!-- Spacer pushes language icon to absolute bottom -->
     <View android:layout_width="match_parent" android:layout_height="0dp"
         android:layout_weight="1"/>
 
-    <!-- FIX 7: Language icon — small, clean, at very bottom of sidebar -->
+    <!-- FIX 7: Language icon — clean, at very bottom of sidebar -->
     <LinearLayout android:id="@+id/nav_language"
         android:layout_width="match_parent" android:layout_height="48dp"
         android:orientation="horizontal" android:gravity="center_vertical"
-        android:paddingStart="24dp" android:paddingEnd="24dp"
-        android:paddingBottom="4dp"
+        android:paddingStart="24dp" android:paddingEnd="24dp" android:paddingBottom="4dp"
         android:clickable="true" android:foreground="?attr/selectableItemBackground">
         <TextView android:text="&#127760;"
             android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:textSize="20sp" android:textColor="#444444"
-            android:layout_marginEnd="10dp"/>
+            android:textSize="20sp" android:textColor="#444444" android:layout_marginEnd="10dp"/>
         <TextView android:text="@string/language_nav"
-            android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1"
+            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
             android:textSize="12sp" android:textColor="#444444"/>
     </LinearLayout>
 

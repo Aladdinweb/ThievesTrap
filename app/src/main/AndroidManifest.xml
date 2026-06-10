@@ -1,16 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Location -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
+
+    <!-- SMS -->
     <uses-permission android:name="android.permission.SEND_SMS"/>
     <uses-permission android:name="android.permission.RECEIVE_SMS"/>
     <uses-permission android:name="android.permission.READ_SMS"/>
+
+    <!-- Phone -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
     <uses-permission android:name="android.permission.READ_CONTACTS"/>
     <uses-permission android:name="android.permission.READ_PHONE_NUMBERS"/>
+
+    <!-- Network -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+
+    <!-- System -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
@@ -24,6 +34,14 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+
+    <!-- Bluetooth — v2.7.6 Smartwatch Tether -->
+    <uses-permission android:name="android.permission.BLUETOOTH"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"/>
+
+    <!-- AIRPLANE MODE: completely removed — no permission, no receiver, no intent-filter -->
 
     <application
         android:label="@string/app_name"
@@ -47,21 +65,27 @@
             </intent-filter>
         </activity>
 
-        <activity android:name=".MainActivity" android:exported="false"/>
-        <activity android:name=".SetupActivity" android:exported="false"/>
-        <activity android:name=".SettingsActivity" android:exported="false"/>
-        <activity android:name=".PremiumActivity" android:exported="false"/>
-        <activity android:name=".SelfiesActivity" android:exported="false"/>
+        <activity android:name=".MainActivity"      android:exported="false"/>
+        <activity android:name=".SetupActivity"     android:exported="false"/>
+        <activity android:name=".SettingsActivity"  android:exported="false"/>
+        <activity android:name=".PremiumActivity"   android:exported="false"/>
+        <activity android:name=".SelfiesActivity"   android:exported="false"/>
         <activity android:name=".RemoteGuideActivity" android:exported="false"/>
-        <activity android:name=".AboutActivity" android:exported="false"/>
+        <activity android:name=".AboutActivity"     android:exported="false"/>
 
+        <!-- Core monitoring service -->
         <service android:name=".MonitorService" android:exported="false"
             android:foregroundServiceType="location"/>
-        <service android:name=".AlarmService" android:exported="false"/>
-        <service android:name=".SelfieService" android:exported="false"/>
-        <service android:name=".SurvivalTimerService" android:exported="false"/>
 
-        <!-- FIX 6: SafeConfirmReceiver — I'm Safe stops timer directly, no PIN -->
+        <!-- Alarm, Selfie, Survival -->
+        <service android:name=".AlarmService"          android:exported="false"/>
+        <service android:name=".SelfieService"         android:exported="false"/>
+        <service android:name=".SurvivalTimerService"  android:exported="false"/>
+
+        <!-- v2.7.6: Smartwatch Tether service -->
+        <service android:name=".SmartwatchMonitorService" android:exported="false"/>
+
+        <!-- I'm Safe receiver — no PIN required (Fix 6) -->
         <receiver android:name=".SafeConfirmReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="com.thievestrap.IM_SAFE"/>
@@ -74,6 +98,7 @@
             android:excludeFromRecents="true"
             android:showOnLockScreen="true"/>
 
+        <!-- Boot receiver -->
         <receiver android:name=".BootReceiver" android:exported="true">
             <intent-filter android:priority="999">
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
@@ -81,16 +106,9 @@
             </intent-filter>
         </receiver>
 
-        <!-- FIX 1: SMS receiver declared in Manifest with high priority -->
-        <receiver android:name=".SmsCommandReceiver"
+        <!-- SMS receiver — high priority for remote commands -->
+        <receiver android:name=".DeviceAdminReceiver"
             android:exported="true"
-            android:permission="android.permission.BROADCAST_SMS">
-            <intent-filter android:priority="999">
-                <action android:name="android.provider.Telephony.SMS_RECEIVED"/>
-            </intent-filter>
-        </receiver>
-
-        <receiver android:name=".DeviceAdminReceiver" android:exported="true"
             android:permission="android.permission.BIND_DEVICE_ADMIN">
             <meta-data android:name="android.app.device_admin"
                 android:resource="@xml/device_admin"/>
@@ -110,5 +128,6 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"/>
         </provider>
+
     </application>
 </manifest>
