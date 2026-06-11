@@ -1,26 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Location -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
-
-    <!-- SMS -->
     <uses-permission android:name="android.permission.SEND_SMS"/>
     <uses-permission android:name="android.permission.RECEIVE_SMS"/>
     <uses-permission android:name="android.permission.READ_SMS"/>
-
-    <!-- Phone -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
     <uses-permission android:name="android.permission.READ_CONTACTS"/>
     <uses-permission android:name="android.permission.READ_PHONE_NUMBERS"/>
-
-    <!-- Network -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-
-    <!-- System -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
@@ -35,13 +26,13 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
 
-    <!-- Bluetooth — v2.7.6 Smartwatch Tether -->
+    <!-- v2.7.6: Smartwatch Tether — Bluetooth permissions -->
     <uses-permission android:name="android.permission.BLUETOOTH"/>
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN"/>
 
-    <!-- AIRPLANE MODE: completely removed — no permission, no receiver, no intent-filter -->
+    <!-- AIRPLANE MODE: 100% removed — no permission, no receiver, no intent-filter -->
 
     <application
         android:label="@string/app_name"
@@ -50,13 +41,11 @@
         android:theme="@style/Theme.ThievesTrap"
         android:allowBackup="false">
 
-        <activity android:name=".ConsentActivity" android:exported="false"/>
-        <activity android:name=".FakeShutdownActivity"
-            android:exported="false"
+        <activity android:name=".ConsentActivity"       android:exported="false"/>
+        <activity android:name=".FakeShutdownActivity"  android:exported="false"
             android:excludeFromRecents="true"
             android:theme="@android:style/Theme.NoTitleBar.Fullscreen"/>
-
-        <activity android:name=".SplashActivity" android:exported="true"
+        <activity android:name=".SplashActivity"        android:exported="true"
             android:theme="@style/Theme.ThievesTrap"
             android:screenOrientation="portrait">
             <intent-filter>
@@ -64,29 +53,26 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <activity android:name=".MainActivity"          android:exported="false"/>
+        <activity android:name=".SetupActivity"         android:exported="false"/>
+        <activity android:name=".SettingsActivity"      android:exported="false"/>
+        <activity android:name=".PremiumActivity"       android:exported="false"/>
+        <activity android:name=".SelfiesActivity"       android:exported="false"/>
+        <activity android:name=".RemoteGuideActivity"   android:exported="false"/>
+        <activity android:name=".AboutActivity"         android:exported="false"/>
 
-        <activity android:name=".MainActivity"      android:exported="false"/>
-        <activity android:name=".SetupActivity"     android:exported="false"/>
-        <activity android:name=".SettingsActivity"  android:exported="false"/>
-        <activity android:name=".PremiumActivity"   android:exported="false"/>
-        <activity android:name=".SelfiesActivity"   android:exported="false"/>
-        <activity android:name=".RemoteGuideActivity" android:exported="false"/>
-        <activity android:name=".AboutActivity"     android:exported="false"/>
-
-        <!-- Core monitoring service -->
-        <service android:name=".MonitorService" android:exported="false"
+        <!-- Core services -->
+        <service android:name=".MonitorService"         android:exported="false"
             android:foregroundServiceType="location"/>
-
-        <!-- Alarm, Selfie, Survival -->
-        <service android:name=".AlarmService"          android:exported="false"/>
-        <service android:name=".SelfieService"         android:exported="false"/>
-        <service android:name=".SurvivalTimerService"  android:exported="false"/>
+        <service android:name=".AlarmService"           android:exported="false"/>
+        <service android:name=".SelfieService"          android:exported="false"/>
+        <service android:name=".SurvivalTimerService"   android:exported="false"/>
 
         <!-- v2.7.6: Smartwatch Tether service -->
         <service android:name=".SmartwatchMonitorService" android:exported="false"/>
 
-        <!-- I'm Safe receiver — no PIN required (Fix 6) -->
-        <receiver android:name=".SafeConfirmReceiver" android:exported="false">
+        <!-- I'm Safe — no PIN (Fix 6) -->
+        <receiver android:name=".SafeConfirmReceiver"   android:exported="false">
             <intent-filter>
                 <action android:name="com.thievestrap.IM_SAFE"/>
             </intent-filter>
@@ -98,17 +84,15 @@
             android:excludeFromRecents="true"
             android:showOnLockScreen="true"/>
 
-        <!-- Boot receiver -->
-        <receiver android:name=".BootReceiver" android:exported="true">
+        <receiver android:name=".BootReceiver"          android:exported="true">
             <intent-filter android:priority="999">
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
                 <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
             </intent-filter>
         </receiver>
 
-        <!-- SMS receiver — high priority for remote commands -->
-        <receiver android:name=".DeviceAdminReceiver"
-            android:exported="true"
+        <!-- DeviceAdmin — intruder selfie after failed unlock attempts -->
+        <receiver android:name=".DeviceAdminReceiver"   android:exported="true"
             android:permission="android.permission.BIND_DEVICE_ADMIN">
             <meta-data android:name="android.app.device_admin"
                 android:resource="@xml/device_admin"/>

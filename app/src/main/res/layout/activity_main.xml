@@ -105,54 +105,6 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- ── SMARTWATCH TETHER — v2.7.6 NEW FEATURE ── -->
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:orientation="vertical" android:background="#0D0D10"
-                android:layout_marginBottom="10dp">
-
-                <!-- Section header -->
-                <TextView android:text="SMARTWATCH TETHER"
-                    android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:textSize="9sp" android:textColor="#CC0000" android:textStyle="bold"
-                    android:letterSpacing="0.2" android:padding="10dp"/>
-
-                <!-- Toggle row -->
-                <LinearLayout android:layout_width="match_parent" android:layout_height="56dp"
-                    android:orientation="horizontal" android:gravity="center_vertical"
-                    android:paddingStart="14dp" android:paddingEnd="14dp">
-                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
-                        android:layout_weight="1" android:orientation="vertical">
-                        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:orientation="horizontal" android:gravity="center_vertical">
-                            <TextView android:text="&#128368;  Watch Tether"
-                                android:layout_width="wrap_content" android:layout_height="wrap_content"
-                                android:textSize="13sp" android:textColor="#FFFFFF"
-                                android:textStyle="bold"/>
-                            <TextView android:id="@+id/tv_watch_status"
-                                android:layout_width="wrap_content" android:layout_height="wrap_content"
-                                android:text="  OFF" android:textSize="11sp"
-                                android:textColor="#444444" android:layout_marginStart="6dp"/>
-                        </LinearLayout>
-                        <TextView android:text="Loss Alert via Bluetooth disconnect"
-                            android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:textSize="10sp" android:textColor="#444444"
-                            android:layout_marginTop="2dp"/>
-                    </LinearLayout>
-                    <Switch android:id="@+id/sw_watch_tether"
-                        android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:thumbTint="#CC0000" android:trackTint="#330000"/>
-                </LinearLayout>
-
-                <!-- Info hint shown when tether is OFF -->
-                <TextView android:id="@+id/tv_watch_hint"
-                    android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:text="Pair your smartwatch via Bluetooth, then enable tether. If connection drops, phone locks and an emergency SMS fires after 5 minutes."
-                    android:textSize="10sp" android:textColor="#333333"
-                    android:paddingStart="14dp" android:paddingEnd="14dp" android:paddingBottom="10dp"
-                    android:lineSpacingMultiplier="1.3"/>
-
-            </LinearLayout>
-
             <!-- THEFT MODE -->
             <Button android:id="@+id/btn_theft_mode" android:layout_width="match_parent"
                 android:layout_height="46dp" android:text="@string/activate_theft"
@@ -221,7 +173,9 @@
 
 </LinearLayout>
 
-<!-- RIGHT NAVIGATION DRAWER -->
+<!-- ═══════════════════════════════════════════════════════════
+     RIGHT NAVIGATION DRAWER
+     ═══════════════════════════════════════════════════════════ -->
 <LinearLayout
     android:id="@+id/nav_drawer"
     android:layout_width="280dp"
@@ -302,19 +256,17 @@
             android:textSize="14sp" android:textColor="#DDDDDD"/>
     </LinearLayout>
 
-    <!-- Airplane mode: COMPLETELY REMOVED (v2.7.6 cleanup) -->
-
     <View android:layout_width="match_parent" android:layout_height="1dp"
         android:background="#1A1A1A" android:layout_marginTop="4dp" android:layout_marginBottom="4dp"/>
 
-    <!-- PERSONAL SAFETY -->
+    <!-- PERSONAL SAFETY SECTION -->
     <TextView android:text="PERSONAL SAFETY"
         android:layout_width="match_parent" android:layout_height="wrap_content"
         android:textSize="9sp" android:textColor="#CC0000" android:textStyle="bold"
         android:paddingStart="24dp" android:paddingEnd="16dp"
         android:paddingTop="10dp" android:paddingBottom="6dp"/>
 
-    <!-- Survival Timer -->
+    <!-- ── Survival Timer ── -->
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="horizontal" android:gravity="center_vertical"
         android:paddingStart="24dp" android:paddingEnd="16dp"
@@ -326,8 +278,7 @@
                 <TextView android:text="Survival Timer"
                     android:layout_width="wrap_content" android:layout_height="wrap_content"
                     android:textSize="13sp" android:textColor="#FFFFFF" android:textStyle="bold"/>
-                <TextView android:id="@+id/nav_survival_info"
-                    android:text=" &#8505;&#65039;"
+                <TextView android:id="@+id/nav_survival_info" android:text=" &#8505;&#65039;"
                     android:layout_width="wrap_content" android:layout_height="wrap_content"
                     android:textSize="14sp" android:paddingStart="6dp" android:clickable="true"
                     android:foreground="?attr/selectableItemBackgroundBorderless"/>
@@ -367,14 +318,56 @@
 
     </LinearLayout>
 
+    <!-- ══════════════════════════════════════════════════════
+         v2.7.6 NEW: SMARTWATCH TETHER — directly below Survival Timer
+         ══════════════════════════════════════════════════════ -->
+    <View android:layout_width="match_parent" android:layout_height="1dp"
+        android:background="#1A1A1A" android:layout_marginTop="6dp" android:layout_marginBottom="6dp"/>
+
+    <!-- Tether toggle row -->
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:gravity="center_vertical"
+        android:paddingStart="24dp" android:paddingEnd="16dp"
+        android:paddingTop="6dp" android:paddingBottom="2dp">
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:orientation="vertical">
+            <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:gravity="center_vertical">
+                <TextView android:text="&#128368;"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="14sp" android:layout_marginEnd="6dp"/>
+                <TextView android:text="Watch Tether"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="13sp" android:textColor="#FFFFFF" android:textStyle="bold"/>
+            </LinearLayout>
+            <TextView android:id="@+id/tv_watch_tether_status"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="Off — Bluetooth monitoring inactive"
+                android:textSize="10sp" android:textColor="#444444" android:layout_marginTop="2dp"/>
+        </LinearLayout>
+        <Switch android:id="@+id/sw_watch_tether"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:thumbTint="#CC0000" android:trackTint="#330000"/>
+    </LinearLayout>
+
+    <!-- Tether sub-hint (tap row for info) -->
+    <TextView android:id="@+id/tv_watch_tether_hint"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="Pair watch via Bluetooth. If disconnected: phone locks + 5-min SMS countdown."
+        android:textSize="9sp" android:textColor="#333333"
+        android:paddingStart="24dp" android:paddingEnd="16dp"
+        android:paddingBottom="8dp" android:lineSpacingMultiplier="1.3"/>
+
+    <!-- ══════════════════════════════════════════════════════ -->
+
     <View android:layout_width="match_parent" android:layout_height="1dp"
         android:background="#1A1A1A" android:layout_marginTop="4dp" android:layout_marginBottom="4dp"/>
 
-    <!-- Spacer pushes language icon to absolute bottom -->
+    <!-- Spacer — pushes language icon to very bottom -->
     <View android:layout_width="match_parent" android:layout_height="0dp"
         android:layout_weight="1"/>
 
-    <!-- FIX 7: Language icon — clean, at very bottom of sidebar -->
+    <!-- Language icon at bottom of sidebar -->
     <LinearLayout android:id="@+id/nav_language"
         android:layout_width="match_parent" android:layout_height="48dp"
         android:orientation="horizontal" android:gravity="center_vertical"

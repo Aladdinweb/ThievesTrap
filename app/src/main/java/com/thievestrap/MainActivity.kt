@@ -2,7 +2,6 @@ package com.thievestrap
 
 import android.Manifest
 import android.app.admin.DevicePolicyManager
-import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.*
 import android.content.pm.PackageManager
@@ -39,6 +38,8 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.StartActivityForResult()
     ) { startMonitoring() }
 
+    // ── Lifecycle ──────────────────────────────────────────────
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         LocaleHelper.applyLocale(this)
@@ -58,15 +59,14 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+
         // Sync survival timer switch
         try {
             val sw = findViewById<Switch>(R.id.sw_survival_timer)
             val on = prefs.getBoolean("survival_timer_on", false)
             sw?.isChecked = on
-            try {
-                findViewById<android.view.View>(R.id.survival_options_panel)
-                    ?.visibility = if (on) android.view.View.VISIBLE else android.view.View.GONE
-            } catch (e: Exception) {}
+            findViewById<android.view.View>(R.id.survival_options_panel)
+                ?.visibility = if (on) android.view.View.VISIBLE else android.view.View.GONE
         } catch (e: Exception) {}
 
         // Sync watch tether switch
@@ -74,10 +74,10 @@ class MainActivity : AppCompatActivity() {
             val swWatch = findViewById<Switch>(R.id.sw_watch_tether)
             val watchOn = prefs.getBoolean("watch_tether_on", false)
             swWatch?.isChecked = watchOn
-            updateWatchTetherHint(watchOn)
+            updateWatchTetherStatus(watchOn)
         } catch (e: Exception) {}
 
-        // Listen for SETTINGS_REFRESH
+        // SETTINGS_REFRESH listener
         settingsRefreshReceiver = object : BroadcastReceiver() {
             override fun onReceive(ctx: Context, i: Intent) {
                 val survivalOn = prefs.getBoolean("survival_timer_on", false)
@@ -110,10 +110,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun s(key: String) = Strings.get(this, key)
 
-    // ── Setup all button listeners ─────────────────────────────
+    // ── Setup all buttons ──────────────────────────────────────
 
     private fun setupButtons() {
-        // About icon
+
+        // About
         try {
             findViewById<android.widget.ImageView>(R.id.btn_about).setOnClickListener {
                 startActivity(Intent(this, AboutActivity::class.java))
@@ -121,7 +122,7 @@ class MainActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {}
 
-        // Menu icon
+        // Menu opens drawer
         try {
             findViewById<TextView>(R.id.btn_menu).setOnClickListener {
                 hapticFeedback(20)
@@ -129,7 +130,7 @@ class MainActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {}
 
-        // Nav drawer items
+        // ── Nav drawer ────────────────────────────────────────
         try {
             fun close() = drawerLayout.closeDrawer(android.view.Gravity.END)
 
@@ -147,7 +148,17 @@ class MainActivity : AppCompatActivity() {
                     .setOnClickListener { close(); showLanguageDialog() }
             } catch (e: Exception) {}
 
-            // Survival Timer
+            // Biometric toggle
+            val swBioDrawer = findViewById<Switch>(R.id.sw_biometric_drawer)
+            swBioDrawer.isChecked = prefs.getBoolean("biometric_unlock", false)
+            swBioDrawer.setOnCheckedChangeListener { _, checked ->
+                prefs.edit().putBoolean("biometric_unlock", checked).apply()
+            }
+            findViewById<android.view.View>(R.id.nav_fingerprint).setOnClickListener {
+                swBioDrawer.isChecked = !swBioDrawer.isChecked
+            }
+
+            // ── Survival Timer ────────────────────────────────
             val tvSurvivalStatus = try {
                 findViewById<TextView>(R.id.tv_survival_status)
             } catch (e: Exception) { null }
@@ -193,72 +204,61 @@ class MainActivity : AppCompatActivity() {
                     .setOnClickListener { close(); showRecipientDialog() }
             } catch (e: Exception) {}
 
-            // Biometric toggle
-            val swBioDrawer = findViewById<Switch>(R.id.sw_biometric_drawer)
-            swBioDrawer.isChecked = prefs.getBoolean("biometric_unlock", false)
-            swBioDrawer.setOnCheckedChangeListener { _, checked ->
-                prefs.edit().putBoolean("biometric_unlock", checked).apply()
-            }
-            findViewById<android.view.View>(R.id.nav_fingerprint).setOnClickListener {
-                swBioDrawer.isChecked = !swBioDrawer.isChecked
-            }
-        } catch (e: Exception) {}
+            // ── WATCH TETHER SWITCH — v2.7.6 (in sidebar, below Survival Timer) ──
+            try {
+                val swWatch = findViewById<Switch>(R.id.sw_watch_tether)
+                val watchOn = prefs.getBoolean("watch_tether_on", false)
+                swWatch.isChecked = watchOn
+                updateWatchTetherStatus(watchOn)
 
-        // ── WATCH TETHER SWITCH — v2.7.6 ──────────────────────
-        try {
-            val swWatch = findViewById<Switch>(R.id.sw_watch_tether)
-            val watchOn = prefs.getBoolean("watch_tether_on", false)
-            swWatch.isChecked = watchOn
-            updateWatchTetherHint(watchOn)
-
-            swWatch.setOnCheckedChangeListener { _, checked ->
-                if (checked) {
-                    // Check Bluetooth is available and enabled
-                    val btAdapter = (getSystemService(BLUETOOTH_SERVICE) as? BluetoothManager)
-                        ?.adapter
-                    if (btAdapter == null || !btAdapter.isEnabled) {
+                swWatch.setOnCheckedChangeListener { _, checked ->
+                    if (checked) {
+                        // Verify Bluetooth is on and a device is paired
+                        val btAdapter = (getSystemService(BLUETOOTH_SERVICE) as? BluetoothManager)
+                            ?.adapter
+                        if (btAdapter == null || !btAdapter.isEnabled) {
+                            Toast.makeText(this,
+                                "Enable Bluetooth and pair your smartwatch first.",
+                                Toast.LENGTH_LONG).show()
+                            swWatch.isChecked = false
+                            return@setOnCheckedChangeListener
+                        }
+                        val hasBonded = try {
+                            btAdapter.bondedDevices?.isNotEmpty() == true
+                        } catch (e: Exception) { false }
+                        if (!hasBonded) {
+                            Toast.makeText(this,
+                                "No paired Bluetooth device found. Pair your watch first.",
+                                Toast.LENGTH_LONG).show()
+                            swWatch.isChecked = false
+                            return@setOnCheckedChangeListener
+                        }
+                        prefs.edit().putBoolean("watch_tether_on", true).apply()
+                        SmartwatchMonitorService.start(this)
+                        updateWatchTetherStatus(true)
+                        hapticFeedback(40)
                         Toast.makeText(this,
-                            "Enable Bluetooth and pair your smartwatch first.",
-                            Toast.LENGTH_LONG).show()
-                        swWatch.isChecked = false
-                        return@setOnCheckedChangeListener
+                            "Watch Tether ON — monitoring Bluetooth",
+                            Toast.LENGTH_SHORT).show()
+                    } else {
+                        prefs.edit().putBoolean("watch_tether_on", false).apply()
+                        SmartwatchMonitorService.stop(this)
+                        updateWatchTetherStatus(false)
+                        hapticFeedback(20)
                     }
-                    // Check at least one device is bonded (paired)
-                    val bonded = try {
-                        btAdapter.bondedDevices?.isNotEmpty() == true
-                    } catch (e: Exception) { false }
-                    if (!bonded) {
-                        Toast.makeText(this,
-                            "No paired Bluetooth device found. Pair your smartwatch first.",
-                            Toast.LENGTH_LONG).show()
-                        swWatch.isChecked = false
-                        return@setOnCheckedChangeListener
-                    }
-                    // Start tether service
-                    prefs.edit().putBoolean("watch_tether_on", true).apply()
-                    SmartwatchMonitorService.start(this)
-                    updateWatchTetherHint(true)
-                    hapticFeedback(40)
-                    Toast.makeText(this,
-                        "Watch Tether ON — monitoring Bluetooth connection",
-                        Toast.LENGTH_SHORT).show()
-                } else {
-                    prefs.edit().putBoolean("watch_tether_on", false).apply()
-                    SmartwatchMonitorService.stop(this)
-                    updateWatchTetherHint(false)
-                    hapticFeedback(20)
                 }
-            }
+            } catch (e: Exception) {}
+
         } catch (e: Exception) {}
 
-        // ARM / DISARM
+        // ── ARM / DISARM ───────────────────────────────────────
         findViewById<Button>(R.id.btn_arm).setOnClickListener {
             hapticFeedback()
             if (prefs.getBoolean("running", false)) showDisarmDialog()
             else checkPermissionsAndStart()
         }
 
-        // Theft mode
+        // ── Theft mode ─────────────────────────────────────────
         try {
             findViewById<Button>(R.id.btn_theft_mode).setOnClickListener {
                 hapticFeedback()
@@ -278,7 +278,7 @@ class MainActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {}
 
-        // Gallery
+        // ── Gallery ────────────────────────────────────────────
         try {
             findViewById<android.view.View>(R.id.btn_selfies).setOnClickListener {
                 hapticFeedback()
@@ -286,7 +286,7 @@ class MainActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {}
 
-        // Remote guide
+        // ── Remote guide ───────────────────────────────────────
         try {
             findViewById<android.view.View>(R.id.btn_remote_guide_icon).setOnClickListener {
                 hapticFeedback()
@@ -294,7 +294,7 @@ class MainActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {}
 
-        // Premium
+        // ── Premium button ─────────────────────────────────────
         try {
             findViewById<Button>(R.id.btn_premium).setOnClickListener {
                 startActivity(Intent(this, PremiumActivity::class.java))
@@ -302,45 +302,27 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {}
     }
 
-    // ── Watch tether hint text ─────────────────────────────────
+    // ── Watch tether status text ───────────────────────────────
 
-    private fun updateWatchTetherHint(on: Boolean) {
+    private fun updateWatchTetherStatus(on: Boolean) {
         try {
-            val tvStatus = findViewById<TextView>(R.id.tv_watch_status)
-            val tvHint   = findViewById<TextView>(R.id.tv_watch_hint)
+            val tvStatus = findViewById<TextView>(R.id.tv_watch_tether_status)
+            val tvHint   = findViewById<TextView>(R.id.tv_watch_tether_hint)
             if (on) {
-                tvStatus?.text = "  ON"
+                tvStatus?.text = "ON \u2014 Bluetooth connection monitored"
                 tvStatus?.setTextColor(0xFF00CC44.toInt())
-                tvHint?.text = "Monitoring active. If watch disconnects: phone locks, alarm available, emergency SMS fires in 5 min."
-                tvHint?.setTextColor(0xFF226622.toInt())
+                tvHint?.text = "Active: phone locks + alarm + 5-min SMS on disconnect."
+                tvHint?.setTextColor(0xFF1A4D1A.toInt())
             } else {
-                tvStatus?.text = "  OFF"
+                tvStatus?.text = "Off \u2014 Bluetooth monitoring inactive"
                 tvStatus?.setTextColor(0xFF444444.toInt())
-                tvHint?.text = "Pair your smartwatch via Bluetooth, then enable tether. If connection drops, phone locks and an emergency SMS fires after 5 minutes."
+                tvHint?.text = "Pair watch via Bluetooth. If disconnected: phone locks + 5-min SMS countdown."
                 tvHint?.setTextColor(0xFF333333.toInt())
             }
         } catch (e: Exception) {}
     }
 
-    // ── SOS ───────────────────────────────────────────────────
-
-    private fun triggerSOS() {
-        val target = prefs.getString("sos_number", "").orEmpty()
-            .ifBlank { prefs.getString("phone", "").orEmpty() }
-        if (target.isBlank()) {
-            Toast.makeText(this, "Set an SOS number in Settings first!", Toast.LENGTH_LONG).show()
-            return
-        }
-        hapticFeedback(200)
-        startService(Intent(this, MonitorService::class.java).apply {
-            action = "TAMPER"
-            putExtra("reason", "SOS EMERGENCY ALERT - I need urgent help!")
-            putExtra("sos_target", target)
-        })
-        Toast.makeText(this, "SOS sent to $target", Toast.LENGTH_SHORT).show()
-    }
-
-    // ── Dialogs ───────────────────────────────────────────────
+    // ── Upgrade dialog ─────────────────────────────────────────
 
     private fun showUpgradeDialog(feature: String) {
         AlertDialog.Builder(this)
@@ -351,6 +333,8 @@ class MainActivity : AppCompatActivity() {
             }
             .setNegativeButton("Not now", null).show()
     }
+
+    // ── Disarm flow ────────────────────────────────────────────
 
     private fun showDisarmDialog() {
         if (prefs.getBoolean("biometric_unlock", false)) {
@@ -366,9 +350,8 @@ class MainActivity : AppCompatActivity() {
     private fun showBiometricPrompt() {
         BiometricPrompt(this, ContextCompat.getMainExecutor(this),
             object : BiometricPrompt.AuthenticationCallback() {
-                override fun onAuthenticationSucceeded(r: BiometricPrompt.AuthenticationResult) {
-                    stopMonitoring()
-                }
+                override fun onAuthenticationSucceeded(
+                    r: BiometricPrompt.AuthenticationResult) { stopMonitoring() }
                 override fun onAuthenticationError(code: Int, msg: CharSequence) {
                     showPinDialog()
                 }
@@ -398,6 +381,8 @@ class MainActivity : AppCompatActivity() {
             }.setNegativeButton(s("cancel"), null).show()
     }
 
+    // ── PIN change dialog ──────────────────────────────────────
+
     private fun showPinChangeDialog() {
         val oldInput = EditText(this).apply {
             hint = "Current PIN"
@@ -405,7 +390,7 @@ class MainActivity : AppCompatActivity() {
                     android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD
         }
         val newInput = EditText(this).apply {
-            hint = "New PIN (4-6 digits)"
+            hint = "New PIN (4+ digits)"
             inputType = android.text.InputType.TYPE_CLASS_NUMBER or
                     android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD
         }
@@ -429,6 +414,8 @@ class MainActivity : AppCompatActivity() {
             }.setNegativeButton("Cancel", null).show()
     }
 
+    // ── Language dialog ────────────────────────────────────────
+
     private fun showLanguageDialog() {
         val gb = "\uD83C\uDDEC\uD83C\uDDE7"
         val fr = "\uD83C\uDDEB\uD83C\uDDF7"
@@ -446,14 +433,13 @@ class MainActivity : AppCompatActivity() {
                 val i = packageManager.getLaunchIntentForPackage(packageName)
                     ?: Intent(this, MainActivity::class.java)
                 i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                        Intent.FLAG_ACTIVITY_NEW_TASK or
-                        Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                        Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                 startActivity(i); finish()
             }
             .setNegativeButton("Cancel", null).show()
     }
 
-    // ── Permissions & Monitoring ──────────────────────────────
+    // ── Permissions & monitoring ───────────────────────────────
 
     private fun checkPermissionsAndStart() {
         val needed = mutableListOf(
@@ -461,7 +447,9 @@ class MainActivity : AppCompatActivity() {
             Manifest.permission.ACCESS_COARSE_LOCATION,
             Manifest.permission.SEND_SMS, Manifest.permission.RECEIVE_SMS,
             Manifest.permission.READ_PHONE_STATE, Manifest.permission.CAMERA
-        ).apply { if (Build.VERSION.SDK_INT >= 33) add(Manifest.permission.POST_NOTIFICATIONS) }
+        ).apply {
+            if (Build.VERSION.SDK_INT >= 33) add(Manifest.permission.POST_NOTIFICATIONS)
+        }
         val missing = needed.filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
@@ -512,15 +500,15 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {}
     }
 
-    // ── Status UI ─────────────────────────────────────────────
+    // ── Status UI update ───────────────────────────────────────
 
     private fun updateStatus() {
-        val running   = prefs.getBoolean("running", false)
-        val theft     = prefs.getBoolean("theft_mode", false)
-        val isPremium = LicenseManager.isPremium(this)
+        val running     = prefs.getBoolean("running", false)
+        val theft       = prefs.getBoolean("theft_mode", false)
+        val isPremium   = LicenseManager.isPremium(this)
         val adminActive = dpm.isAdminActive(adminComponent)
-        val armTime   = prefs.getLong("arm_time", 0)
-        val lastAlert = prefs.getString("last_alert", null)
+        val armTime     = prefs.getLong("arm_time", 0)
+        val lastAlert   = prefs.getString("last_alert", null)
 
         try {
             val shieldView = findViewById<android.widget.ImageView>(R.id.iv_shield_main)
@@ -556,39 +544,34 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {}
 
         try {
-            val desc = when {
+            findViewById<TextView>(R.id.tv_mode_desc).text = when {
                 running && theft -> "Full Theft Mode — All alerts active"
                 running          -> "Your Phone is Currently Protected"
                 else             -> "Tap to Activate Protection"
             }
-            findViewById<TextView>(R.id.tv_mode_desc).text = desc
         } catch (e: Exception) {}
 
         try {
-            val logText = when {
+            findViewById<TextView>(R.id.tv_activity_log).text = when {
                 !running -> "System idle — tap ARM to protect this phone"
                 theft    -> "Full protection active\n${lastAlert ?: "Monitoring all events"}"
                 else     -> "Normal mode — ${lastAlert ?: "Monitoring password attempts"}"
             }
-            findViewById<TextView>(R.id.tv_activity_log).text = logText
         } catch (e: Exception) {}
 
         try {
             findViewById<TextView>(R.id.tv_alert_count).text =
                 prefs.getInt("total_alerts", 0).toString()
         } catch (e: Exception) {}
-
         try {
             findViewById<TextView>(R.id.tv_contact_log).text =
                 (prefs.getString("phone", null) ?: s("not_set"))
         } catch (e: Exception) {}
-
         try {
             val adminTv = findViewById<TextView>(R.id.tv_admin_log)
             adminTv.text = if (adminActive) "Active" else "Inactive"
             adminTv.setTextColor(if (adminActive) 0xFF00AA44.toInt() else 0xFFCC0000.toInt())
         } catch (e: Exception) {}
-
         try {
             if (running && armTime > 0) {
                 val mins = (System.currentTimeMillis() - armTime) / 60000
@@ -599,7 +582,6 @@ class MainActivity : AppCompatActivity() {
                 try { findViewById<TextView>(R.id.tv_uptime).text = "" } catch (e: Exception) {}
             }
         } catch (e: Exception) {}
-
         try {
             val theftBtn = findViewById<Button>(R.id.btn_theft_mode)
             when {
@@ -629,18 +611,17 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         } catch (e: Exception) {}
-
         try {
             findViewById<Button>(R.id.btn_arm).text = if (running) s("disarm") else s("arm")
         } catch (e: Exception) {}
-
         try {
             val premiumBtn = findViewById<Button>(R.id.btn_premium)
-            premiumBtn.visibility = if (isPremium) android.view.View.GONE else android.view.View.VISIBLE
+            premiumBtn.visibility =
+                if (isPremium) android.view.View.GONE else android.view.View.VISIBLE
         } catch (e: Exception) {}
     }
 
-    // ── Survival Timer ────────────────────────────────────────
+    // ── Survival timer picker ──────────────────────────────────
 
     private fun showSurvivalTimerPicker(statusTv: TextView? = null) {
         val isPremium = LicenseManager.isPremium(this)
@@ -651,7 +632,6 @@ class MainActivity : AppCompatActivity() {
         )
         val allMs = longArrayOf(5,10,15,20,30,40,45,50,55,60,120,180,240,360,720,1440)
             .map { it * 60_000L }.toLongArray()
-
         val lv = ListView(this)
         val adapter = object : ArrayAdapter<String>(this,
             android.R.layout.simple_list_item_1, allLabels) {
@@ -705,6 +685,8 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
+    // ── Recipient dialog — saves on every keystroke ────────────
+
     private fun showRecipientDialog() {
         val isPremium = LicenseManager.isPremium(this)
         val saved     = prefs.getString("survival_recipient", "") ?: ""
@@ -715,20 +697,19 @@ class MainActivity : AppCompatActivity() {
         }
         val rb1 = RadioButton(this).apply {
             text = "Default Emergency Contact  (Free)"
-            isChecked = !useCustom
-            setTextColor(0xFFFFFFFF.toInt())
+            isChecked = !useCustom; setTextColor(0xFFFFFFFF.toInt())
         }
         val rb2 = RadioButton(this).apply {
             text = "Custom Number  ⭐ Premium"
             isChecked = useCustom && isPremium
             setTextColor(if (isPremium) 0xFFFFD700.toInt() else 0xFF555555.toInt())
         }
+        // Emergency contact field — addTextChangedListener saves on every keystroke
         val etCustom = EditText(this).apply {
             inputType = android.text.InputType.TYPE_CLASS_PHONE
             hint = "+213 XXX XXX XXX"
             setText(if (isPremium) saved else "")
-            isEnabled = isPremium
-            setPadding(16, 8, 16, 8)
+            isEnabled = isPremium; setPadding(16, 8, 16, 8)
             visibility = if (useCustom && isPremium) android.view.View.VISIBLE
             else android.view.View.GONE
         }
@@ -738,11 +719,9 @@ class MainActivity : AppCompatActivity() {
                 rb2.isChecked = false; rb1.isChecked = true
                 Toast.makeText(this, "⭐ Premium required", Toast.LENGTH_SHORT).show()
             } else {
-                etCustom.visibility = android.view.View.VISIBLE
-                etCustom.requestFocus()
+                etCustom.visibility = android.view.View.VISIBLE; etCustom.requestFocus()
             }
         }
-        // Save on every keystroke (emergency contact field — addTextChangedListener retained)
         etCustom.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
             override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
@@ -753,7 +732,6 @@ class MainActivity : AppCompatActivity() {
             }
         })
         ll.addView(rb1); ll.addView(rb2); ll.addView(etCustom)
-
         AlertDialog.Builder(this).setTitle("Emergency Recipient").setView(ll)
             .setPositiveButton("Save") { _, _ ->
                 if (isPremium && rb2.isChecked)
@@ -772,15 +750,14 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton("OK", null).show()
     }
 
-    // ── Haptic / Utils ────────────────────────────────────────
+    // ── Haptic ─────────────────────────────────────────────────
 
     private fun hapticFeedback(durationMs: Long = 40) {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 (getSystemService(VIBRATOR_MANAGER_SERVICE) as VibratorManager)
-                    .defaultVibrator.vibrate(
-                        VibrationEffect.createOneShot(durationMs, VibrationEffect.DEFAULT_AMPLITUDE)
-                    )
+                    .defaultVibrator.vibrate(VibrationEffect.createOneShot(
+                        durationMs, VibrationEffect.DEFAULT_AMPLITUDE))
             } else {
                 @Suppress("DEPRECATION")
                 val v = getSystemService(VIBRATOR_SERVICE) as Vibrator
