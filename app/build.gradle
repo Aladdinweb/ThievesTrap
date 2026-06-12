@@ -9,10 +9,9 @@ android {
         applicationId "com.thievestrap"
         minSdk 26
         targetSdk 33
-        versionCode 120
-        versionName "2.7.7"
+        versionCode 121
+        versionName "2.7.8"
     }
-    // Fix 5: Custom APK output name
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
             def version = variant.versionName

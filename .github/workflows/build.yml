@@ -53,10 +53,22 @@ jobs:
       - name: Find APK
         run: find app/build/outputs/apk -name "*.apk" | tee apk_path.txt
 
+      # v2.7.8: Rename/verify the output APK matches the true version name
+      # (build.gradle's outputFileName already produces
+      # Thieves_Trap_v2.7.8_Final.apk via versionName "2.7.8", this step
+      # just guarantees the artifact upload name matches too).
+      - name: Verify APK name matches version
+        run: |
+          APK=$(find app/build/outputs/apk/debug -name "*.apk" | head -n1)
+          echo "Found APK: $APK"
+          if [[ "$APK" != *"2.7.8"* ]]; then
+            echo "WARNING: APK name does not contain expected version 2.7.8"
+          fi
+
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Thieves_Trap_v2.7.4
-          path: app/build/outputs/apk/debug/*.apk
+          name: Thieves_Trap_v2.7.8_Final
+          path: app/build/outputs/apk/debug/Thieves_Trap_v2.7.8_Final.apk
           if-no-files-found: error
           retention-days: 30

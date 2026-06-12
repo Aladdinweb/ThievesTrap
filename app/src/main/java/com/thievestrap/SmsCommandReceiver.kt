@@ -5,18 +5,19 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /**
- * v2.7.7 — Static, manifest-registered SMS receiver.
+ * v2.7.8 — Static, manifest-registered SMS receiver (priority=999).
  *
- * Unlike a dynamically-registered receiver (which dies with the service's
- * process), this receiver is declared in AndroidManifest.xml with
- * android:priority="999" and android:exported="true", so the system can
- * deliver SMS_RECEIVED broadcasts to it EVEN IF the app process has been
- * killed by the OS. It immediately delegates to MonitorService for
- * processing, starting the service if necessary.
+ * Survives process death. Extracts the SMS payload SAFELY and hands off
+ * to MonitorService via an explicit Intent + startForegroundService(),
+ * then returns IMMEDIATELY — all parsing/handling happens inside
+ * MonitorService on Dispatchers.IO, never blocking this receiver thread.
  *
- * "WHERE" is handled with zero premium checks — works in Free and Paid.
+ * "WHERE" (and Plan-B "WHERE <PIN>") bypass all premium checks.
  */
 class SmsCommandReceiver : BroadcastReceiver() {
 
@@ -27,24 +28,27 @@ class SmsCommandReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != "android.provider.Telephony.SMS_RECEIVED") return
 
-        Log.i(TAG, "SMS_RECEIVED broadcast intercepted (static receiver)")
+        Log.i(TAG, "SMS_RECEIVED intercepted — handing off to MonitorService")
 
-        // Forward the full intent to MonitorService for processing.
-        // MonitorService.onStartCommand("SMS_COMMAND") will parse pdus,
-        // run loop guards, and dispatch handleCommand() exactly as before.
+        // Build an explicit intent carrying the original extras (pdus, format)
         val serviceIntent = Intent(context, MonitorService::class.java).apply {
             action = "SMS_COMMAND"
             putExtras(intent)
         }
 
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(serviceIntent)
-            } else {
-                context.startService(serviceIntent)
+        // Launch on IO immediately — this returns the receiver instantly,
+        // the actual startForegroundService call itself is lightweight but
+        // we keep it off any potential main-thread contention regardless.
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(serviceIntent)
+                } else {
+                    context.startService(serviceIntent)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to forward SMS to MonitorService: ${e.message}")
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to forward SMS to MonitorService: ${e.message}")
         }
     }
 }
