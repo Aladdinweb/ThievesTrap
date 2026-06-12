@@ -32,7 +32,6 @@ class MonitorService : Service() {
 
     private var unlockReceiver: BroadcastReceiver? = null
     private var simReceiver: BroadcastReceiver? = null
-    // FIX 4: airplaneReceiver removed entirely
     private var smsReceiver: BroadcastReceiver? = null
     private var silentReceiver: BroadcastReceiver? = null
 
@@ -45,7 +44,7 @@ class MonitorService : Service() {
     private val locationHistory = ArrayDeque<String>(5)
     private val lastAlertTimes = mutableMapOf<String, Long>()
 
-    // FIX 5: Silent grace period state
+    // Silent grace period state
     private var silentGraceHandler: Handler? = null
     private var silentGraceRunnable: Runnable? = null
     private var silentGraceCancelReceiver: BroadcastReceiver? = null
@@ -76,8 +75,9 @@ class MonitorService : Service() {
             }
         }
         createChannel()
-        // FIX 5: Create silent grace notification channel
         createSilentGraceChannel()
+        // v2.7.6: Cache IMEI/device id once at startup (safe — no runtime perms needed for ANDROID_ID)
+        cacheDeviceIdentifiers()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -217,10 +217,44 @@ class MonitorService : Service() {
     private fun lang() = LocaleHelper.getLang(this)
     private fun s(key: String) = Strings.getStr(lang(), key)
 
+    // ── v2.7.6: IMEI / Device ID caching ────────────────────────────
+    // Modern Android (10+) blocks READ_PHONE_STATE access to real IMEI for
+    // most apps. We try IMEI where legally accessible, and always fall back
+    // to ANDROID_ID (per-device unique identifier, no special permission).
+    private fun cacheDeviceIdentifiers() {
+        try {
+            val p = prefs()
+            // If user already entered IMEI manually in Settings, keep it.
+            val existing = p.getString("imei", "") ?: ""
+            if (existing.isNotBlank()) return
+
+            var imei: String? = null
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O &&
+                ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_PHONE_STATE)
+                    == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                try {
+                    val tm = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
+                    @Suppress("DEPRECATION")
+                    imei = tm.deviceId
+                } catch (e: Exception) { imei = null }
+            }
+            // Fallback: ANDROID_ID is always available, no permission needed
+            val androidId = androidId()
+            val finalId = imei?.takeIf { it.isNotBlank() && it != "0" } ?: androidId
+            p.edit().putString("imei", finalId).apply()
+            Log.i(TAG, "Device identifier cached: $finalId")
+        } catch (e: Exception) { Log.e(TAG, "cacheDeviceIdentifiers: ${e.message}") }
+    }
+
+    /** v2.7.6: Returns the IMEI for SMS templates — IMEI if available, else Android ID */
+    private fun deviceImeiOrId(): String {
+        val saved = prefs().getString("imei", "") ?: ""
+        return if (saved.isNotBlank()) saved else androidId()
+    }
+
     // ── Receivers ─────────────────────────────────────────────────
 
     private fun registerReceivers() {
-        // FIX 1: Ensure SMS receiver is registered with highest possible priority
         unlockReceiver = object : BroadcastReceiver() {
             override fun onReceive(ctx: Context, intent: Intent) {
                 when (intent.action) {
@@ -250,9 +284,7 @@ class MonitorService : Service() {
         }
         registerReceiver(simReceiver, simIntentFilter)
 
-        // FIX 4: Airplane mode receiver REMOVED entirely
-
-        // FIX 5: Silent mode — now triggers 1-minute grace period with Cancel action
+        // Silent mode — triggers 1-minute grace period with Cancel action
         silentReceiver = object : BroadcastReceiver() {
             override fun onReceive(ctx: Context, intent: Intent) {
                 if (!theftMode() || !prefs().getBoolean("alert_silent", false)) return
@@ -270,18 +302,38 @@ class MonitorService : Service() {
         registerReceiver(silentReceiver,
             IntentFilter(AudioManager.RINGER_MODE_CHANGED_ACTION))
 
-        // FIX 1: SMS commands — registered with high priority matching Manifest
+        // v2.7.6 FIX: SMS commands — robust parsing, async background handling,
+        // WHERE replies with exactly ONE SMS (no ping side-effects)
         smsReceiver = object : BroadcastReceiver() {
             override fun onReceive(ctx: Context, intent: Intent) {
+                if (intent.action != "android.provider.Telephony.SMS_RECEIVED") return
                 val pdus = intent.extras?.get("pdus") as? Array<*> ?: return
+                val format = intent.extras?.getString("format")
+
                 val myNum = prefs().getString("my_number", "").orEmpty().filter { it.isDigit() }
                 val myPhone = prefs().getString("phone", "").orEmpty().filter { it.isDigit() }
+
+                // Collect (sender, fullBody) pairs — handle multi-part SMS by
+                // concatenating PDUs sharing the same sender, processed once.
+                val messagesBySender = LinkedHashMap<String, StringBuilder>()
                 for (pdu in pdus) {
                     @Suppress("DEPRECATION")
-                    val msg = android.telephony.SmsMessage.createFromPdu(pdu as ByteArray)
-                    val rawBody = msg.messageBody?.trim() ?: continue
-                    val body = rawBody.uppercase()
+                    val msg = try {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && format != null)
+                            android.telephony.SmsMessage.createFromPdu(pdu as ByteArray, format)
+                        else
+                            android.telephony.SmsMessage.createFromPdu(pdu as ByteArray)
+                    } catch (e: Exception) { null } ?: continue
+
                     val sender = msg.originatingAddress ?: continue
+                    val part = msg.messageBody ?: ""
+                    messagesBySender.getOrPut(sender) { StringBuilder() }.append(part)
+                }
+
+                for ((sender, sb) in messagesBySender) {
+                    val rawBody = sb.toString().trim()
+                    if (rawBody.isEmpty()) continue
+                    val body = rawBody.uppercase()
                     val senderDigits = sender.filter { it.isDigit() }
 
                     // LOOP GUARD 1: Ignore own number
@@ -290,11 +342,12 @@ class MonitorService : Service() {
 
                     // LOOP GUARD 2: Only process known commands
                     val knownCommands = setOf(
-                        "WHERE", "INFO", "STATUS", "BATTERY", "SIM", "IMEI",
-                        "HISTORY", "ALARM", "STOP ALARM", "STOP", "LOCK",
+                        "WHERE", "LOCATION", "LOC", "FIND",
+                        "INFO", "DEVICE", "STATUS", "BATTERY", "BAT", "SIM", "IMEI",
+                        "HISTORY", "ALARM", "RING", "STOP ALARM", "SILENCE", "STOP", "LOCK",
                         "SELFIE", "PHOTO", "PICTURE",
                         "PING", "ACTIVE", "ACTIVATE", "DEACTIVATE", "DISARM",
-                        "HELP", "STOP PING"
+                        "HELP", "COMMANDS", "?", "STOP PING"
                     )
                     val isKnownCmd = knownCommands.any {
                         body == it || body.startsWith("$it ") ||
@@ -302,19 +355,31 @@ class MonitorService : Service() {
                     }
                     if (!isKnownCmd) continue
 
-                    // LOOP GUARD 3: Per-sender cooldown
+                    // LOOP GUARD 3: Per-sender cooldown (1 command per 5 seconds)
                     val lastCmdKey = "last_cmd_$senderDigits"
                     val lastCmd = prefs().getLong(lastCmdKey, 0L)
                     if (System.currentTimeMillis() - lastCmd < 5000L) continue
                     prefs().edit().putLong(lastCmdKey, System.currentTimeMillis()).apply()
 
-                    handleCommand(body, sender)
+                    // v2.7.6: Process command asynchronously off the receiver's
+                    // main thread window so SELFIE/ALARM/location lookups don't
+                    // get killed by the short broadcast-receiver execution limit.
+                    val pendingResult = goAsync()
+                    Thread {
+                        try {
+                            handleCommand(body, sender)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "handleCommand error: ${e.message}")
+                        } finally {
+                            try { pendingResult.finish() } catch (e: Exception) {}
+                        }
+                    }.start()
                 }
             }
         }
-        // FIX 1: Register SMS receiver with high priority so it fires even in background
+        // High priority so it fires even when app is backgrounded/killed
         val smsFilter = IntentFilter("android.provider.Telephony.SMS_RECEIVED").apply {
-            priority = IntentFilter.SYSTEM_HIGH_PRIORITY - 1
+            priority = 999
         }
         registerReceiver(smsReceiver, smsFilter)
     }
@@ -353,14 +418,13 @@ class MonitorService : Service() {
         } catch (e: Exception) { Log.e("TT", "simChange: ${e.message}") }
     }
 
-    // ── FIX 5: Silent mode grace period — 60s countdown with Cancel notification ──
+    // ── Silent mode grace period — 60s countdown with Cancel notification ──
     private fun startSilentGracePeriod() {
         val GRACE_MS = 60_000L
         val startMs = System.currentTimeMillis()
 
         val nm = getSystemService(android.app.NotificationManager::class.java)
 
-        // Cancel PendingIntent
         val cancelIntent = Intent("com.thievestrap.CANCEL_SILENT_GRACE").apply {
             setPackage(packageName)
         }
@@ -384,7 +448,6 @@ class MonitorService : Service() {
                 )
                 .build()
 
-        // Register cancel receiver
         silentGraceCancelReceiver?.let {
             try { unregisterReceiver(it) } catch (e: Exception) {}
         }
@@ -407,7 +470,6 @@ class MonitorService : Service() {
                 IntentFilter("com.thievestrap.CANCEL_SILENT_GRACE"))
         }
 
-        // Stop any existing grace countdown
         silentGraceHandler?.removeCallbacksAndMessages(null)
         silentGraceHandler = Handler(Looper.getMainLooper())
 
@@ -421,7 +483,6 @@ class MonitorService : Service() {
                         try { unregisterReceiver(it) } catch (e: Exception) {}
                     }
                     silentGraceCancelReceiver = null
-                    // Grace expired — send the alert
                     sendAlertWithLocation("\uD83D\uDD07", s("sms_silent_on"))
                     return
                 }
@@ -450,10 +511,15 @@ class MonitorService : Service() {
     private fun handleCommand(cmd: String, sender: String) {
         val password = prefs().getString("password", "") ?: ""
 
+        // ── v2.7.6: WHERE / LOCATION / LOC / FIND — FREE command.
+        // Sends EXACTLY ONE SMS reply with GPS link. Does NOT enable
+        // location_ping or any recurring behavior — single reply only.
         if (cmd == "WHERE" || cmd == "LOCATION" || cmd == "LOC" || cmd == "FIND") {
             sms(sender, buildFullInfo("\uD83D\uDCCD", s("sms_location")))
+            Log.i(TAG, "WHERE command: single location SMS sent to $sender")
             return
         }
+
         val freeCommands = setOf("HELP", "STATUS")
         if (freeCommands.contains(cmd)) {
             when (cmd) {
@@ -509,10 +575,9 @@ class MonitorService : Service() {
             return
         }
 
+        // ── v2.7.6: ALARM and SELFIE — Premium commands, run asynchronously
+        // (this whole handleCommand already runs on a background thread via goAsync) ──
         when {
-            cmd == "WHERE" || cmd == "LOCATION" || cmd == "LOC" || cmd == "FIND" ->
-                sms(sender, buildFullInfo("\uD83D\uDCCD", s("sms_location")))
-
             cmd == "INFO" || cmd == "DEVICE" ->
                 TelegramUploader.sendMessage(this, buildFullInfo("\uD83D\uDCF1", s("sms_info")))
 
@@ -537,10 +602,8 @@ class MonitorService : Service() {
                     "${s("app_name")} - SIM\n${simBlock()}")
 
             cmd == "IMEI" -> {
-                val imei = prefs().getString("imei", "") ?: ""
                 TelegramUploader.sendMessage(this,
-                    "${s("app_name")}\n${s("sms_imei")}: " +
-                    "${if (imei.isNotBlank()) imei else "N/A"}\n" +
+                    "${s("app_name")}\n${s("sms_imei")}: ${deviceImeiOrId()}\n" +
                     "${s("sms_android_id")}: ${androidId()}")
             }
 
@@ -553,18 +616,22 @@ class MonitorService : Service() {
                     }
                 })
 
+            // v2.7.6: SELFIE — async camera capture, no SMS waste, Telegram confirmation
             cmd == "SELFIE" || cmd == "PHOTO" || cmd == "PICTURE" -> {
                 SelfieService.takePhoto(this, 3)
                 recordAlert("Remote SELFIE command")
                 TelegramUploader.sendMessage(this,
                     "\uD83D\uDCF8 ${s("app_name")}: Taking 3 selfies now.")
+                Log.i(TAG, "SELFIE command executed for $sender")
             }
 
+            // v2.7.6: ALARM — max-volume siren, async start
             cmd == "ALARM" || cmd == "RING" -> {
                 ContextCompat.startForegroundService(this,
                     Intent(this, AlarmService::class.java).apply { action = "START_ALARM" })
                 TelegramUploader.sendMessage(this,
                     "\uD83D\uDEA8 ${s("app_name")}: ${s("sms_alarm_on")}")
+                Log.i(TAG, "ALARM command executed for $sender")
             }
 
             cmd == "STOP ALARM" || cmd == "SILENCE" -> {
@@ -665,6 +732,7 @@ class MonitorService : Service() {
         recordAlert(description.take(30))
     }
 
+    // ── v2.7.6: SMS template now includes IMEI under DEVICE section ──
     private fun buildFullInfo(emoji: String, description: String): String {
         return buildString {
             appendLine("\uD83D\uDEA8 THIEVES TRAP: SECURITY ALERT")
@@ -674,6 +742,7 @@ class MonitorService : Service() {
             appendLine(locStr())
             appendLine("\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501")
             appendLine("\uD83D\uDCF1 DEVICE: ${Build.MANUFACTURER} ${Build.MODEL}")
+            appendLine("IMEI: ${deviceImeiOrId()}")
             appendLine("\uD83D\uDD0B Battery: ${bat()}%")
             appendLine("\uD83D\uDD50 Time: ${ts()}")
             appendLine("\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501")
@@ -688,8 +757,7 @@ class MonitorService : Service() {
         appendLine("${s("sms_model")}: ${Build.MODEL}")
         appendLine("${s("sms_android")}: ${Build.VERSION.RELEASE}")
         appendLine("${s("sms_android_id")}: ${androidId()}")
-        val imei = p.getString("imei", "") ?: ""
-        if (imei.isNotBlank()) appendLine("${s("sms_imei")}: $imei")
+        appendLine("IMEI: ${deviceImeiOrId()}")
         val myNum = p.getString("my_number", "") ?: ""
         if (myNum.isNotBlank()) appendLine("${s("sms_owner")}: $myNum")
         try {
