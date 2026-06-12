@@ -8,7 +8,9 @@ import android.content.*
 import android.location.Location
 import android.media.AudioManager
 import android.net.ConnectivityManager
+import android.net.Network
 import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.os.*
 import android.provider.Settings
 import android.telephony.*
@@ -51,6 +53,9 @@ class MonitorService : Service() {
     private val SILENT_GRACE_NOTIF_ID = 8001
     private val SILENT_GRACE_CHAN_ID = "tt_silent_grace"
 
+    // v2.7.7: SIM trap — network state listener for "wait for network" alert
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+
     private fun canSendAlert(key: String, cooldownMs: Long = 60_000L): Boolean {
         val now = System.currentTimeMillis()
         val last = lastAlertTimes[key] ?: 0L
@@ -76,8 +81,12 @@ class MonitorService : Service() {
         }
         createChannel()
         createSilentGraceChannel()
-        // v2.7.6: Cache IMEI/device id once at startup (safe — no runtime perms needed for ANDROID_ID)
         cacheDeviceIdentifiers()
+        // v2.7.7: If a SIM swap was pending from a previous session, resume
+        // the wait-for-network watcher so the trap survives process death.
+        if (prefs().getBoolean("SIM_CHANGED_PENDING_ALERT", false)) {
+            registerSimTrapNetworkListener()
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -164,6 +173,18 @@ class MonitorService : Service() {
                 sendBroadcast(android.content.Intent("com.thievestrap.SETTINGS_REFRESH"))
                 return START_STICKY
             }
+            // v2.7.7: Entry point from the static SmsCommandReceiver.
+            // This works EVEN IF the service wasn't already running.
+            "SMS_COMMAND" -> {
+                handleIncomingSmsIntent(intent)
+                // Continue into normal startup below ONLY if not already running,
+                // so a cold-started service (triggered purely by an SMS) also
+                // sets up its foreground notification + receivers correctly.
+                if (prefs().getBoolean("running", false)) {
+                    return START_STICKY
+                }
+                // fallthrough to normal startup sequence below
+            }
         }
 
         currentPingInterval = prefs().getInt("ping_interval", 5)
@@ -194,6 +215,7 @@ class MonitorService : Service() {
             try { it?.let { r -> unregisterReceiver(r) } } catch (e: Exception) {}
         }
         try { silentGraceCancelReceiver?.let { unregisterReceiver(it) } } catch (e: Exception) {}
+        unregisterSimTrapNetworkListener()
         if (prefs().getBoolean("running", false)) {
             handler.postDelayed({
                 try {
@@ -217,14 +239,11 @@ class MonitorService : Service() {
     private fun lang() = LocaleHelper.getLang(this)
     private fun s(key: String) = Strings.getStr(lang(), key)
 
-    // ── v2.7.6: IMEI / Device ID caching ────────────────────────────
-    // Modern Android (10+) blocks READ_PHONE_STATE access to real IMEI for
-    // most apps. We try IMEI where legally accessible, and always fall back
-    // to ANDROID_ID (per-device unique identifier, no special permission).
+    // ── IMEI / Device ID caching (retained from v2.7.6) ─────────────
+
     private fun cacheDeviceIdentifiers() {
         try {
             val p = prefs()
-            // If user already entered IMEI manually in Settings, keep it.
             val existing = p.getString("imei", "") ?: ""
             if (existing.isNotBlank()) return
 
@@ -238,7 +257,6 @@ class MonitorService : Service() {
                     imei = tm.deviceId
                 } catch (e: Exception) { imei = null }
             }
-            // Fallback: ANDROID_ID is always available, no permission needed
             val androidId = androidId()
             val finalId = imei?.takeIf { it.isNotBlank() && it != "0" } ?: androidId
             p.edit().putString("imei", finalId).apply()
@@ -246,10 +264,92 @@ class MonitorService : Service() {
         } catch (e: Exception) { Log.e(TAG, "cacheDeviceIdentifiers: ${e.message}") }
     }
 
-    /** v2.7.6: Returns the IMEI for SMS templates — IMEI if available, else Android ID */
     private fun deviceImeiOrId(): String {
         val saved = prefs().getString("imei", "") ?: ""
         return if (saved.isNotBlank()) saved else androidId()
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // ── v2.7.7: SMS handling — works from BOTH the static receiver
+    //    (SmsCommandReceiver, manifest priority=999) and the dynamic
+    //    receiver registered below (covers devices/ROMs where only
+    //    dynamic registration delivers SMS_RECEIVED while running).
+    // ══════════════════════════════════════════════════════════════
+
+    /** Entry point for SMS forwarded from the static SmsCommandReceiver */
+    private fun handleIncomingSmsIntent(intent: Intent) {
+        val pdus = intent.extras?.get("pdus") as? Array<*> ?: return
+        val format = intent.extras?.getString("format")
+        processSmsPdus(pdus, format)
+    }
+
+    /**
+     * Parses raw PDUs into (sender -> fullBody) pairs, applies loop guards,
+     * and dispatches recognized commands asynchronously.
+     *
+     * "WHERE"/"LOCATION"/"LOC"/"FIND" is handled with ZERO premium gating —
+     * works identically in Free and Paid.
+     */
+    private fun processSmsPdus(pdus: Array<*>, format: String?) {
+        val myNum = prefs().getString("my_number", "").orEmpty().filter { it.isDigit() }
+        val myPhone = prefs().getString("phone", "").orEmpty().filter { it.isDigit() }
+
+        val messagesBySender = LinkedHashMap<String, StringBuilder>()
+        for (pdu in pdus) {
+            @Suppress("DEPRECATION")
+            val msg = try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && format != null)
+                    android.telephony.SmsMessage.createFromPdu(pdu as ByteArray, format)
+                else
+                    android.telephony.SmsMessage.createFromPdu(pdu as ByteArray)
+            } catch (e: Exception) { null } ?: continue
+
+            val sender = msg.originatingAddress ?: continue
+            val part = msg.messageBody ?: ""
+            messagesBySender.getOrPut(sender) { StringBuilder() }.append(part)
+        }
+
+        for ((sender, sb) in messagesBySender) {
+            val rawBody = sb.toString().trim()
+            if (rawBody.isEmpty()) continue
+            val body = rawBody.uppercase()
+            val senderDigits = sender.filter { it.isDigit() }
+
+            // LOOP GUARD 1: Ignore own number
+            if (myNum.isNotBlank() && senderDigits.endsWith(myNum.takeLast(8))) continue
+            if (myPhone.isNotBlank() && senderDigits.endsWith(myPhone.takeLast(8))) continue
+
+            // LOOP GUARD 2: Only process known commands
+            val knownCommands = setOf(
+                "WHERE", "LOCATION", "LOC", "FIND",
+                "INFO", "DEVICE", "STATUS", "BATTERY", "BAT", "SIM", "IMEI",
+                "HISTORY", "ALARM", "RING", "STOP ALARM", "SILENCE", "STOP", "LOCK",
+                "SELFIE", "PHOTO", "PICTURE",
+                "PING", "ACTIVE", "ACTIVATE", "DEACTIVATE", "DISARM",
+                "HELP", "COMMANDS", "?", "STOP PING"
+            )
+            val isKnownCmd = knownCommands.any {
+                body == it || body.startsWith("$it ") ||
+                body.startsWith("DISARM ") || body.startsWith("PING ")
+            }
+            if (!isKnownCmd) continue
+
+            // LOOP GUARD 3: Per-sender cooldown (1 command per 5 seconds)
+            val lastCmdKey = "last_cmd_$senderDigits"
+            val lastCmd = prefs().getLong(lastCmdKey, 0L)
+            if (System.currentTimeMillis() - lastCmd < 5000L) continue
+            prefs().edit().putLong(lastCmdKey, System.currentTimeMillis()).apply()
+
+            // Process off the main thread — keeps ALARM/SELFIE responsive
+            // and avoids the broadcast-receiver execution time limit.
+            Thread {
+                try {
+                    handleCommand(body, sender)
+                } catch (e: Exception) {
+                    Log.e(TAG, "handleCommand error: ${e.message}")
+                }
+            }.start()
+        }
     }
 
     // ── Receivers ─────────────────────────────────────────────────
@@ -268,7 +368,7 @@ class MonitorService : Service() {
             addAction(Intent.ACTION_SCREEN_ON)
         })
 
-        // SIM
+        // ── v2.7.7: SIM monitoring — Smart Trap state machine ──
         simReceiver = object : BroadcastReceiver() {
             override fun onReceive(ctx: Context, intent: Intent) {
                 val state = intent.getStringExtra("ss")
@@ -284,7 +384,7 @@ class MonitorService : Service() {
         }
         registerReceiver(simReceiver, simIntentFilter)
 
-        // Silent mode — triggers 1-minute grace period with Cancel action
+        // Silent mode — 1-minute grace period with Cancel action
         silentReceiver = object : BroadcastReceiver() {
             override fun onReceive(ctx: Context, intent: Intent) {
                 if (!theftMode() || !prefs().getBoolean("alert_silent", false)) return
@@ -302,86 +402,29 @@ class MonitorService : Service() {
         registerReceiver(silentReceiver,
             IntentFilter(AudioManager.RINGER_MODE_CHANGED_ACTION))
 
-        // v2.7.6 FIX: SMS commands — robust parsing, async background handling,
-        // WHERE replies with exactly ONE SMS (no ping side-effects)
+        // ── v2.7.7: Dynamic SMS receiver — secondary path while the
+        // service is alive. Highest priority allowed for dynamic
+        // registration. The static SmsCommandReceiver (manifest,
+        // priority=999) is the primary path and works even if this
+        // service/process has been killed.
         smsReceiver = object : BroadcastReceiver() {
             override fun onReceive(ctx: Context, intent: Intent) {
                 if (intent.action != "android.provider.Telephony.SMS_RECEIVED") return
                 val pdus = intent.extras?.get("pdus") as? Array<*> ?: return
                 val format = intent.extras?.getString("format")
-
-                val myNum = prefs().getString("my_number", "").orEmpty().filter { it.isDigit() }
-                val myPhone = prefs().getString("phone", "").orEmpty().filter { it.isDigit() }
-
-                // Collect (sender, fullBody) pairs — handle multi-part SMS by
-                // concatenating PDUs sharing the same sender, processed once.
-                val messagesBySender = LinkedHashMap<String, StringBuilder>()
-                for (pdu in pdus) {
-                    @Suppress("DEPRECATION")
-                    val msg = try {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && format != null)
-                            android.telephony.SmsMessage.createFromPdu(pdu as ByteArray, format)
-                        else
-                            android.telephony.SmsMessage.createFromPdu(pdu as ByteArray)
-                    } catch (e: Exception) { null } ?: continue
-
-                    val sender = msg.originatingAddress ?: continue
-                    val part = msg.messageBody ?: ""
-                    messagesBySender.getOrPut(sender) { StringBuilder() }.append(part)
-                }
-
-                for ((sender, sb) in messagesBySender) {
-                    val rawBody = sb.toString().trim()
-                    if (rawBody.isEmpty()) continue
-                    val body = rawBody.uppercase()
-                    val senderDigits = sender.filter { it.isDigit() }
-
-                    // LOOP GUARD 1: Ignore own number
-                    if (myNum.isNotBlank() && senderDigits.endsWith(myNum.takeLast(8))) continue
-                    if (myPhone.isNotBlank() && senderDigits.endsWith(myPhone.takeLast(8))) continue
-
-                    // LOOP GUARD 2: Only process known commands
-                    val knownCommands = setOf(
-                        "WHERE", "LOCATION", "LOC", "FIND",
-                        "INFO", "DEVICE", "STATUS", "BATTERY", "BAT", "SIM", "IMEI",
-                        "HISTORY", "ALARM", "RING", "STOP ALARM", "SILENCE", "STOP", "LOCK",
-                        "SELFIE", "PHOTO", "PICTURE",
-                        "PING", "ACTIVE", "ACTIVATE", "DEACTIVATE", "DISARM",
-                        "HELP", "COMMANDS", "?", "STOP PING"
-                    )
-                    val isKnownCmd = knownCommands.any {
-                        body == it || body.startsWith("$it ") ||
-                        body.startsWith("DISARM ") || body.startsWith("PING ")
-                    }
-                    if (!isKnownCmd) continue
-
-                    // LOOP GUARD 3: Per-sender cooldown (1 command per 5 seconds)
-                    val lastCmdKey = "last_cmd_$senderDigits"
-                    val lastCmd = prefs().getLong(lastCmdKey, 0L)
-                    if (System.currentTimeMillis() - lastCmd < 5000L) continue
-                    prefs().edit().putLong(lastCmdKey, System.currentTimeMillis()).apply()
-
-                    // v2.7.6: Process command asynchronously off the receiver's
-                    // main thread window so SELFIE/ALARM/location lookups don't
-                    // get killed by the short broadcast-receiver execution limit.
-                    val pendingResult = goAsync()
-                    Thread {
-                        try {
-                            handleCommand(body, sender)
-                        } catch (e: Exception) {
-                            Log.e(TAG, "handleCommand error: ${e.message}")
-                        } finally {
-                            try { pendingResult.finish() } catch (e: Exception) {}
-                        }
-                    }.start()
-                }
+                processSmsPdus(pdus, format)
             }
         }
-        // High priority so it fires even when app is backgrounded/killed
         val smsFilter = IntentFilter("android.provider.Telephony.SMS_RECEIVED").apply {
-            priority = 999
+            priority = IntentFilter.SYSTEM_HIGH_PRIORITY
         }
         registerReceiver(smsReceiver, smsFilter)
+
+        // v2.7.7: If a SIM swap is pending from before this service started,
+        // resume the network watcher now that we have a Context again.
+        if (prefs().getBoolean("SIM_CHANGED_PENDING_ALERT", false)) {
+            registerSimTrapNetworkListener()
+        }
     }
 
     // ── Event Handlers ────────────────────────────────────────────
@@ -392,6 +435,19 @@ class MonitorService : Service() {
             GracePeriodManager.cancelGrace()
         }
     }
+
+    // ══════════════════════════════════════════════════════════════
+    // ── v2.7.7: SMART SIM CARD CHANGE TRAPPING MECHANISM
+    //
+    //    1. SIM swap/removal detected → set SIM_CHANGED_PENDING_ALERT=true,
+    //       record old SIM snapshot, register a ConnectivityManager network
+    //       callback that waits for ANY active cellular network.
+    //    2. When the new SIM gets network signal, read the new line number
+    //       (if available) and the new carrier name.
+    //    3. Fire ONE emergency SMS to the saved Emergency Contact informing
+    //       them the SIM was swapped, with live location + new carrier info.
+    //    4. Clear SIM_CHANGED_PENDING_ALERT and unregister the listener.
+    // ══════════════════════════════════════════════════════════════
 
     private fun checkSimChange() {
         if (!theftMode() || !prefs().getBoolean("alert_sim", false)) return
@@ -404,9 +460,19 @@ class MonitorService : Service() {
             val changed = isAbsent || (saved.isNotBlank() && cur.isNotBlank() && cur != saved)
             if (!changed) return
             if (!isAbsent) prefs().edit().putString("sim", cur).apply()
+
             recordAlert(s("sms_sim_changed"))
-            Log.i("TT-SIM", "SIM change detected — starting 30s wait")
+            Log.i("TT-SIM", "SIM change detected — entering Wait-for-Network trap")
+
+            // v2.7.7: Set persistent pending-alert flag and snapshot the event
+            prefs().edit()
+                .putBoolean("SIM_CHANGED_PENDING_ALERT", true)
+                .putLong("sim_change_time", System.currentTimeMillis())
+                .apply()
+
             if (GracePeriodManager.isActive()) return
+
+            // Send what we can immediately (best-effort — may fail if no signal)
             handler.postDelayed({
                 val simAlert = "SIM CHANGE DETECTED\n${locStr()}" +
                     "\n\nNote: You can only enable and disable auto location ping remotely. " +
@@ -415,7 +481,122 @@ class MonitorService : Service() {
                 if (LicenseManager.isPremium(this))
                     TelegramUploader.sendMessage(this, "SIM CHANGE DETECTED\n${locStr()}")
             }, 30_000L)
+
+            // v2.7.7: Register the network watcher — fires the guaranteed
+            // emergency SMS the moment ANY cellular network becomes active,
+            // regardless of whether the immediate send above succeeded.
+            registerSimTrapNetworkListener()
+
         } catch (e: Exception) { Log.e("TT", "simChange: ${e.message}") }
+    }
+
+    /**
+     * v2.7.7: Registers a ConnectivityManager.NetworkCallback that fires
+     * as soon as the device has an active, validated cellular network —
+     * i.e. the moment the NEW SIM gets signal. At that point we read the
+     * new line number / carrier and fire the swap-alert SMS exactly once.
+     */
+    private fun registerSimTrapNetworkListener() {
+        if (networkCallback != null) return // already registered
+
+        val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+        val request = NetworkRequest.Builder()
+            .addTransportType(NetworkCapabilities.TRANSPORT_CELLULAR)
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+
+        networkCallback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                super.onAvailable(network)
+                Log.i(TAG, "SIM trap: cellular network became available")
+                onNewSimNetworkAvailable()
+            }
+
+            override fun onCapabilitiesChanged(
+                network: Network, caps: NetworkCapabilities
+            ) {
+                super.onCapabilitiesChanged(network, caps)
+                if (caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) &&
+                    caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) {
+                    Log.i(TAG, "SIM trap: cellular network validated")
+                    onNewSimNetworkAvailable()
+                }
+            }
+        }
+
+        try {
+            cm.registerNetworkCallback(request, networkCallback!!)
+            Log.i(TAG, "SIM trap: network listener registered — awaiting new SIM signal")
+        } catch (e: Exception) {
+            Log.e(TAG, "SIM trap: failed to register network callback: ${e.message}")
+            networkCallback = null
+        }
+    }
+
+    private fun unregisterSimTrapNetworkListener() {
+        networkCallback?.let {
+            try {
+                val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+                cm.unregisterNetworkCallback(it)
+            } catch (e: Exception) {}
+        }
+        networkCallback = null
+    }
+
+    /**
+     * v2.7.7: Called when the new SIM gets cellular signal after a SIM swap.
+     * Reads the new line number / carrier, fires ONE emergency SMS to the
+     * Emergency Contact with location + new carrier exposure, then clears
+     * the pending-alert flag.
+     */
+    private fun onNewSimNetworkAvailable() {
+        // Only fire once per SIM-change event
+        if (!prefs().getBoolean("SIM_CHANGED_PENDING_ALERT", false)) return
+
+        // Debounce — wait briefly for TelephonyManager to populate carrier info
+        handler.postDelayed({
+            try {
+                if (!prefs().getBoolean("SIM_CHANGED_PENDING_ALERT", false)) return@postDelayed
+
+                val tm = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
+                val newCarrier = tm.networkOperatorName ?: "Unknown"
+                val newCountry = tm.simCountryIso?.uppercase() ?: "N/A"
+                @Suppress("DEPRECATION")
+                val newLine = try { tm.line1Number ?: "" } catch (e: Exception) { "" }
+                val newLineDisplay = if (newLine.isNotBlank()) newLine else "N/A (not exposed by carrier)"
+
+                val msg = buildString {
+                    appendLine("\uD83D\uDEA8 THIEVES TRAP \u2014 SIM CARD SWAPPED!")
+                    appendLine("The original SIM was removed/changed.")
+                    appendLine("\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501")
+                    appendLine("\uD83D\uDCCD LOCATION")
+                    appendLine(locStr())
+                    appendLine("\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501")
+                    appendLine("\uD83D\uDCF1 NEW SIM DETAILS")
+                    appendLine("Carrier: $newCarrier")
+                    appendLine("Country: $newCountry")
+                    appendLine("New Number: $newLineDisplay")
+                    appendLine("IMEI: ${deviceImeiOrId()}")
+                    appendLine("\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501")
+                    append("Sent automatically by Thieves Trap Security")
+                }
+
+                // Fire to the Emergency Contact (smsAll covers contact 1 + 2 if premium)
+                smsAll(msg)
+                if (LicenseManager.isPremium(this))
+                    TelegramUploader.sendMessage(this, msg)
+
+                recordAlert("SIM swap alert sent (new carrier: $newCarrier)")
+                Log.i(TAG, "SIM trap: emergency SMS sent — new carrier=$newCarrier, number=$newLineDisplay")
+
+            } catch (e: Exception) {
+                Log.e(TAG, "onNewSimNetworkAvailable: ${e.message}")
+            } finally {
+                // Clear the pending flag and stop listening — one-shot trap
+                prefs().edit().putBoolean("SIM_CHANGED_PENDING_ALERT", false).apply()
+                unregisterSimTrapNetworkListener()
+            }
+        }, 5_000L) // 5s debounce for carrier info to populate
     }
 
     // ── Silent mode grace period — 60s countdown with Cancel notification ──
@@ -508,18 +689,22 @@ class MonitorService : Service() {
         }
     }
 
+    // ══════════════════════════════════════════════════════════════
+    // ── v2.7.7: handleCommand — WHERE detached from premium check
+    // ══════════════════════════════════════════════════════════════
     private fun handleCommand(cmd: String, sender: String) {
         val password = prefs().getString("password", "") ?: ""
 
-        // ── v2.7.6: WHERE / LOCATION / LOC / FIND — FREE command.
-        // Sends EXACTLY ONE SMS reply with GPS link. Does NOT enable
-        // location_ping or any recurring behavior — single reply only.
+        // ── FREE: WHERE / LOCATION / LOC / FIND ──
+        // Zero premium gating. Sends EXACTLY ONE SMS reply with GPS link.
+        // No ping side-effects, no recurring behavior.
         if (cmd == "WHERE" || cmd == "LOCATION" || cmd == "LOC" || cmd == "FIND") {
             sms(sender, buildFullInfo("\uD83D\uDCCD", s("sms_location")))
-            Log.i(TAG, "WHERE command: single location SMS sent to $sender")
+            Log.i(TAG, "WHERE command (free/paid, no gating): single location SMS sent to $sender")
             return
         }
 
+        // ── FREE: HELP / STATUS ──
         val freeCommands = setOf("HELP", "STATUS")
         if (freeCommands.contains(cmd)) {
             when (cmd) {
@@ -532,6 +717,7 @@ class MonitorService : Service() {
             }
         }
 
+        // ── Everything below requires Premium ──
         if (!LicenseManager.isPremium(this)) return
 
         if (cmd == "ACTIVE" || cmd == "ACTIVATE") {
@@ -575,8 +761,6 @@ class MonitorService : Service() {
             return
         }
 
-        // ── v2.7.6: ALARM and SELFIE — Premium commands, run asynchronously
-        // (this whole handleCommand already runs on a background thread via goAsync) ──
         when {
             cmd == "INFO" || cmd == "DEVICE" ->
                 TelegramUploader.sendMessage(this, buildFullInfo("\uD83D\uDCF1", s("sms_info")))
@@ -616,7 +800,7 @@ class MonitorService : Service() {
                     }
                 })
 
-            // v2.7.6: SELFIE — async camera capture, no SMS waste, Telegram confirmation
+            // v2.7.7: SELFIE — async camera capture, runs on background thread already
             cmd == "SELFIE" || cmd == "PHOTO" || cmd == "PICTURE" -> {
                 SelfieService.takePhoto(this, 3)
                 recordAlert("Remote SELFIE command")
@@ -625,7 +809,7 @@ class MonitorService : Service() {
                 Log.i(TAG, "SELFIE command executed for $sender")
             }
 
-            // v2.7.6: ALARM — max-volume siren, async start
+            // v2.7.7: ALARM — max-volume siren
             cmd == "ALARM" || cmd == "RING" -> {
                 ContextCompat.startForegroundService(this,
                     Intent(this, AlarmService::class.java).apply { action = "START_ALARM" })
@@ -732,7 +916,6 @@ class MonitorService : Service() {
         recordAlert(description.take(30))
     }
 
-    // ── v2.7.6: SMS template now includes IMEI under DEVICE section ──
     private fun buildFullInfo(emoji: String, description: String): String {
         return buildString {
             appendLine("\uD83D\uDEA8 THIEVES TRAP: SECURITY ALERT")

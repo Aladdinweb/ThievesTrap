@@ -9,8 +9,8 @@ android {
         applicationId "com.thievestrap"
         minSdk 26
         targetSdk 33
-        versionCode 119
-        versionName "2.7.6"
+        versionCode 120
+        versionName "2.7.7"
     }
     // Fix 5: Custom APK output name
     applicationVariants.all { variant ->
@@ -37,7 +37,6 @@ android {
     kotlinOptions {
         jvmTarget = '11'
     }
-    // Suppress packaging conflicts
     packagingOptions {
         resources {
             excludes += ['META-INF/NOTICE.md', 'META-INF/LICENSE.md', 'META-INF/NOTICE', 'META-INF/LICENSE']
