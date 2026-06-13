@@ -213,7 +213,6 @@ class MainActivity : AppCompatActivity() {
 
                 swWatch.setOnCheckedChangeListener { _, checked ->
                     if (checked) {
-                        // Verify Bluetooth is on and a device is paired
                         val btAdapter = (getSystemService(BLUETOOTH_SERVICE) as? BluetoothManager)
                             ?.adapter
                         if (btAdapter == null || !btAdapter.isEnabled) {
@@ -246,6 +245,15 @@ class MainActivity : AppCompatActivity() {
                         updateWatchTetherStatus(false)
                         hapticFeedback(20)
                     }
+                }
+            } catch (e: Exception) {}
+
+            // ── CHECK FOR UPDATE — v2.7.9 (in sidebar, below Watch Tether) ──
+            try {
+                findViewById<android.view.View>(R.id.nav_check_update).setOnClickListener {
+                    hapticFeedback(30)
+                    close()
+                    UpdateManager.checkForUpdate(this)
                 }
             } catch (e: Exception) {}
 
@@ -704,7 +712,6 @@ class MainActivity : AppCompatActivity() {
             isChecked = useCustom && isPremium
             setTextColor(if (isPremium) 0xFFFFD700.toInt() else 0xFF555555.toInt())
         }
-        // Emergency contact field — addTextChangedListener saves on every keystroke
         val etCustom = EditText(this).apply {
             inputType = android.text.InputType.TYPE_CLASS_PHONE
             hint = "+213 XXX XXX XXX"

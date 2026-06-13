@@ -3,4 +3,8 @@
     <external-files-path name="pictures" path="." />
     <external-path name="external_pictures" path="Pictures/ThievesTrap/" />
     <external-path name="external_dcim" path="DCIM/ThievesTrap/" />
+
+    <!-- v2.7.9: OTA Update — expose Downloads/ so FileProvider can hand
+         the downloaded APK to the system package installer -->
+    <external-path name="downloads" path="Download/" />
 </paths>

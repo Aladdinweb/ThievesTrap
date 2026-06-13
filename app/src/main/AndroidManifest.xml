@@ -26,13 +26,16 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
 
-    <!-- Smartwatch Tether — Bluetooth permissions (v2.7.6, retained) -->
+    <!-- Smartwatch Tether — Bluetooth permissions (retained) -->
     <uses-permission android:name="android.permission.BLUETOOTH"/>
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN"/>
 
-    <!-- AIRPLANE MODE: removed (v2.7.6, retained) -->
+    <!-- v2.7.9: OTA Update — required to launch the package installer -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+
+    <!-- AIRPLANE MODE: removed (retained) -->
 
     <application
         android:label="@string/app_name"
@@ -68,7 +71,7 @@
         <service android:name=".SelfieService"          android:exported="false"/>
         <service android:name=".SurvivalTimerService"   android:exported="false"/>
 
-        <!-- Smartwatch Tether service (v2.7.6, retained) -->
+        <!-- Smartwatch Tether service (retained) -->
         <service android:name=".SmartwatchMonitorService" android:exported="false"/>
 
         <!-- I'm Safe — no PIN (retained) -->
@@ -91,12 +94,7 @@
             </intent-filter>
         </receiver>
 
-        <!-- ══════════════════════════════════════════════════════════
-             v2.7.7: Static SMS command receiver — priority 999.
-             Survives process death; forwards SMS_RECEIVED to
-             MonitorService for "WHERE" (free, no premium check),
-             "ALARM", "SELFIE", and all other remote commands.
-             ══════════════════════════════════════════════════════════ -->
+        <!-- Static SMS command receiver — priority 999 (retained) -->
         <receiver android:name=".SmsCommandReceiver"
             android:exported="true"
             android:permission="android.permission.BROADCAST_SMS">
@@ -117,6 +115,7 @@
             </intent-filter>
         </receiver>
 
+        <!-- FileProvider — used for intruder selfies AND v2.7.9 OTA APK install -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
