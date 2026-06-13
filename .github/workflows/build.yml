@@ -24,7 +24,6 @@ jobs:
       - name: Download Gradle Wrapper JAR
         run: |
           mkdir -p gradle/wrapper
-          # Try primary source first, fall back to GitHub mirror
           curl --retry 5 --retry-delay 3 --connect-timeout 30 --max-time 60 -L \
             "https://github.com/gradle/gradle/raw/v8.4.0/gradle/wrapper/gradle-wrapper.jar" \
             -o gradle/wrapper/gradle-wrapper.jar || \
@@ -50,25 +49,26 @@ jobs:
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false"
 
+      # v2.7.9: Find the APK dynamically — never hardcode the version
+      # in this workflow again. outputFileName in build.gradle already
+      # names it Thieves_Trap_v<versionName>_Final.apk.
       - name: Find APK
-        run: find app/build/outputs/apk -name "*.apk" | tee apk_path.txt
-
-      # v2.7.8: Rename/verify the output APK matches the true version name
-      # (build.gradle's outputFileName already produces
-      # Thieves_Trap_v2.7.8_Final.apk via versionName "2.7.8", this step
-      # just guarantees the artifact upload name matches too).
-      - name: Verify APK name matches version
+        id: find_apk
         run: |
           APK=$(find app/build/outputs/apk/debug -name "*.apk" | head -n1)
-          echo "Found APK: $APK"
-          if [[ "$APK" != *"2.7.8"* ]]; then
-            echo "WARNING: APK name does not contain expected version 2.7.8"
+          if [ -z "$APK" ]; then
+            echo "ERROR: No APK found!"
+            find app/build/outputs -type f
+            exit 1
           fi
+          echo "Found APK: $APK"
+          echo "apk_path=$APK" >> "$GITHUB_OUTPUT"
+          echo "apk_name=$(basename "$APK")" >> "$GITHUB_OUTPUT"
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Thieves_Trap_v2.7.8_Final
-          path: app/build/outputs/apk/debug/Thieves_Trap_v2.7.8_Final.apk
+          name: ${{ steps.find_apk.outputs.apk_name }}
+          path: ${{ steps.find_apk.outputs.apk_path }}
           if-no-files-found: error
           retention-days: 30
