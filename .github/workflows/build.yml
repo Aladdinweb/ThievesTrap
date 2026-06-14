@@ -44,24 +44,33 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
           restore-keys: ${{ runner.os }}-gradle-
 
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+      # Decode the keystore from GitHub Secrets (base64-encoded)
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/thieves_trap.jks
+          echo "Keystore decoded: $(du -sh app/thieves_trap.jks)"
+
+      # Build a SIGNED release APK — installable on all Android devices
+      - name: Build Signed Release APK
+        run: |
+          ./gradlew assembleRelease --no-daemon --stacktrace \
+            -Pandroid.injected.signing.store.file=$(pwd)/app/thieves_trap.jks \
+            -Pandroid.injected.signing.store.password="${{ secrets.KEYSTORE_PASSWORD }}" \
+            -Pandroid.injected.signing.key.alias="${{ secrets.KEY_ALIAS }}" \
+            -Pandroid.injected.signing.key.password="${{ secrets.KEY_PASSWORD }}"
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false"
 
-      # v2.7.9: Find the APK dynamically — never hardcode the version
-      # in this workflow again. outputFileName in build.gradle already
-      # names it Thieves_Trap_v<versionName>_Final.apk.
       - name: Find APK
         id: find_apk
         run: |
-          APK=$(find app/build/outputs/apk/debug -name "*.apk" | head -n1)
+          APK=$(find app/build/outputs/apk/release -name "*.apk" | head -n1)
           if [ -z "$APK" ]; then
-            echo "ERROR: No APK found!"
+            echo "ERROR: No release APK found!"
             find app/build/outputs -type f
             exit 1
           fi
-          echo "Found APK: $APK"
+          echo "Found APK: $APK ($(du -sh "$APK" | cut -f1))"
           echo "apk_path=$APK" >> "$GITHUB_OUTPUT"
           echo "apk_name=$(basename "$APK")" >> "$GITHUB_OUTPUT"
 
