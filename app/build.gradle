@@ -9,8 +9,8 @@ android {
         applicationId "com.thievestrap"
         minSdk 26
         targetSdk 33
-        versionCode 122
-        versionName "2.7.9"
+        versionCode 123
+        versionName "2.7.10"
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
@@ -18,7 +18,6 @@ android {
             outputFileName = "Thieves_Trap_v${version}_Final.apk"
         }
     }
-
     buildTypes {
         release {
             minifyEnabled true
@@ -51,6 +50,4 @@ dependencies {
     implementation 'androidx.biometric:biometric:1.1.0'
     implementation 'androidx.drawerlayout:drawerlayout:1.2.0'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
-    // v2.7.9: OTA update JSON parsing (org.json is part of Android SDK,
-    // no extra dependency needed — included for clarity/documentation)
 }
