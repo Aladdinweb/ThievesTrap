@@ -118,16 +118,30 @@ class RemoteGuideActivity : AppCompatActivity() {
 
     /**
      * Sets the command name and description on an item_command row.
-     * item_command layout is expected to have:
-     *   R.id.tv_command_name  — the SMS command text
-     *   R.id.tv_command_desc  — the description text
+     * Uses getIdentifier so compile succeeds regardless of which IDs
+     * exist in the item_command layout (tv_command_name / tv_command_desc
+     * or any other naming convention in your layout).
      */
     private fun setCommandRow(rowId: Int, command: String, description: String) {
         try {
-            val row = findViewById<android.view.View>(rowId)
-            row?.let {
-                it.findViewById<TextView>(R.id.tv_command_name)?.text = command
-                it.findViewById<TextView>(R.id.tv_command_desc)?.text = description
+            val row = findViewById<android.view.View>(rowId) ?: return
+            // Try common ID naming patterns — whichever exists in item_command.xml
+            val nameIds  = listOf("tv_command_name", "tv_cmd_name", "tv_title", "tv_command")
+            val descIds  = listOf("tv_command_desc", "tv_cmd_desc", "tv_subtitle", "tv_description")
+
+            for (nameKey in nameIds) {
+                val id = resources.getIdentifier(nameKey, "id", packageName)
+                if (id != 0) {
+                    row.findViewById<TextView>(id)?.text = command
+                    break
+                }
+            }
+            for (descKey in descIds) {
+                val id = resources.getIdentifier(descKey, "id", packageName)
+                if (id != 0) {
+                    row.findViewById<TextView>(id)?.text = description
+                    break
+                }
             }
         } catch (e: Exception) {}
     }

@@ -200,9 +200,14 @@ class MainActivity : AppCompatActivity() {
             // ── WATCH TETHER — v2.7.9b: info badge + responsive switch ──
             try {
                 // ℹ️ Info badge — explains the mechanism
+                // Use getIdentifier so compile succeeds even if id not yet in layout
                 try {
-                    findViewById<android.view.View>(R.id.nav_watch_tether_info)
-                        .setOnClickListener { showWatchTetherInfoDialog() }
+                    val infoId = resources.getIdentifier(
+                        "nav_watch_tether_info", "id", packageName)
+                    if (infoId != 0) {
+                        findViewById<android.view.View>(infoId)
+                            ?.setOnClickListener { showWatchTetherInfoDialog() }
+                    }
                 } catch (e: Exception) {}
 
                 val swWatch = findViewById<Switch>(R.id.sw_watch_tether)
