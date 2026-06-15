@@ -30,7 +30,6 @@ jobs:
           curl --retry 3 --retry-delay 5 --connect-timeout 30 --max-time 60 -L \
             "https://raw.githubusercontent.com/gradle/gradle/v8.4.0/gradle/wrapper/gradle-wrapper.jar" \
             -o gradle/wrapper/gradle-wrapper.jar
-          echo "JAR size: $(du -sh gradle/wrapper/gradle-wrapper.jar)"
 
       - name: Make gradlew executable
         run: chmod +x gradlew
@@ -44,17 +43,20 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
           restore-keys: ${{ runner.os }}-gradle-
 
-      # Decode the keystore from GitHub Secrets (base64-encoded)
+      # Decode keystore from GitHub Secret (base64 → .jks file)
       - name: Decode keystore
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/thieves_trap.jks
-          echo "Keystore decoded: $(du -sh app/thieves_trap.jks)"
+          echo "Keystore size: $(du -sh app/thieves_trap.jks)"
+          # Verify it's a valid JKS (magic bytes: 0xFEEDFEED)
+          hexdump -n 4 -e '1/1 "%02X"' app/thieves_trap.jks
 
-      # Build a SIGNED release APK — installable on all Android devices
+      # Build signed release APK — passes signing params at command line
+      # so no keystore credentials are stored in build.gradle
       - name: Build Signed Release APK
         run: |
           ./gradlew assembleRelease --no-daemon --stacktrace \
-            -Pandroid.injected.signing.store.file=$(pwd)/app/thieves_trap.jks \
+            -Pandroid.injected.signing.store.file="$(pwd)/app/thieves_trap.jks" \
             -Pandroid.injected.signing.store.password="${{ secrets.KEYSTORE_PASSWORD }}" \
             -Pandroid.injected.signing.key.alias="${{ secrets.KEY_ALIAS }}" \
             -Pandroid.injected.signing.key.password="${{ secrets.KEY_PASSWORD }}"
@@ -70,7 +72,7 @@ jobs:
             find app/build/outputs -type f
             exit 1
           fi
-          echo "Found APK: $APK ($(du -sh "$APK" | cut -f1))"
+          echo "APK: $APK  Size: $(du -sh "$APK" | cut -f1)"
           echo "apk_path=$APK" >> "$GITHUB_OUTPUT"
           echo "apk_name=$(basename "$APK")" >> "$GITHUB_OUTPUT"
 
