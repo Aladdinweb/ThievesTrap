@@ -59,8 +59,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-
-        // Sync survival timer switch
         try {
             val sw = findViewById<Switch>(R.id.sw_survival_timer)
             val on = prefs.getBoolean("survival_timer_on", false)
@@ -69,7 +67,6 @@ class MainActivity : AppCompatActivity() {
                 ?.visibility = if (on) android.view.View.VISIBLE else android.view.View.GONE
         } catch (e: Exception) {}
 
-        // Sync watch tether switch
         try {
             val swWatch = findViewById<Switch>(R.id.sw_watch_tether)
             val watchOn = prefs.getBoolean("watch_tether_on", false)
@@ -77,7 +74,6 @@ class MainActivity : AppCompatActivity() {
             updateWatchTetherStatus(watchOn)
         } catch (e: Exception) {}
 
-        // SETTINGS_REFRESH listener
         settingsRefreshReceiver = object : BroadcastReceiver() {
             override fun onReceive(ctx: Context, i: Intent) {
                 val survivalOn = prefs.getBoolean("survival_timer_on", false)
@@ -114,7 +110,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupButtons() {
 
-        // About
         try {
             findViewById<android.widget.ImageView>(R.id.btn_about).setOnClickListener {
                 startActivity(Intent(this, AboutActivity::class.java))
@@ -122,7 +117,6 @@ class MainActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {}
 
-        // Menu opens drawer
         try {
             findViewById<TextView>(R.id.btn_menu).setOnClickListener {
                 hapticFeedback(20)
@@ -148,7 +142,6 @@ class MainActivity : AppCompatActivity() {
                     .setOnClickListener { close(); showLanguageDialog() }
             } catch (e: Exception) {}
 
-            // Biometric toggle
             val swBioDrawer = findViewById<Switch>(R.id.sw_biometric_drawer)
             swBioDrawer.isChecked = prefs.getBoolean("biometric_unlock", false)
             swBioDrawer.setOnCheckedChangeListener { _, checked ->
@@ -204,8 +197,14 @@ class MainActivity : AppCompatActivity() {
                     .setOnClickListener { close(); showRecipientDialog() }
             } catch (e: Exception) {}
 
-            // ── WATCH TETHER SWITCH — v2.7.6 (in sidebar, below Survival Timer) ──
+            // ── WATCH TETHER — v2.7.9b: info badge + responsive switch ──
             try {
+                // ℹ️ Info badge — explains the mechanism
+                try {
+                    findViewById<android.view.View>(R.id.nav_watch_tether_info)
+                        .setOnClickListener { showWatchTetherInfoDialog() }
+                } catch (e: Exception) {}
+
                 val swWatch = findViewById<Switch>(R.id.sw_watch_tether)
                 val watchOn = prefs.getBoolean("watch_tether_on", false)
                 swWatch.isChecked = watchOn
@@ -236,8 +235,7 @@ class MainActivity : AppCompatActivity() {
                         SmartwatchMonitorService.start(this)
                         updateWatchTetherStatus(true)
                         hapticFeedback(40)
-                        Toast.makeText(this,
-                            "Watch Tether ON — monitoring Bluetooth",
+                        Toast.makeText(this, "Watch Tether ON — monitoring Bluetooth",
                             Toast.LENGTH_SHORT).show()
                     } else {
                         prefs.edit().putBoolean("watch_tether_on", false).apply()
@@ -248,7 +246,7 @@ class MainActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {}
 
-            // ── CHECK FOR UPDATE — v2.7.9 (in sidebar, below Watch Tether) ──
+            // ── CHECK FOR UPDATE — v2.7.9 ──
             try {
                 findViewById<android.view.View>(R.id.nav_check_update).setOnClickListener {
                     hapticFeedback(30)
@@ -259,14 +257,34 @@ class MainActivity : AppCompatActivity() {
 
         } catch (e: Exception) {}
 
-        // ── ARM / DISARM ───────────────────────────────────────
+        // ── ARM / DISARM — v2.7.9b: first-arm guidance dialog ──
         findViewById<Button>(R.id.btn_arm).setOnClickListener {
             hapticFeedback()
-            if (prefs.getBoolean("running", false)) showDisarmDialog()
-            else checkPermissionsAndStart()
+            if (prefs.getBoolean("running", false)) {
+                showDisarmDialog()
+            } else {
+                // Step 1: Validate mandatory fields
+                val phone = prefs.getString("phone", "") ?: ""
+                val imei  = prefs.getString("imei",  "") ?: ""
+                if (phone.isBlank()) {
+                    Toast.makeText(this,
+                        "Please set your Emergency Contact in Settings first.",
+                        Toast.LENGTH_LONG).show()
+                    startActivity(Intent(this, SettingsActivity::class.java))
+                    return@setOnClickListener
+                }
+
+                // Step 2: Check isFirstArm
+                val isFirstArm = prefs.getBoolean("isFirstArm", true)
+                if (isFirstArm) {
+                    // Step 3: Show guidance dialog
+                    showFirstArmGuidanceDialog()
+                } else {
+                    checkPermissionsAndStart()
+                }
+            }
         }
 
-        // ── Theft mode ─────────────────────────────────────────
         try {
             findViewById<Button>(R.id.btn_theft_mode).setOnClickListener {
                 hapticFeedback()
@@ -286,7 +304,6 @@ class MainActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {}
 
-        // ── Gallery ────────────────────────────────────────────
         try {
             findViewById<android.view.View>(R.id.btn_selfies).setOnClickListener {
                 hapticFeedback()
@@ -294,7 +311,6 @@ class MainActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {}
 
-        // ── Remote guide ───────────────────────────────────────
         try {
             findViewById<android.view.View>(R.id.btn_remote_guide_icon).setOnClickListener {
                 hapticFeedback()
@@ -302,12 +318,59 @@ class MainActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {}
 
-        // ── Premium button ─────────────────────────────────────
         try {
             findViewById<Button>(R.id.btn_premium).setOnClickListener {
                 startActivity(Intent(this, PremiumActivity::class.java))
             }
         } catch (e: Exception) {}
+    }
+
+    // ── v2.7.9b: First-ARM guidance dialog ───────────────────────
+    // Shows once before the user ever arms the app.
+    // Step 3 of the ARM flow.
+
+    private fun showFirstArmGuidanceDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("\uD83D\uDCCB Important: Save Your Commands")
+            .setMessage(
+                "Before locking your protection, please read the remote SMS control " +
+                "layout so you can track your device if it goes missing."
+            )
+            .setPositiveButton("View Commands Guide") { _, _ ->
+                // Go to guide — user can come back and arm afterward
+                startActivity(Intent(this, RemoteGuideActivity::class.java))
+            }
+            .setNegativeButton("Got It, Activate Protection") { _, _ ->
+                // Mark as seen, then proceed with arm flow
+                prefs.edit().putBoolean("isFirstArm", false).apply()
+                checkPermissionsAndStart()
+            }
+            .setCancelable(true)
+            .show()
+    }
+
+    // ── v2.7.9b: Watch Tether info dialog ────────────────────────
+
+    private fun showWatchTetherInfoDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("\u231A Watch Tether — How It Works")
+            .setMessage(
+                "When enabled, Thieves Trap monitors the Bluetooth connection " +
+                "to your paired smartwatch in the background.\n\n" +
+                "\uD83D\uDD12 If the watch disconnects (phone separated):\n" +
+                "   \u2022 Screen locks immediately via Device Admin\n" +
+                "   \u2022 Repeating vibration alert fires\n" +
+                "   \u2022 A 5-minute silent countdown begins\n\n" +
+                "\u2705 During the countdown you can tap:\n" +
+                "   \u2022 \"I'm Safe\" — cancels, no PIN required\n" +
+                "   \u2022 \"\uD83D\uDEA8 TRIGGER ALARM\" — max-volume siren\n" +
+                "   \u2022 \"\uD83D\uDD15 DISARM / MUTE\" — stops alarm + cancels\n\n" +
+                "\uD83D\uDCE9 If the countdown expires without confirmation, one " +
+                "emergency SMS with your GPS location is sent automatically " +
+                "to your registered Emergency Contact."
+            )
+            .setPositiveButton("Got It", null)
+            .show()
     }
 
     // ── Watch tether status text ───────────────────────────────
@@ -693,7 +756,7 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    // ── Recipient dialog — saves on every keystroke ────────────
+    // ── Recipient dialog ───────────────────────────────────────
 
     private fun showRecipientDialog() {
         val isPremium = LicenseManager.isPremium(this)

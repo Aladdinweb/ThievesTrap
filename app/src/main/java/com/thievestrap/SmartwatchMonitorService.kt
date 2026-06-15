@@ -9,11 +9,15 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 
 /**
- * SmartwatchMonitorService — v2.7.6
- * Monitors Bluetooth ACL connection to paired smartwatch.
- * On disconnect  → vibrate + lock screen + 5-min countdown + emergency SMS on expiry.
- * On reconnect   → abort countdown automatically.
- * I'm Safe press → abort countdown, no PIN.
+ * SmartwatchMonitorService — v2.7.9b
+ *
+ * Retained: BLE ACL monitoring, 5-min countdown, "I'm Safe" no-PIN,
+ * emergency SMS on expiry, screen lock on disconnect.
+ *
+ * v2.7.9b additions:
+ *  - Loss alert notification now shows:
+ *      "🚨 TRIGGER ALARM"  — fires AlarmService at max volume
+ *      "🔕 DISARM / MUTE"  — cancels countdown + mutes alarm
  */
 class SmartwatchMonitorService : Service() {
 
@@ -27,6 +31,8 @@ class SmartwatchMonitorService : Service() {
 
         const val ACTION_IM_SAFE    = "com.thievestrap.WATCH_IM_SAFE"
         const val ACTION_ALARM      = "com.thievestrap.WATCH_ALARM"
+        // v2.7.9b: DISARM/MUTE — cancels countdown AND stops alarm
+        const val ACTION_DISARM_MUTE = "com.thievestrap.WATCH_DISARM_MUTE"
         const val ACTION_STOP_WATCH = "com.thievestrap.WATCH_STOP"
 
         fun start(context: Context) =
@@ -60,6 +66,7 @@ class SmartwatchMonitorService : Service() {
         when (intent?.action) {
             ACTION_IM_SAFE    -> handleImSafe()
             ACTION_ALARM      -> triggerAlarm()
+            ACTION_DISARM_MUTE -> handleDisarmMute()
             ACTION_STOP_WATCH -> { stopVibration(); cancelCountdown() }
         }
         return START_STICKY
@@ -113,21 +120,23 @@ class SmartwatchMonitorService : Service() {
         })
     }
 
-    // ── Action receiver (buttons in notification) ─────────────
+    // ── Action receiver (notification buttons) ────────────────
 
     private fun registerActionReceiver() {
         actionReceiver = object : BroadcastReceiver() {
             override fun onReceive(ctx: Context, intent: Intent) {
                 when (intent.action) {
-                    ACTION_IM_SAFE    -> handleImSafe()
-                    ACTION_ALARM      -> triggerAlarm()
-                    ACTION_STOP_WATCH -> { stopVibration(); cancelCountdown() }
+                    ACTION_IM_SAFE     -> handleImSafe()
+                    ACTION_ALARM       -> triggerAlarm()
+                    ACTION_DISARM_MUTE -> handleDisarmMute()
+                    ACTION_STOP_WATCH  -> { stopVibration(); cancelCountdown() }
                 }
             }
         }
         val f = IntentFilter().apply {
             addAction(ACTION_IM_SAFE)
             addAction(ACTION_ALARM)
+            addAction(ACTION_DISARM_MUTE)
             addAction(ACTION_STOP_WATCH)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
@@ -161,6 +170,23 @@ class SmartwatchMonitorService : Service() {
         prefs().edit().putBoolean("watch_emergency_active", false).apply()
         updateStatusNotif("Smartwatch Tether active — safe confirmed")
         Log.i(TAG, "I'm Safe — countdown cancelled, no PIN needed")
+    }
+
+    // ── v2.7.9b: DISARM / MUTE — cancels countdown AND stops alarm ──
+
+    private fun handleDisarmMute() {
+        cancelCountdown()
+        stopVibration()
+        // Stop the alarm siren if it's playing
+        try {
+            startService(Intent(this, AlarmService::class.java).apply {
+                action = "STOP_ALARM"
+            })
+        } catch (e: Exception) {}
+        getSystemService(NotificationManager::class.java)?.cancel(COUNTDOWN_NOTIF_ID)
+        prefs().edit().putBoolean("watch_emergency_active", false).apply()
+        updateStatusNotif("Smartwatch Tether — disarmed & muted")
+        Log.i(TAG, "DISARM/MUTE — countdown cancelled, alarm stopped")
     }
 
     // ── Countdown ─────────────────────────────────────────────
@@ -218,8 +244,7 @@ class SmartwatchMonitorService : Service() {
             try {
                 val sm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
                     getSystemService(android.telephony.SmsManager::class.java)
-                else @Suppress("DEPRECATION")
-                    android.telephony.SmsManager.getDefault()
+                else @Suppress("DEPRECATION") android.telephony.SmsManager.getDefault()
                 sm.sendMultipartTextMessage(target, null, sm.divideMessage(msg), null, null)
                 Log.i(TAG, "Emergency SMS sent to $target")
             } catch (e: Exception) { Log.e(TAG, "SMS fail: ${e.message}") }
@@ -242,7 +267,6 @@ class SmartwatchMonitorService : Service() {
     // ── Vibration ─────────────────────────────────────────────
 
     private fun startLossVibration() = try {
-        // Intense repeating burst (repeat from index 0)
         val pattern = longArrayOf(0,600,200,600,200,600,300,1000,400,600,200,600,200,600)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
             (getSystemService(VibratorManager::class.java)).defaultVibrator
@@ -268,10 +292,11 @@ class SmartwatchMonitorService : Service() {
     }
 
     // ── Notifications ─────────────────────────────────────────
+    // v2.7.9b: Loss alert now shows "🚨 TRIGGER ALARM" and "🔕 DISARM / MUTE"
 
     private fun showLossAlertNotif() {
-        val alarmPi = pendingServiceIntent(1, ACTION_ALARM)
-        val stopPi  = pendingServiceIntent(2, ACTION_STOP_WATCH)
+        val alarmPi     = pendingServiceIntent(1, ACTION_ALARM)
+        val disarmMutePi = pendingBroadcastIntent(2, ACTION_DISARM_MUTE)
 
         val n = NotificationCompat.Builder(this, COUNTDOWN_CHAN_ID)
             .setContentTitle("\uD83D\uDEA8 LOSS ALERT \u2014 Watch Disconnected!")
@@ -279,24 +304,31 @@ class SmartwatchMonitorService : Service() {
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_MAX)
-            .addAction(android.R.drawable.ic_lock_silent_mode_off, "ALARM", alarmPi)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "STOP", stopPi)
+            .addAction(android.R.drawable.ic_lock_silent_mode_off,
+                "\uD83D\uDEA8 TRIGGER ALARM", alarmPi)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel,
+                "\uD83D\uDD15 DISARM / MUTE", disarmMutePi)
             .build()
         getSystemService(NotificationManager::class.java)?.notify(COUNTDOWN_NOTIF_ID, n)
     }
 
     private fun updateCountdownNotif(timeLeft: String) {
-        val imSafePi = pendingServiceIntent(0, ACTION_IM_SAFE)
-        val alarmPi  = pendingServiceIntent(1, ACTION_ALARM)
+        val imSafePi    = pendingServiceIntent(0, ACTION_IM_SAFE)
+        val alarmPi     = pendingServiceIntent(1, ACTION_ALARM)
+        val disarmMutePi = pendingBroadcastIntent(2, ACTION_DISARM_MUTE)
 
         val n = NotificationCompat.Builder(this, COUNTDOWN_CHAN_ID)
             .setContentTitle("\uD83D\uDEA8 Watch Tether \u2014 Emergency in $timeLeft")
-            .setContentText("Tap \u201cI\u2019m Safe\u201d to cancel, or reconnect your watch")
+            .setContentText("Reconnect your watch or tap below")
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_MAX)
-            .addAction(android.R.drawable.ic_menu_myplaces, "I'm Safe", imSafePi)
-            .addAction(android.R.drawable.ic_lock_silent_mode_off, "ALARM", alarmPi)
+            .addAction(android.R.drawable.ic_menu_myplaces,
+                "\u2705 I'm Safe", imSafePi)
+            .addAction(android.R.drawable.ic_lock_silent_mode_off,
+                "\uD83D\uDEA8 TRIGGER ALARM", alarmPi)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel,
+                "\uD83D\uDD15 DISARM / MUTE", disarmMutePi)
             .build()
         getSystemService(NotificationManager::class.java)?.notify(COUNTDOWN_NOTIF_ID, n)
     }
@@ -315,12 +347,19 @@ class SmartwatchMonitorService : Service() {
         getSystemService(NotificationManager::class.java)
             ?.notify(NOTIF_ID, buildStatusNotif(text))
 
+    /** Service intent for actions that need onStartCommand routing */
     private fun pendingServiceIntent(reqCode: Int, action: String): PendingIntent =
         PendingIntent.getService(
             this, reqCode,
             Intent(this, SmartwatchMonitorService::class.java).apply { this.action = action },
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+
+    /** Broadcast intent for quick-action buttons (fires actionReceiver) */
+    private fun pendingBroadcastIntent(reqCode: Int, action: String): PendingIntent =
+        PendingIntent.getBroadcast(
+            this, reqCode + 100,
+            Intent(action).apply { setPackage(packageName) },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
     private fun createChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

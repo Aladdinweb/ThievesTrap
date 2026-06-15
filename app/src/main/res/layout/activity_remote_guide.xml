@@ -9,9 +9,21 @@
         android:background="#0D0D10" android:padding="16dp">
         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="1" android:orientation="vertical">
-            <TextView android:text="@string/remote_title"
-                android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:textSize="16sp" android:textStyle="bold" android:textColor="#FFFFFF"/>
+            <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:gravity="center_vertical">
+                <TextView android:text="@string/remote_title"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="16sp" android:textStyle="bold" android:textColor="#FFFFFF"/>
+                <!-- v2.7.9b: Plan B info badge -->
+                <TextView android:id="@+id/btn_plan_b_info"
+                    android:layout_width="32dp" android:layout_height="32dp"
+                    android:text="&#8505;&#65039;"
+                    android:textSize="16sp" android:gravity="center"
+                    android:layout_marginStart="8dp"
+                    android:clickable="true"
+                    android:foreground="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Plan B PIN info"/>
+            </LinearLayout>
             <TextView android:text="@string/remote_sub"
                 android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:textSize="11sp" android:textColor="#444444"/>
