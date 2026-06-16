@@ -1,17 +1,22 @@
 package com.thievestrap
 
-import android.content.Intent
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.os.Bundle
+import android.widget.Button
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 
 /**
- * RemoteGuideActivity — v2.7.9b
+ * RemoteGuideActivity — v2.8.0
  *
- * Retained: full command list display, back button.
- * v2.7.9b: btn_plan_b_info ℹ️ badge in header launches "Secure Plan B
- * Commands" AlertDialog explaining the [COMMAND] [PIN] mechanism.
+ * Fix: uses correct item_command.xml IDs (tv_cmd_text, tv_cmd_desc).
+ *      Each row now shows its own unique command keyword — no more
+ *      every row showing "WHERE".
+ *      Plan B ℹ️ badge retained.
  */
 class RemoteGuideActivity : AppCompatActivity() {
 
@@ -22,20 +27,22 @@ class RemoteGuideActivity : AppCompatActivity() {
 
         // Back button
         try {
-            findViewById<android.widget.Button>(R.id.btn_back_guide).setOnClickListener {
+            findViewById<Button>(R.id.btn_back_guide).setOnClickListener {
                 finish()
                 overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
             }
         } catch (e: Exception) {}
 
-        // v2.7.9b: Plan B ℹ️ badge — explains dynamic PIN mechanism
+        // Plan B ℹ️ badge
         try {
-            findViewById<android.view.View>(R.id.btn_plan_b_info).setOnClickListener {
-                showPlanBInfoDialog()
+            val infoId = resources.getIdentifier("btn_plan_b_info", "id", packageName)
+            if (infoId != 0) {
+                findViewById<android.view.View>(infoId)?.setOnClickListener {
+                    showPlanBInfoDialog()
+                }
             }
         } catch (e: Exception) {}
 
-        // Wire up command rows (existing logic retained)
         setupCommandRows()
     }
 
@@ -58,90 +65,58 @@ class RemoteGuideActivity : AppCompatActivity() {
             .show()
     }
 
-    // ── Command rows setup (retained) ──────────────────────────
+    // ── Command rows ───────────────────────────────────────────
+    // Uses the real IDs from item_command.xml:
+    //   tv_cmd_text  — the command keyword (bold monospace)
+    //   tv_cmd_desc  — the description text
+    //   btn_copy_cmd — copy button
 
     private fun setupCommandRows() {
-        // LOCATION section
-        try {
-            setCommandRow(R.id.cmd_where,
-                "WHERE", "Send GPS location + Maps link to sender")
-            setCommandRow(R.id.cmd_history,
-                "HISTORY", "Send last 5 recorded locations (Premium)")
-        } catch (e: Exception) {}
+        // LOCATION
+        setCmd(R.id.cmd_where,   "WHERE",    "Get current GPS location + Google Maps link")
+        setCmd(R.id.cmd_history, "HISTORY",  "Last 5 known locations with timestamps (Premium)")
 
-        // DEVICE section
-        try {
-            setCommandRow(R.id.cmd_info,
-                "INFO", "Full device report — model, battery, SIM, IMEI (Premium)")
-            setCommandRow(R.id.cmd_status,
-                "STATUS", "Current armed/theft mode status")
-            setCommandRow(R.id.cmd_battery,
-                "BATTERY", "Battery percentage + charging status (Premium)")
-            setCommandRow(R.id.cmd_imei,
-                "IMEI", "Device IMEI + Android ID (Premium)")
-            setCommandRow(R.id.cmd_sim,
-                "SIM", "Current SIM carrier, country, number (Premium)")
-        } catch (e: Exception) {}
+        // DEVICE
+        setCmd(R.id.cmd_info,    "INFO",     "Full device info: brand, model, IMEI, Android version")
+        setCmd(R.id.cmd_status,  "STATUS",   "Quick status: battery, location, mode")
+        setCmd(R.id.cmd_battery, "BATTERY",  "Current battery level and charging status")
+        setCmd(R.id.cmd_imei,    "IMEI",     "Get device IMEI number (Premium)")
+        setCmd(R.id.cmd_sim,     "SIM",      "Current SIM card details and operator (Premium)")
 
-        // SECURITY section
-        try {
-            setCommandRow(R.id.cmd_alarm,
-                "ALARM", "Trigger max-volume siren remotely (Premium)")
-            setCommandRow(R.id.cmd_stop_alarm,
-                "STOP ALARM", "Silence the alarm (Premium)")
-            setCommandRow(R.id.cmd_lock,
-                "LOCK", "Lock screen immediately via Device Admin (Premium)")
-            setCommandRow(R.id.cmd_selfie,
-                "SELFIE", "Capture 3 front camera photos silently (Premium)")
-        } catch (e: Exception) {}
+        // SECURITY
+        setCmd(R.id.cmd_alarm,      "ALARM",      "Trigger loud alarm — forces phone out of silent mode")
+        setCmd(R.id.cmd_stop_alarm, "STOP ALARM", "Stop the alarm remotely")
+        setCmd(R.id.cmd_lock,       "LOCK",       "Lock the screen immediately (Premium)")
+        setCmd(R.id.cmd_selfie,     "SELFIE",     "Silently capture 3 front-camera photos (Premium)")
 
-        // TRACKING section
-        try {
-            setCommandRow(R.id.cmd_ping2,
-                "PING 2", "Send GPS location every 2 minutes (Premium)")
-            setCommandRow(R.id.cmd_ping5,
-                "PING 5", "Send GPS location every 5 minutes (Premium)")
-            setCommandRow(R.id.cmd_stop_ping,
-                "STOP PING", "Stop periodic location updates (Premium)")
-        } catch (e: Exception) {}
+        // TRACKING
+        setCmd(R.id.cmd_ping2,     "PING 2",    "Send GPS location every 2 minutes (Premium)")
+        setCmd(R.id.cmd_ping5,     "PING 5",    "Send GPS location every 5 minutes (Premium)")
+        setCmd(R.id.cmd_stop_ping, "STOP PING", "Stop periodic location updates (Premium)")
 
-        // CONTROL section
-        try {
-            setCommandRow(R.id.cmd_active,
-                "ACTIVE", "Enable Full Protection / Theft Mode (Premium)")
-            setCommandRow(R.id.cmd_deactivate,
-                "DEACTIVATE", "Disable all theft alerts remotely (Premium)")
-            setCommandRow(R.id.cmd_disarm,
-                "DISARM [PIN]", "Remotely stop monitoring (Premium)")
-        } catch (e: Exception) {}
+        // CONTROL
+        setCmd(R.id.cmd_active,     "ACTIVE",       "Enable Full Protection / Theft Mode (Premium)")
+        setCmd(R.id.cmd_deactivate, "DEACTIVATE",   "Disable all theft alerts remotely (Premium)")
+        setCmd(R.id.cmd_disarm,     "DISARM [PIN]", "Remotely stop monitoring (Premium)")
     }
 
     /**
-     * Sets the command name and description on an item_command row.
-     * Uses getIdentifier so compile succeeds regardless of which IDs
-     * exist in the item_command layout (tv_command_name / tv_command_desc
-     * or any other naming convention in your layout).
+     * Populates one item_command row.
+     * tv_cmd_text  = the SMS command keyword
+     * tv_cmd_desc  = description
+     * btn_copy_cmd = copies the command to clipboard on tap
      */
-    private fun setCommandRow(rowId: Int, command: String, description: String) {
+    private fun setCmd(rowId: Int, command: String, description: String) {
         try {
             val row = findViewById<android.view.View>(rowId) ?: return
-            // Try common ID naming patterns — whichever exists in item_command.xml
-            val nameIds  = listOf("tv_command_name", "tv_cmd_name", "tv_title", "tv_command")
-            val descIds  = listOf("tv_command_desc", "tv_cmd_desc", "tv_subtitle", "tv_description")
-
-            for (nameKey in nameIds) {
-                val id = resources.getIdentifier(nameKey, "id", packageName)
-                if (id != 0) {
-                    row.findViewById<TextView>(id)?.text = command
-                    break
-                }
-            }
-            for (descKey in descIds) {
-                val id = resources.getIdentifier(descKey, "id", packageName)
-                if (id != 0) {
-                    row.findViewById<TextView>(id)?.text = description
-                    break
-                }
+            row.findViewById<TextView>(R.id.tv_cmd_text)?.text = command
+            row.findViewById<TextView>(R.id.tv_cmd_desc)?.text = description
+            row.findViewById<Button>(R.id.btn_copy_cmd)?.setOnClickListener {
+                try {
+                    val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    cm.setPrimaryClip(ClipData.newPlainText("cmd", command))
+                    Toast.makeText(this, "\"$command\" copied!", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {}
             }
         } catch (e: Exception) {}
     }
