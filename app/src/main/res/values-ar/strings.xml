@@ -125,4 +125,46 @@
 • التواجد في أماكن مشبوهة.
 
 ترسل استغاثة تلقائية بموقعك إذا لم تؤكد سلامتك قبل نهاية الوقت.</string>
+
+<string name="theft_mode_premium_only">وضع السرقة — للمدفوعين فقط</string>
+<string name="theft_mode_arm_first">وضع السرقة (فعّل الحماية أولاً)</string>
+<string name="theft_mode_on_tap_off">وضع السرقة: مفعّل — اضغط للإيقاف</string>
+<string name="personal_safety_header">السلامة الشخصية</string>
+<string name="survival_timer_label">مؤقت النجاة</string>
+<string name="watch_tether_label">ربط الساعة</string>
+<string name="check_for_update_label">التحقق من التحديثات</string>
+<string name="watch_tether_off_status">متوقف — مراقبة البلوتوث غير نشطة</string>
+<string name="watch_tether_on_status">مفعّل — اتصال البلوتوث مراقَب</string>
+<string name="watch_tether_hint">اقرن الساعة عبر البلوتوث. عند الانقطاع: يُقفل الهاتف + عد تنازلي 5 دقائق.</string>
+<string name="watch_tether_hint_active">نشط: قفل الهاتف + إنذار + SMS بعد 5 دقائق عند الانقطاع.</string>
+<string name="share_this_app">مشاركة هذا التطبيق</string>
+<string name="share_this_app_sub">أخبر أصدقاءك عن Thieves Trap</string>
+<string name="terms_of_use">شروط الاستخدام</string>
+<string name="terms_of_use_sub">اقرأ الشروط والأحكام</string>
+<string name="privacy_policy">سياسة الخصوصية</string>
+<string name="privacy_policy_sub">كيف نتعامل مع بياناتك</string>
+<string name="rate_app_sub">هل يعجبك التطبيق؟ اترك تقييماً</string>
+<string name="share_chooser_title">مشاركة عبر</string>
+<string name="share_app_subject">Thieves Trap — تطبيق حماية الهاتف</string>
+<string name="share_app_body">احمِ هاتفك من السرقة! نزّل Thieves Trap:</string>
+<string name="cannot_open_link">تعذّر فتح الرابط</string>
+<string name="watch_tether_info_title">⌚ ربط الساعة — كيف يعمل</string>
+<string name="watch_tether_info_body">عند التفعيل، يراقب التطبيق اتصال البلوتوث بالساعة الذكية في الخلفية.\n\n🔒 عند انقطاع الاتصال:\n   • يُقفل الشاشة فوراً\n   • اهتزاز تنبيهي متكرر\n   • عد تنازلي صامت 5 دقائق\n\n✅ خلال العد التنازلي:\n   • «أنا بأمان» — يُلغي بدون PIN\n   • «🚨 إنذار» — صفارة بأقصى صوت\n   • «🔕 إيقاف» — يوقف الإنذار ويُلغي\n\n📩 عند انتهاء الوقت، رسالة استغاثة GPS تُرسل تلقائياً.</string>
+<string name="watch_tether_info_button">حسناً</string>
+<string name="plan_b_info_title">🔐 أوامر الخطة البديلة الآمنة</string>
+<string name="plan_b_info_body">افتراضياً، الأوامر بدون PIN ترسل التنبيهات لجهات الاتصال الطارئة المسجلة فقط.\n\nإذا أضفت رمز PIN الحالي (مثال: «WHERE 2026»)، يرد التطبيق مباشرة على رقم المُرسِل غير المعروف!\n\nيتم تحديث الرمز تلقائياً عند تغييره في الإعدادات.</string>
+<string name="plan_b_info_button">فهمت</string>
+<string name="first_arm_title">📋 مهم: احفظ أوامرك</string>
+<string name="first_arm_body">قبل تفعيل الحماية، اطّلع على دليل أوامر التحكم عن بُعد.</string>
+<string name="first_arm_view_guide">عرض دليل الأوامر</string>
+<string name="first_arm_activate">فهمت، تفعيل الحماية</string>
+<string name="update_checking">جارٍ التحقق من التحديثات…</string>
+<string name="update_up_to_date">تطبيقك محدّث بالكامل!</string>
+<string name="update_check_failed">تعذّر التحقق من التحديثات. حاول لاحقاً.</string>
+<string name="update_available_title">🚨 تحديث جديد متوفر!</string>
+<string name="update_available_body">الإصدار %1$s جاهز.\n\nهل ترغب في التحديث الآن؟</string>
+<string name="update_now_btn">تحديث الآن</string>
+<string name="update_cancel_btn">إلغاء</string>
+<string name="update_not_now_btn">ليس الآن</string>
+<string name="update_downloading">جارٍ تنزيل v%1$s…</string>
 </resources>

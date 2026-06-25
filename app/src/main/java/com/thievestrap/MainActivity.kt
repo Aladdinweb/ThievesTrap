@@ -38,8 +38,6 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.StartActivityForResult()
     ) { startMonitoring() }
 
-    // ── Lifecycle ──────────────────────────────────────────────
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         LocaleHelper.applyLocale(this)
@@ -89,7 +87,6 @@ class MainActivity : AppCompatActivity() {
         }
         registerReceiver(settingsRefreshReceiver,
             IntentFilter("com.thievestrap.SETTINGS_REFRESH"))
-
         window.decorView.post { updateStatus() }
     }
 
@@ -105,8 +102,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun s(key: String) = Strings.get(this, key)
-
-    // ── Setup all buttons ──────────────────────────────────────
 
     private fun setupButtons() {
 
@@ -124,7 +119,6 @@ class MainActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {}
 
-        // ── Nav drawer ────────────────────────────────────────
         try {
             fun close() = drawerLayout.closeDrawer(android.view.Gravity.END)
 
@@ -151,7 +145,7 @@ class MainActivity : AppCompatActivity() {
                 swBioDrawer.isChecked = !swBioDrawer.isChecked
             }
 
-            // ── Survival Timer ────────────────────────────────
+            // Survival Timer
             val tvSurvivalStatus = try {
                 findViewById<TextView>(R.id.tv_survival_status)
             } catch (e: Exception) { null }
@@ -197,9 +191,9 @@ class MainActivity : AppCompatActivity() {
                     .setOnClickListener { close(); showRecipientDialog() }
             } catch (e: Exception) {}
 
-            // ── WATCH TETHER — v2.8.0: ℹ️ badge now in XML, wire directly ──
+            // Watch Tether
             try {
-                // ℹ️ Info badge — now exists in activity_main.xml as nav_watch_tether_info
+                // v2.8.0+: ℹ️ badge now in layout as nav_watch_tether_info
                 try {
                     findViewById<android.view.View>(R.id.nav_watch_tether_info)
                         ?.setOnClickListener { showWatchTetherInfoDialog() }
@@ -212,14 +206,13 @@ class MainActivity : AppCompatActivity() {
 
                 swWatch.setOnCheckedChangeListener { _, checked ->
                     if (checked) {
-                        val btAdapter = (getSystemService(BLUETOOTH_SERVICE) as? BluetoothManager)
-                            ?.adapter
+                        val btAdapter =
+                            (getSystemService(BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
                         if (btAdapter == null || !btAdapter.isEnabled) {
                             Toast.makeText(this,
                                 "Enable Bluetooth and pair your smartwatch first.",
                                 Toast.LENGTH_LONG).show()
-                            swWatch.isChecked = false
-                            return@setOnCheckedChangeListener
+                            swWatch.isChecked = false; return@setOnCheckedChangeListener
                         }
                         val hasBonded = try {
                             btAdapter.bondedDevices?.isNotEmpty() == true
@@ -228,14 +221,14 @@ class MainActivity : AppCompatActivity() {
                             Toast.makeText(this,
                                 "No paired Bluetooth device found. Pair your watch first.",
                                 Toast.LENGTH_LONG).show()
-                            swWatch.isChecked = false
-                            return@setOnCheckedChangeListener
+                            swWatch.isChecked = false; return@setOnCheckedChangeListener
                         }
                         prefs.edit().putBoolean("watch_tether_on", true).apply()
                         SmartwatchMonitorService.start(this)
                         updateWatchTetherStatus(true)
                         hapticFeedback(40)
-                        Toast.makeText(this, "Watch Tether ON — monitoring Bluetooth",
+                        Toast.makeText(this,
+                            getString(R.string.watch_tether_on_status),
                             Toast.LENGTH_SHORT).show()
                     } else {
                         prefs.edit().putBoolean("watch_tether_on", false).apply()
@@ -246,26 +239,22 @@ class MainActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {}
 
-            // ── CHECK FOR UPDATE — v2.7.9 ──
+            // Check for Update
             try {
                 findViewById<android.view.View>(R.id.nav_check_update).setOnClickListener {
-                    hapticFeedback(30)
-                    close()
+                    hapticFeedback(30); close()
                     UpdateManager.checkForUpdate(this)
                 }
             } catch (e: Exception) {}
 
         } catch (e: Exception) {}
 
-        // ── ARM / DISARM — v2.7.9b: first-arm guidance dialog ──
+        // ARM / DISARM — v2.8.1: prefs written BEFORE service start for instant UI
         findViewById<Button>(R.id.btn_arm).setOnClickListener {
             hapticFeedback()
-            if (prefs.getBoolean("running", false)) {
-                showDisarmDialog()
-            } else {
-                // Step 1: Validate mandatory fields
+            if (prefs.getBoolean("running", false)) showDisarmDialog()
+            else {
                 val phone = prefs.getString("phone", "") ?: ""
-                val imei  = prefs.getString("imei",  "") ?: ""
                 if (phone.isBlank()) {
                     Toast.makeText(this,
                         "Please set your Emergency Contact in Settings first.",
@@ -273,18 +262,12 @@ class MainActivity : AppCompatActivity() {
                     startActivity(Intent(this, SettingsActivity::class.java))
                     return@setOnClickListener
                 }
-
-                // Step 2: Check isFirstArm
-                val isFirstArm = prefs.getBoolean("isFirstArm", true)
-                if (isFirstArm) {
-                    // Step 3: Show guidance dialog
-                    showFirstArmGuidanceDialog()
-                } else {
-                    checkPermissionsAndStart()
-                }
+                if (prefs.getBoolean("isFirstArm", true)) showFirstArmGuidanceDialog()
+                else checkPermissionsAndStart()
             }
         }
 
+        // Theft Mode — v2.8.1: prefs updated FIRST → instant shield refresh
         try {
             findViewById<Button>(R.id.btn_theft_mode).setOnClickListener {
                 hapticFeedback()
@@ -297,10 +280,14 @@ class MainActivity : AppCompatActivity() {
                 }
                 val on = prefs.getBoolean("theft_mode", false)
                 if (on) prefs.edit().putBoolean("location_ping", false).apply()
+                // v2.8.1: commit new state BEFORE starting service so
+                // updateStatus() sees it immediately without a round-trip
+                prefs.edit().putBoolean("theft_mode", !on).apply()
                 startService(Intent(this, MonitorService::class.java).apply {
                     action = if (!on) "THEFT_ON" else "THEFT_OFF"
                 })
                 updateStatus()
+                invalidateOptionsMenu()
             }
         } catch (e: Exception) {}
 
@@ -325,75 +312,49 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {}
     }
 
-    // ── v2.7.9b: First-ARM guidance dialog ───────────────────────
-    // Shows once before the user ever arms the app.
-    // Step 3 of the ARM flow.
-
-    private fun showFirstArmGuidanceDialog() {
-        AlertDialog.Builder(this)
-            .setTitle("\uD83D\uDCCB Important: Save Your Commands")
-            .setMessage(
-                "Before locking your protection, please read the remote SMS control " +
-                "layout so you can track your device if it goes missing."
-            )
-            .setPositiveButton("View Commands Guide") { _, _ ->
-                // Go to guide — user can come back and arm afterward
-                startActivity(Intent(this, RemoteGuideActivity::class.java))
-            }
-            .setNegativeButton("Got It, Activate Protection") { _, _ ->
-                // Mark as seen, then proceed with arm flow
-                prefs.edit().putBoolean("isFirstArm", false).apply()
-                checkPermissionsAndStart()
-            }
-            .setCancelable(true)
-            .show()
-    }
-
-    // ── v2.7.9b: Watch Tether info dialog ────────────────────────
-
-    private fun showWatchTetherInfoDialog() {
-        AlertDialog.Builder(this)
-            .setTitle("\u231A Watch Tether — How It Works")
-            .setMessage(
-                "When enabled, Thieves Trap monitors the Bluetooth connection " +
-                "to your paired smartwatch in the background.\n\n" +
-                "\uD83D\uDD12 If the watch disconnects (phone separated):\n" +
-                "   \u2022 Screen locks immediately via Device Admin\n" +
-                "   \u2022 Repeating vibration alert fires\n" +
-                "   \u2022 A 5-minute silent countdown begins\n\n" +
-                "\u2705 During the countdown you can tap:\n" +
-                "   \u2022 \"I'm Safe\" — cancels, no PIN required\n" +
-                "   \u2022 \"\uD83D\uDEA8 TRIGGER ALARM\" — max-volume siren\n" +
-                "   \u2022 \"\uD83D\uDD15 DISARM / MUTE\" — stops alarm + cancels\n\n" +
-                "\uD83D\uDCE9 If the countdown expires without confirmation, one " +
-                "emergency SMS with your GPS location is sent automatically " +
-                "to your registered Emergency Contact."
-            )
-            .setPositiveButton("Got It", null)
-            .show()
-    }
-
-    // ── Watch tether status text ───────────────────────────────
+    // ── Watch Tether status — v2.8.1: from string resources ──────
 
     private fun updateWatchTetherStatus(on: Boolean) {
         try {
             val tvStatus = findViewById<TextView>(R.id.tv_watch_tether_status)
             val tvHint   = findViewById<TextView>(R.id.tv_watch_tether_hint)
             if (on) {
-                tvStatus?.text = "ON \u2014 Bluetooth connection monitored"
+                tvStatus?.text = getString(R.string.watch_tether_on_status)
                 tvStatus?.setTextColor(0xFF00CC44.toInt())
-                tvHint?.text = "Active: phone locks + alarm + 5-min SMS on disconnect."
+                tvHint?.text = getString(R.string.watch_tether_hint_active)
                 tvHint?.setTextColor(0xFF1A4D1A.toInt())
             } else {
-                tvStatus?.text = "Off \u2014 Bluetooth monitoring inactive"
+                tvStatus?.text = getString(R.string.watch_tether_off_status)
                 tvStatus?.setTextColor(0xFF444444.toInt())
-                tvHint?.text = "Pair watch via Bluetooth. If disconnected: phone locks + 5-min SMS countdown."
+                tvHint?.text = getString(R.string.watch_tether_hint)
                 tvHint?.setTextColor(0xFF333333.toInt())
             }
         } catch (e: Exception) {}
     }
 
-    // ── Upgrade dialog ─────────────────────────────────────────
+    // ── Dialogs — v2.8.1: all from string resources ───────────────
+
+    private fun showFirstArmGuidanceDialog() {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.first_arm_title))
+            .setMessage(getString(R.string.first_arm_body))
+            .setPositiveButton(getString(R.string.first_arm_view_guide)) { _, _ ->
+                startActivity(Intent(this, RemoteGuideActivity::class.java))
+            }
+            .setNegativeButton(getString(R.string.first_arm_activate)) { _, _ ->
+                prefs.edit().putBoolean("isFirstArm", false).apply()
+                checkPermissionsAndStart()
+            }
+            .setCancelable(true).show()
+    }
+
+    private fun showWatchTetherInfoDialog() {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.watch_tether_info_title))
+            .setMessage(getString(R.string.watch_tether_info_body))
+            .setPositiveButton(getString(R.string.watch_tether_info_button), null)
+            .show()
+    }
 
     private fun showUpgradeDialog(feature: String) {
         AlertDialog.Builder(this)
@@ -404,8 +365,6 @@ class MainActivity : AppCompatActivity() {
             }
             .setNegativeButton("Not now", null).show()
     }
-
-    // ── Disarm flow ────────────────────────────────────────────
 
     private fun showDisarmDialog() {
         if (prefs.getBoolean("biometric_unlock", false)) {
@@ -452,8 +411,6 @@ class MainActivity : AppCompatActivity() {
             }.setNegativeButton(s("cancel"), null).show()
     }
 
-    // ── PIN change dialog ──────────────────────────────────────
-
     private fun showPinChangeDialog() {
         val oldInput = EditText(this).apply {
             hint = "Current PIN"
@@ -485,8 +442,6 @@ class MainActivity : AppCompatActivity() {
             }.setNegativeButton("Cancel", null).show()
     }
 
-    // ── Language dialog ────────────────────────────────────────
-
     private fun showLanguageDialog() {
         val gb = "\uD83C\uDDEC\uD83C\uDDE7"
         val fr = "\uD83C\uDDEB\uD83C\uDDF7"
@@ -510,7 +465,7 @@ class MainActivity : AppCompatActivity() {
             .setNegativeButton("Cancel", null).show()
     }
 
-    // ── Permissions & monitoring ───────────────────────────────
+    // ── Permissions & monitoring ───────────────────────────────────
 
     private fun checkPermissionsAndStart() {
         val needed = mutableListOf(
@@ -537,6 +492,7 @@ class MainActivity : AppCompatActivity() {
         } else startMonitoring()
     }
 
+    // v2.8.1: prefs committed BEFORE startForegroundService → updateStatus() is instant
     private fun startMonitoring() {
         val phone = prefs.getString("phone", "") ?: ""
         if (phone.isBlank()) {
@@ -545,12 +501,12 @@ class MainActivity : AppCompatActivity() {
         }
         playLockSound()
         hapticFeedback(60)
-        ContextCompat.startForegroundService(this,
-            Intent(this, MonitorService::class.java).apply { action = "START" })
         prefs.edit()
             .putBoolean("running", true)
             .putLong("arm_time", System.currentTimeMillis())
             .apply()
+        ContextCompat.startForegroundService(this,
+            Intent(this, MonitorService::class.java).apply { action = "START" })
         Toast.makeText(this, s("armed"), Toast.LENGTH_SHORT).show()
         updateStatus()
     }
@@ -571,7 +527,7 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {}
     }
 
-    // ── Status UI update ───────────────────────────────────────
+    // ── Status UI update — v2.8.1: theft button text from string resources ──
 
     private fun updateStatus() {
         val running     = prefs.getBoolean("running", false)
@@ -653,35 +609,38 @@ class MainActivity : AppCompatActivity() {
                 try { findViewById<TextView>(R.id.tv_uptime).text = "" } catch (e: Exception) {}
             }
         } catch (e: Exception) {}
+
+        // v2.8.1: theft button text from string resources — full localization
         try {
             val theftBtn = findViewById<Button>(R.id.btn_theft_mode)
             when {
                 !isPremium -> {
-                    theftBtn.text = "Theft Mode — Premium Only"
+                    theftBtn.text = getString(R.string.theft_mode_premium_only)
                     theftBtn.backgroundTintList =
                         android.content.res.ColorStateList.valueOf(0xFF111111.toInt())
                     theftBtn.setTextColor(0xFF444444.toInt())
                 }
                 !running -> {
-                    theftBtn.text = "THEFT MODE (arm first)"
+                    theftBtn.text = getString(R.string.theft_mode_arm_first)
                     theftBtn.backgroundTintList =
                         android.content.res.ColorStateList.valueOf(0xFF111111.toInt())
                     theftBtn.setTextColor(0xFF333333.toInt())
                 }
                 theft -> {
-                    theftBtn.text = "THEFT MODE: ON — Tap to deactivate"
+                    theftBtn.text = getString(R.string.theft_mode_on_tap_off)
                     theftBtn.backgroundTintList =
                         android.content.res.ColorStateList.valueOf(0xFFCC0000.toInt())
                     theftBtn.setTextColor(0xFFFFFFFF.toInt())
                 }
                 else -> {
-                    theftBtn.text = "ACTIVATE THEFT MODE"
+                    theftBtn.text = getString(R.string.activate_theft)
                     theftBtn.backgroundTintList =
                         android.content.res.ColorStateList.valueOf(0xFF2A1A00.toInt())
                     theftBtn.setTextColor(0xFFFFAA00.toInt())
                 }
             }
         } catch (e: Exception) {}
+
         try {
             findViewById<Button>(R.id.btn_arm).text = if (running) s("disarm") else s("arm")
         } catch (e: Exception) {}
@@ -692,7 +651,7 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {}
     }
 
-    // ── Survival timer picker ──────────────────────────────────
+    // ── Survival timer picker ──────────────────────────────────────
 
     private fun showSurvivalTimerPicker(statusTv: TextView? = null) {
         val isPremium = LicenseManager.isPremium(this)
@@ -756,13 +715,10 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    // ── Recipient dialog ───────────────────────────────────────
-
     private fun showRecipientDialog() {
         val isPremium = LicenseManager.isPremium(this)
         val saved     = prefs.getString("survival_recipient", "") ?: ""
         val useCustom = saved.isNotBlank() && isPremium
-
         val ll = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(48, 24, 48, 8)
         }
@@ -788,9 +744,7 @@ class MainActivity : AppCompatActivity() {
             if (!isPremium) {
                 rb2.isChecked = false; rb1.isChecked = true
                 Toast.makeText(this, "⭐ Premium required", Toast.LENGTH_SHORT).show()
-            } else {
-                etCustom.visibility = android.view.View.VISIBLE; etCustom.requestFocus()
-            }
+            } else { etCustom.visibility = android.view.View.VISIBLE; etCustom.requestFocus() }
         }
         etCustom.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
@@ -819,8 +773,6 @@ class MainActivity : AppCompatActivity() {
             .setMessage(getString(R.string.survival_info_body))
             .setPositiveButton("OK", null).show()
     }
-
-    // ── Haptic ─────────────────────────────────────────────────
 
     private fun hapticFeedback(durationMs: Long = 40) {
         try {

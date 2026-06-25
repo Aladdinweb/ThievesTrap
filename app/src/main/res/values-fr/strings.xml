@@ -125,4 +125,46 @@
 • Lieux suspects ou dangereux.
 
 Elle envoie une alerte automatique avec votre position GPS si vous ne confirmez pas votre securite a temps.</string>
+
+<string name="theft_mode_premium_only">Mode Vol — Reserve Premium</string>
+<string name="theft_mode_arm_first">MODE VOL (activer dabord)</string>
+<string name="theft_mode_on_tap_off">MODE VOL : ACTIF — Toucher pour desactiver</string>
+<string name="personal_safety_header">SECURITE PERSONNELLE</string>
+<string name="survival_timer_label">Minuteur de survie</string>
+<string name="watch_tether_label">Lien Montre</string>
+<string name="check_for_update_label">Verifier les mises a jour</string>
+<string name="watch_tether_off_status">Desactive — surveillance Bluetooth inactive</string>
+<string name="watch_tether_on_status">ACTIF — connexion Bluetooth surveillee</string>
+<string name="watch_tether_hint">Associez votre montre via Bluetooth. En cas de deconnexion : verrouillage + SMS de 5 min.</string>
+<string name="watch_tether_hint_active">Actif : verrouillage + alarme + SMS apres 5 min en cas de deconnexion.</string>
+<string name="share_this_app">Partager cette application</string>
+<string name="share_this_app_sub">Parlez de Thieves Trap a vos amis</string>
+<string name="terms_of_use">Conditions dutilisation</string>
+<string name="terms_of_use_sub">Lire nos conditions generales</string>
+<string name="privacy_policy">Politique de confidentialite</string>
+<string name="privacy_policy_sub">Comment nous traitons vos donnees</string>
+<string name="rate_app_sub">Vous aimez lapplication ? Laissez un avis</string>
+<string name="share_chooser_title">Partager via</string>
+<string name="share_app_subject">Thieves Trap — Application de securite</string>
+<string name="share_app_body">Protegez votre telephone contre le vol ! Telechargez Thieves Trap :</string>
+<string name="cannot_open_link">Impossible douvrir le lien</string>
+<string name="watch_tether_info_title">⌚ Lien Montre — Fonctionnement</string>
+<string name="watch_tether_info_body">Lorsquil est active, Thieves Trap surveille la connexion Bluetooth avec votre montre connectee en arriere-plan.\n\n🔒 Si la montre se deconnecte :\n   • Lecran se verrouille immediatement\n   • Une alerte vibrante repetee se declenche\n   • Un compte a rebours silencieux de 5 minutes commence\n\n✅ Pendant le compte a rebours :\n   • « Je suis en securite » — annule sans PIN\n   • « 🚨 ALARME » — sirene a volume maximal\n   • « 🔕 DESACTIVER » — arrete lalarme + annule\n\n📩 A lexpiration, un SMS durgence GPS est envoye a votre contact durgence.</string>
+<string name="watch_tether_info_button">Compris</string>
+<string name="plan_b_info_title">🔐 Commandes Plan B securisees</string>
+<string name="plan_b_info_body">Par defaut, les commandes sans PIN envoient des alertes uniquement a vos contacts durgence enregistres.\n\nCependant, si vous ajoutez votre PIN actuel (ex : « WHERE 2026 »), lapplication repondra directement au numero de lexpediteur inconnu !\n\nCe PIN se met a jour dynamiquement des que vous le modifiez dans les parametres.</string>
+<string name="plan_b_info_button">Compris</string>
+<string name="first_arm_title">📋 Important : Enregistrez vos commandes</string>
+<string name="first_arm_body">Avant de verrouiller votre protection, consultez le guide des commandes SMS a distance.</string>
+<string name="first_arm_view_guide">Voir le guide des commandes</string>
+<string name="first_arm_activate">Compris, activer la protection</string>
+<string name="update_checking">Verification des mises a jour…</string>
+<string name="update_up_to_date">Votre application est a jour !</string>
+<string name="update_check_failed">Impossible de verifier les mises a jour. Reessayez plus tard.</string>
+<string name="update_available_title">🚨 Nouvelle mise a jour disponible !</string>
+<string name="update_available_body">La version %1$s est prete.\n\nSouhaitez-vous mettre a jour maintenant ?</string>
+<string name="update_now_btn">Mettre a jour</string>
+<string name="update_cancel_btn">Annuler</string>
+<string name="update_not_now_btn">Plus tard</string>
+<string name="update_downloading">Telechargement v%1$s…</string>
 </resources>

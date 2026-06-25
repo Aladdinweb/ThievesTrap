@@ -12,10 +12,12 @@ class AboutActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         LocaleHelper.applyLocale(this)
         setContentView(R.layout.activity_about)
-        try { findViewById<android.widget.TextView>(R.id.tv_about_version)
-            .text = "Version ${BuildConfig.VERSION_NAME}" } catch (e: Exception) {}
+        try {
+            findViewById<TextView>(R.id.tv_about_version).text =
+                "${getString(R.string.about_version_label)} ${BuildConfig.VERSION_NAME}"
+        } catch (e: Exception) {}
 
-        // Rate — Play Store link
+        // Rate
         findViewById<android.view.View>(R.id.item_rate).setOnClickListener {
             try {
                 startActivity(Intent(Intent.ACTION_VIEW,
@@ -26,16 +28,16 @@ class AboutActivity : AppCompatActivity() {
             }
         }
 
-        // Share
+        // Share — v2.8.1: uses localized strings
         findViewById<android.view.View>(R.id.item_share).setOnClickListener {
             startActivity(Intent.createChooser(
                 Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"
-                    putExtra(Intent.EXTRA_SUBJECT, "Thieves Trap — Phone Security App")
+                    putExtra(Intent.EXTRA_SUBJECT, getString(R.string.share_app_subject))
                     putExtra(Intent.EXTRA_TEXT,
-                        "Protect your phone from thieves! Download Thieves Trap:\n" +
+                        "${getString(R.string.share_app_body)}\n" +
                         "https://play.google.com/store/apps/details?id=$packageName")
-                }, "Share via"))
+                }, getString(R.string.share_chooser_title)))
         }
 
         // Terms of Use
@@ -58,14 +60,13 @@ class AboutActivity : AppCompatActivity() {
     override fun onBackPressed() {
         super.onBackPressed()
         overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
-        overridePendingTransition(android.R.anim.fade_in, android.R.anim.slide_out_right)
     }
 
     private fun openUrl(url: String) {
         try {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         } catch (e: Exception) {
-            Toast.makeText(this, "Cannot open link", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.cannot_open_link), Toast.LENGTH_SHORT).show()
         }
     }
 }
