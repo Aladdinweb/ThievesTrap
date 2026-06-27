@@ -1,6 +1,8 @@
 package com.thievestrap
 
+import android.content.Intent
 import android.content.SharedPreferences
+import android.net.Uri
 import android.os.Bundle
 import android.text.InputType
 import android.widget.*
@@ -11,6 +13,10 @@ class PremiumActivity : AppCompatActivity() {
 
     private lateinit var prefs: SharedPreferences
     private fun s(key: String) = Strings.get(this, key)
+
+    // Facebook page URL for support
+    private val FACEBOOK_PAGE_URL = "https://www.facebook.com/share/1MRdfCnNoY/"
+    private val FACEBOOK_APP_URL = "fb://facewebmodal/f?href=$FACEBOOK_PAGE_URL"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -63,14 +69,17 @@ class PremiumActivity : AppCompatActivity() {
             }
         }
 
-        // Payment buttons
+        // Visa/MasterCard — coming soon
         findViewById<Button>(R.id.btn_pay_card).setOnClickListener {
-            Toast.makeText(this, "Visa/MasterCard payment coming soon!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.coming_soon_badge), Toast.LENGTH_SHORT).show()
         }
+
+        // Contact Support → Facebook page
         findViewById<Button>(R.id.btn_pay_support).setOnClickListener {
-            Toast.makeText(this, "Support contact coming soon!", Toast.LENGTH_SHORT).show()
+            openFacebook()
         }
-        // Fix 5: Restore Get Device ID (uses androidId declared above)
+
+        // Get Device ID
         try {
             findViewById<Button>(R.id.btn_restore).setOnClickListener {
                 val clipboard = getSystemService(android.content.ClipboardManager::class.java)
@@ -81,8 +90,20 @@ class PremiumActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.btn_back_premium).setOnClickListener { finish() }
 
-        // Fix 5: Only the red Revoke License Key button at bottom
         setupRevokeButton(isPremium)
+    }
+
+    private fun openFacebook() {
+        // Try to open Facebook app first, fall back to browser
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(FACEBOOK_APP_URL)))
+        } catch (e: Exception) {
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(FACEBOOK_PAGE_URL)))
+            } catch (e2: Exception) {
+                Toast.makeText(this, getString(R.string.cannot_open_link), Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun setupRevokeButton(isPremium: Boolean) {
