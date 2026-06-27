@@ -52,7 +52,7 @@
                     <TextView android:text="@string/rate_app"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textColor="#FFFFFF" android:textSize="14sp" android:textStyle="bold"/>
-                    <TextView android:text="Leave a review on the Play Store"
+                    <TextView android:text="@string/rate_app_sub"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textColor="#666666" android:textSize="11sp"/>
                 </LinearLayout>
@@ -73,10 +73,10 @@
                     android:textSize="20sp" android:layout_marginEnd="14dp"/>
                 <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
                     android:layout_weight="1" android:orientation="vertical">
-                    <TextView android:text="Share this app"
+                    <TextView android:text="@string/share_this_app"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textColor="#FFFFFF" android:textSize="14sp" android:textStyle="bold"/>
-                    <TextView android:text="Recommend to friends and family"
+                    <TextView android:text="@string/share_this_app_sub"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textColor="#666666" android:textSize="11sp"/>
                 </LinearLayout>
@@ -97,10 +97,10 @@
                     android:textSize="20sp" android:layout_marginEnd="14dp"/>
                 <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
                     android:layout_weight="1" android:orientation="vertical">
-                    <TextView android:text="Terms of Use"
+                    <TextView android:text="@string/terms_of_use"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textColor="#FFFFFF" android:textSize="14sp" android:textStyle="bold"/>
-                    <TextView android:text="Read our terms and conditions"
+                    <TextView android:text="@string/terms_of_use_sub"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textColor="#666666" android:textSize="11sp"/>
                 </LinearLayout>
@@ -121,10 +121,10 @@
                     android:textSize="20sp" android:layout_marginEnd="14dp"/>
                 <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
                     android:layout_weight="1" android:orientation="vertical">
-                    <TextView android:text="Privacy Policy"
+                    <TextView android:text="@string/privacy_policy"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textColor="#FFFFFF" android:textSize="14sp" android:textStyle="bold"/>
-                    <TextView android:text="How we handle your data"
+                    <TextView android:text="@string/privacy_policy_sub"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textColor="#666666" android:textSize="11sp"/>
                 </LinearLayout>
@@ -133,40 +133,39 @@
                     android:textSize="20sp" android:textColor="#333333"/>
             </LinearLayout>
 
-
             <!-- Privacy & Mission -->
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:orientation="vertical" android:background="#0D0D10"
                 android:padding="16dp" android:layout_marginTop="8dp" android:layout_marginBottom="2dp">
 
-                <TextView android:text="&#128274; Privacy Commitment"
+                <TextView android:text="@string/about_privacy_commitment_title"
                     android:layout_width="wrap_content" android:layout_height="wrap_content"
                     android:textSize="11sp" android:textColor="#CC0000" android:textStyle="bold"
                     android:layout_marginBottom="4dp"/>
-                <TextView android:text="We value your privacy. Photos and location data are sent directly to your private Telegram bot or emergency SMS. We do not store any of your personal media on our servers."
+                <TextView android:text="@string/about_privacy_commitment_body"
                     android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:textSize="11sp" android:textColor="#888888" android:layout_marginBottom="14dp"/>
 
-                <TextView android:text="&#9889; Modern Efficiency"
+                <TextView android:text="@string/about_modern_efficiency_title"
                     android:layout_width="wrap_content" android:layout_height="wrap_content"
                     android:textSize="11sp" android:textColor="#4A90D9" android:textStyle="bold"
                     android:layout_marginBottom="4dp"/>
-                <TextView android:text="We upgraded our system to support Telegram Integration. Receive instant intruder selfies and security alerts faster and more reliably than traditional methods."
+                <TextView android:text="@string/about_modern_efficiency_body"
                     android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:textSize="11sp" android:textColor="#888888" android:layout_marginBottom="14dp"/>
 
-                <TextView android:text="&#127919; Our Mission"
+                <TextView android:text="@string/about_our_mission_title"
                     android:layout_width="wrap_content" android:layout_height="wrap_content"
                     android:textSize="11sp" android:textColor="#00FF66" android:textStyle="bold"
                     android:layout_marginBottom="4dp"/>
-                <TextView android:text="Providing a dual-protection layer through SMS and Telegram to ensure you recover your phone and stay informed of its status in real-time."
+                <TextView android:text="@string/about_our_mission_body"
                     android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:textSize="11sp" android:textColor="#888888"/>
             </LinearLayout>
 
             <Button android:id="@+id/btn_back_about"
                 android:layout_width="match_parent" android:layout_height="48dp"
-                android:text="&#8592; Back"
+                android:text="@string/back_arrow_left"
                 android:backgroundTint="#1A1A1A" android:textColor="#AAAAAA" android:textSize="13sp"/>
         </LinearLayout>
 
