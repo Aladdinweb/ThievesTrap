@@ -38,14 +38,18 @@
                 <TextView android:text="@string/price_premium"
                     android:layout_width="wrap_content" android:layout_height="wrap_content"
                     android:textSize="44sp" android:textStyle="bold" android:textColor="#FFD700"/>
+                <TextView android:text="@string/price_per_year_suffix"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="16sp" android:textColor="#FFD700" android:textStyle="bold"
+                    android:paddingBottom="8dp" android:paddingStart="2dp"/>
             </LinearLayout>
-            <TextView android:text="@string/lifetime_plan"
+            <TextView android:text="@string/annual_plan"
                 android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:textSize="11sp" android:textColor="#444444"/>
         </LinearLayout>
 
         <!-- FREE vs PREMIUM -->
-        <TextView android:text="FREE vs FULL PROTECTION"
+        <TextView android:text="@string/free_vs_full_header"
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:textSize="9sp" android:textColor="#CC0000" android:textStyle="bold"
             android:letterSpacing="0.2" android:layout_marginBottom="8dp"/>
@@ -54,11 +58,11 @@
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="vertical" android:background="#0D0D10"
             android:padding="14dp" android:layout_marginBottom="2dp">
-            <TextView android:text="FREE INCLUDED"
+            <TextView android:text="@string/free_included_header"
                 android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:textSize="10sp" android:textColor="#00AA44" android:textStyle="bold"
                 android:layout_marginBottom="8dp"/>
-            <TextView android:text="&#10003; Emergency Contact 1\n&#10003; Selfie capture (saved locally)\n&#10003; 15s fixed grace period\n&#10003; SMS on wrong PIN"
+            <TextView android:text="@string/free_features_list"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:textSize="12sp" android:textColor="#555555" android:lineSpacingMultiplier="1.6"/>
         </LinearLayout>
@@ -67,7 +71,7 @@
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="vertical" android:background="#1A1400"
             android:padding="14dp" android:layout_marginBottom="16dp">
-            <TextView android:text="&#128081; FULL PROTECTION UNLOCKS"
+            <TextView android:text="@string/premium_unlocks_header"
                 android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:textSize="10sp" android:textColor="#FFD700" android:textStyle="bold"
                 android:layout_marginBottom="10dp"/>
@@ -77,10 +81,10 @@
                 <TextView android:text="&#128222;" android:layout_width="wrap_content"
                     android:layout_height="wrap_content" android:textSize="18sp" android:layout_marginEnd="10dp"/>
                 <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                    <TextView android:text="Emergency Contact 2 + Recovery Email"
+                    <TextView android:text="@string/prem_feat1_title"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textColor="#FFFFFF" android:textSize="13sp" android:textStyle="bold"/>
-                    <TextView android:text="Alert 2 people simultaneously"
+                    <TextView android:text="@string/prem_feat1_sub"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textColor="#555555" android:textSize="11sp"/>
                 </LinearLayout>
@@ -91,10 +95,10 @@
                 <TextView android:text="&#128247;" android:layout_width="wrap_content"
                     android:layout_height="wrap_content" android:textSize="18sp" android:layout_marginEnd="10dp"/>
                 <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                    <TextView android:text="Auto-email intruder photo"
+                    <TextView android:text="@string/prem_feat2_title"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textColor="#FFFFFF" android:textSize="13sp" android:textStyle="bold"/>
-                    <TextView android:text="Selfie sent to your email automatically"
+                    <TextView android:text="@string/prem_feat2_sub"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textColor="#555555" android:textSize="11sp"/>
                 </LinearLayout>
@@ -105,10 +109,10 @@
                 <TextView android:text="&#128225;" android:layout_width="wrap_content"
                     android:layout_height="wrap_content" android:textSize="18sp" android:layout_marginEnd="10dp"/>
                 <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                    <TextView android:text="Full Remote SMS Commands"
+                    <TextView android:text="@string/prem_feat3_title"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textColor="#FFFFFF" android:textSize="13sp" android:textStyle="bold"/>
-                    <TextView android:text="WHERE, SELFIE, ALARM, LOCK from any phone"
+                    <TextView android:text="@string/prem_feat3_sub"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textColor="#555555" android:textSize="11sp"/>
                 </LinearLayout>
@@ -119,10 +123,10 @@
                 <TextView android:text="&#8987;" android:layout_width="wrap_content"
                     android:layout_height="wrap_content" android:textSize="18sp" android:layout_marginEnd="10dp"/>
                 <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                    <TextView android:text="Customizable Grace Period (5-15s)"
+                    <TextView android:text="@string/prem_feat4_title"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textColor="#FFFFFF" android:textSize="13sp" android:textStyle="bold"/>
-                    <TextView android:text="Free version locked at 15s"
+                    <TextView android:text="@string/prem_feat4_sub"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textColor="#555555" android:textSize="11sp"/>
                 </LinearLayout>
@@ -133,10 +137,10 @@
                 <TextView android:text="&#128737;" android:layout_width="wrap_content"
                     android:layout_height="wrap_content" android:textSize="18sp" android:layout_marginEnd="10dp"/>
                 <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                    <TextView android:text="All Theft Mode alerts"
+                    <TextView android:text="@string/prem_feat5_title"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textColor="#FFFFFF" android:textSize="13sp" android:textStyle="bold"/>
-                    <TextView android:text="Airplane, Shutdown, Silent mode, Charging"
+                    <TextView android:text="@string/prem_feat5_sub"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textColor="#555555" android:textSize="11sp"/>
                 </LinearLayout>
@@ -147,18 +151,18 @@
                 <TextView android:text="&#11088;" android:layout_width="wrap_content"
                     android:layout_height="wrap_content" android:textSize="18sp" android:layout_marginEnd="10dp"/>
                 <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                    <TextView android:text="All future features — forever"
+                    <TextView android:text="@string/prem_feat6_title"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textColor="#FFFFFF" android:textSize="13sp" android:textStyle="bold"/>
-                    <TextView android:text="Every update included at no extra cost"
+                    <TextView android:text="@string/prem_feat6_sub"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textColor="#555555" android:textSize="11sp"/>
                 </LinearLayout>
             </LinearLayout>
         </LinearLayout>
 
-        <!-- ══ PAYMENT METHODS ══ -->
-        <TextView android:text="CHOOSE PAYMENT METHOD"
+        <!-- PAYMENT METHODS -->
+        <TextView android:text="@string/choose_payment_header"
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:textSize="9sp" android:textColor="#CC0000" android:textStyle="bold"
             android:letterSpacing="0.2" android:layout_marginBottom="10dp"/>
@@ -175,23 +179,23 @@
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textSize="14sp" android:textColor="#AAAAAA" android:textStyle="bold"
                         android:layout_marginEnd="8dp"/>
-                    <TextView android:text="COMING SOON"
+                    <TextView android:text="@string/coming_soon_badge"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textSize="9sp" android:textColor="#CC0000" android:textStyle="bold"
                         android:background="#1A0000" android:padding="3dp"/>
                 </LinearLayout>
-                <TextView android:text="Online secure payment"
+                <TextView android:text="@string/card_payment_sub"
                     android:layout_width="wrap_content" android:layout_height="wrap_content"
                     android:textSize="11sp" android:textColor="#333333"/>
             </LinearLayout>
             <Button android:id="@+id/btn_pay_card"
                 android:layout_width="80dp" android:layout_height="36dp"
-                android:text="Soon" android:textSize="11sp"
+                android:text="@string/soon_btn" android:textSize="11sp"
                 android:backgroundTint="#1A1A1A" android:textColor="#333333"
                 android:enabled="false"/>
         </LinearLayout>
 
-        <!-- Method 2: Support (Coming Soon) -->
+        <!-- Method 2: Contact Support → Facebook -->
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="horizontal" android:gravity="center_vertical"
             android:background="#0D0D10" android:padding="14dp" android:layout_marginBottom="16dp">
@@ -199,28 +203,25 @@
                 android:layout_weight="1" android:orientation="vertical">
                 <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
                     android:orientation="horizontal" android:gravity="center_vertical">
-                    <TextView android:text="&#128172; Contact Support"
+                    <TextView android:text="&#128172; @string/contact_support_label"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textSize="14sp" android:textColor="#AAAAAA" android:textStyle="bold"
                         android:layout_marginEnd="8dp"/>
-                    <TextView android:text="COMING SOON"
-                        android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:textSize="9sp" android:textColor="#CC0000" android:textStyle="bold"
-                        android:background="#1A0000" android:padding="3dp"/>
                 </LinearLayout>
-                <TextView android:text="WhatsApp / Telegram support"
+                <TextView android:text="@string/contact_support_sub"
                     android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:textSize="11sp" android:textColor="#333333"/>
+                    android:textSize="11sp" android:textColor="#4A90D9"/>
             </LinearLayout>
             <Button android:id="@+id/btn_pay_support"
                 android:layout_width="80dp" android:layout_height="36dp"
-                android:text="Soon" android:textSize="11sp"
-                android:backgroundTint="#1A1A1A" android:textColor="#333333"
-                android:enabled="false"/>
+                android:text="@string/contact_btn"
+                android:textSize="11sp"
+                android:backgroundTint="#1A3A6A" android:textColor="#FFFFFF"
+                android:enabled="true"/>
         </LinearLayout>
 
-        <!-- ══ LICENSE KEY (Active Method) ══ -->
-        <TextView android:text="OR ENTER LICENSE KEY (ACTIVE NOW)"
+        <!-- LICENSE KEY -->
+        <TextView android:text="@string/license_key_header"
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:textSize="9sp" android:textColor="#00AA44" android:textStyle="bold"
             android:letterSpacing="0.2" android:layout_marginBottom="8dp"/>
@@ -229,58 +230,54 @@
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="vertical" android:background="#0D1A0D"
             android:padding="14dp" android:layout_marginBottom="12dp">
-            <TextView android:text="Keys are device-specific. Share your Device ID above when purchasing."
+            <TextView android:text="@string/license_key_hint"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:textSize="10sp" android:textColor="#444444" android:layout_marginBottom="8dp"/>
             <EditText android:id="@+id/et_license_key"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:hint="Enter license key"
+                android:hint="@string/license_key_placeholder"
                 android:inputType="textPassword"
                 android:textColor="#FFFFFF" android:textColorHint="#333333"
-                android:fontFamily="monospace" android:textSize="14sp"
-                android:layout_marginBottom="0dp"/>
+                android:fontFamily="monospace" android:textSize="14sp"/>
         </LinearLayout>
 
         <!-- Main CTA button -->
         <Button android:id="@+id/btn_buy"
             android:layout_width="match_parent" android:layout_height="54dp"
-            android:text="&#128081;  UNLOCK FULL PROTECTION"
+            android:text="@string/unlock_full"
             android:textSize="15sp" android:textStyle="bold"
             android:backgroundTint="#1A1300" android:textColor="#FFD700"
             android:layout_marginBottom="8dp"/>
 
-
-
         <Button android:id="@+id/btn_restore"
             android:layout_width="match_parent" android:layout_height="44dp"
-            android:text="Get Device ID for purchase"
+            android:text="@string/get_device_id_btn"
             android:textSize="12sp" android:backgroundTint="#111111"
             android:textColor="#555555" android:layout_marginBottom="12dp"/>
 
         <!-- Copyright -->
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:text="COPYRIGHT &#169; 2026 ILINE TECH BY FERAK ALADDIN"
+            android:text="@string/about_copyright"
             android:textSize="9sp" android:textColor="#222222"
             android:gravity="center" android:letterSpacing="0.1" android:layout_marginBottom="8dp"/>
 
         <Button android:id="@+id/btn_back_premium"
             android:layout_width="match_parent" android:layout_height="44dp"
-            android:text="&#8592; Back" android:textSize="13sp"
+            android:text="@string/back_arrow_left" android:textSize="13sp"
             android:backgroundTint="#1A1A1A" android:textColor="#666666"/>
 
-    
-    <!-- REVOKE LICENSE — shown only when premium active -->
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:orientation="vertical" android:padding="20dp"
-        android:layout_marginTop="8dp">
-        <View android:layout_width="match_parent" android:layout_height="1dp"
-            android:background="#1A1A1A" android:layout_marginBottom="16dp"/>
-        <Button android:id="@+id/btn_revoke_license"
-            android:layout_width="match_parent" android:layout_height="42dp"
-            android:text="Revoke License Key"
-            android:backgroundTint="#1A0000" android:textColor="#CC0000"
-            android:textSize="12sp"/>
-    </LinearLayout>
+        <!-- REVOKE LICENSE — shown only when premium active -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:padding="20dp"
+            android:layout_marginTop="8dp">
+            <View android:layout_width="match_parent" android:layout_height="1dp"
+                android:background="#1A1A1A" android:layout_marginBottom="16dp"/>
+            <Button android:id="@+id/btn_revoke_license"
+                android:layout_width="match_parent" android:layout_height="42dp"
+                android:text="@string/revoke_license_btn"
+                android:backgroundTint="#1A0000" android:textColor="#CC0000"
+                android:textSize="12sp"/>
+        </LinearLayout>
 
-</LinearLayout>
+    </LinearLayout>
 </ScrollView>
