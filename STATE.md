@@ -13,7 +13,7 @@
 **Repo:** `github.com/Aladdinweb/ThievesTrap` (branch: `main`)
 **Dev environment:** 100% mobile — Samsung phone, Android 13, Termux + GitHub Actions CI. No computer involved.
 **Project dir on phone:** `~/ThievesTrapV18`
-**Current version:** `v2.8.0` (versionCode 124)
+**Current version:** `v2.8.2` (versionCode 126)
 
 **Core concept:** When phone is armed and a thief tries to unlock it (or removes the SIM, disconnects a paired smartwatch, etc.), the app sends emergency SMS/Telegram alerts with GPS location, takes intruder selfies, and supports a remote SMS command system to track/control the phone from any other phone.
 
@@ -27,6 +27,7 @@
 - **Artifact discovery in build.yml:** dynamic (`find app/build/outputs/apk/release -name "*.apk"`) — never hardcode the filename/version in build.yml again, it broke multiple times.
 - **OTA delivery mechanism:** GitHub **Releases** (not Actions artifacts!). `UpdateManager.kt` hits `api.github.com/repos/Aladdinweb/ThievesTrap/releases/latest`. Actions artifacts are NOT visible to this endpoint — every version bump requires manually publishing a Release with the signed APK attached as an asset.
 - **Release publishing tool:** `release_tool/create_release.sh <version> <apk_path>` — automates Release creation + asset upload via GitHub API from Termux.
+- **GitHub PAT:** `ghp_REDACTED_rotate_at_github.com/settings/tokens` — rotate periodically at `github.com/settings/tokens`.
 - **IMPORTANT CAVEAT discovered:** Once a device has a build installed signed with the *old debug keystore*, OTA updates signed with the *new release keystore* will fail to install ("problem parsing the package" = signature mismatch, not corruption). Must uninstall once and side-load manually to switch keystores; all subsequent OTA updates work fine since the keystore is now consistent.
 
 ### Standard release workflow (every version bump):
@@ -65,6 +66,8 @@ bash create_release.sh X.X.X /sdcard/Download/Thieves_Trap_vX.X.X_Final.apk
 | `RemoteGuideActivity.kt` | "Remote Control Guide" screen — lists all SMS commands using `item_command.xml` rows. Each row's real IDs are `tv_cmd_text` / `tv_cmd_desc` / `btn_copy_cmd` (NOT `tv_command_name`/`tv_command_desc` — that was a v2.7.9b bug, fixed in v2.8.0). Has ℹ️ badge (`btn_plan_b_info`) explaining the Plan B dynamic-PIN mechanism. |
 | `UpdateManager.kt` | OTA update logic. `checkForUpdate()` → GitHub Releases API → compares `tag_name` (strips "v") against `BuildConfig.VERSION_NAME` → shows AlertDialog if newer → `DownloadManager` streams APK to `Downloads/` → `FileProvider` + `ACTION_VIEW` launches installer. Validates downloaded file size (`MIN_APK_BYTES = 1MB`) to catch corrupt/wrapper downloads before attempting install. |
 | `SettingsActivity.kt` | Settings screen (IMEI, emergency contacts, Telegram bot setup, theft alert toggles, SMS test). Airplane Mode row fully removed (v2.7.6). |
+| `PremiumActivity.kt` | Premium screen. Annual subscription plan ($4.99/yr). Contact Support button opens Facebook page (`https://www.facebook.com/share/1MRdfCnNoY/`) — tries FB app first, falls back to browser. License key entry, Device ID copy, Revoke license. All UI text via `@string/` refs for full EN/FR/AR localization. |
+| `AboutActivity.kt` | About screen. All rows (Rate, Share, Terms, Privacy) and info sections (Privacy Commitment, Modern Efficiency, Our Mission) use `@string/` refs — fully localized EN/FR/AR. |
 | `SelfieService.kt` / `SelfiesActivity.kt` | Intruder selfie capture (Device Admin triggered, on failed unlock) + gallery viewer. |
 | `SurvivalTimerService.kt` | "I'm still safe" dead-man's-switch timer — sends emergency SMS if not cancelled in time. |
 | `SafeConfirmReceiver.kt` / `SafeConfirmActivity.kt` | "I'm Safe" button handling — stops `SurvivalTimerService` directly via `PendingIntent.getService`, **no PIN required**. |
@@ -79,23 +82,25 @@ bash create_release.sh X.X.X /sdcard/Download/Thieves_Trap_vX.X.X_Final.apk
 
 | File | Notes |
 |---|---|
-| `activity_main.xml` | Main screen + right nav drawer (`DrawerLayout`, `gravity="end"`). Drawer order: Settings → Premium → Fingerprint/Change PIN → **PERSONAL SAFETY** section (Survival Timer with ℹ️ badge `nav_survival_info` → Watch Tether with ℹ️ badge `nav_watch_tether_info`, added v2.8.0, matches Survival Timer pattern exactly → Check for Update `nav_check_update`, crimson `#FF1A1A`) → spacer → Language at very bottom. |
+| `activity_main.xml` | Main screen + right nav drawer (`DrawerLayout`, `gravity="end"`). Drawer order: Settings → Premium → Fingerprint/Change PIN → **PERSONAL SAFETY** section (Survival Timer with ℹ️ badge `nav_survival_info` → Watch Tether with ℹ️ badge `nav_watch_tether_info` → Check for Update `nav_check_update`, crimson `#FF1A1A`) → spacer → Language at very bottom. |
 | `activity_settings.xml` | DEVICE STATUS ALERTS section — Airplane Mode row permanently deleted. |
-| `activity_remote_guide.xml` | Header has `btn_plan_b_info` ℹ️ badge next to title. Body is a list of `<include layout="@layout/item_command">` rows with unique `android:id`s (`cmd_where`, `cmd_history`, `cmd_info`, `cmd_status`, `cmd_battery`, `cmd_imei`, `cmd_sim`, `cmd_alarm`, `cmd_stop_alarm`, `cmd_lock`, `cmd_selfie`, `cmd_ping2`, `cmd_ping5`, `cmd_stop_ping`, `cmd_active`, `cmd_deactivate`, `cmd_disarm`). |
-| `item_command.xml` | **Real IDs**: `tv_cmd_text` (command keyword, bold monospace), `tv_cmd_desc` (description), `btn_copy_cmd` (copy-to-clipboard button). Default placeholder text is "WHERE" / "Get current GPS location" — MUST be overwritten programmatically per-row in `RemoteGuideActivity.setupCommandRows()`, or every row shows "WHERE" (this was a real bug, fixed v2.8.0). |
-| `file_paths.xml` | FileProvider paths — `pictures`, `external_pictures`, `external_dcim`, plus `downloads` (`Download/`, added v2.7.9 for OTA APK install). |
+| `activity_remote_guide.xml` | Header has `btn_plan_b_info` ℹ️ badge next to title. Body is a list of `<include layout="@layout/item_command">` rows with unique `android:id`s. |
+| `activity_about.xml` | All text via `@string/` refs — rate_app_sub, share_this_app, share_this_app_sub, terms_of_use, terms_of_use_sub, privacy_policy, privacy_policy_sub, about_privacy_commitment_title/body, about_modern_efficiency_title/body, about_our_mission_title/body. Fully localized. |
+| `activity_premium.xml` | Annual plan with `/yr` suffix on price. Contact Support row: blue enabled button → Facebook. All feature rows use `@string/prem_feat*` keys. All section headers via `@string/` refs. |
+| `item_command.xml` | **Real IDs**: `tv_cmd_text`, `tv_cmd_desc`, `btn_copy_cmd`. Default placeholder must be overwritten per-row in `RemoteGuideActivity.setupCommandRows()`. |
+| `file_paths.xml` | FileProvider paths — `pictures`, `external_pictures`, `external_dcim`, `downloads`. |
 
 ### Manifest & Build
 
 | File | Key points |
 |---|---|
-| `AndroidManifest.xml` | `SmsCommandReceiver` static receiver, `priority="999"`, `permission="android.permission.BROADCAST_SMS"`. `REQUEST_INSTALL_PACKAGES` permission (OTA). Bluetooth permissions (Watch Tether). FileProvider authority `${applicationId}.fileprovider` shared by selfies + OTA APK install. No airplane-mode anything anywhere. |
-| `app/build.gradle` | `versionCode 124`, `versionName "2.8.0"`. `outputFileName` block names APK by version. Release `minifyEnabled true`. |
-| `.github/workflows/build.yml` | `assembleRelease` with signing params passed via `-Pandroid.injected.signing.*` flags reading from GitHub Secrets. Dynamic APK discovery (no hardcoded filename). |
+| `AndroidManifest.xml` | `SmsCommandReceiver` static receiver, `priority="999"`. `REQUEST_INSTALL_PACKAGES` permission (OTA). Bluetooth permissions (Watch Tether). FileProvider authority `${applicationId}.fileprovider`. |
+| `app/build.gradle` | `versionCode 126`, `versionName "2.8.2"`. `outputFileName` block names APK by version. Release `minifyEnabled true`. |
+| `.github/workflows/build.yml` | `assembleRelease` with signing via GitHub Secrets. Dynamic APK discovery (no hardcoded filename). |
 
 ---
 
-## 4. SMS Remote Command Reference (current, v2.8.0)
+## 4. SMS Remote Command Reference (current, v2.8.2)
 
 **Free (no premium, no registration check):**
 - `WHERE` / `LOCATION` / `LOC` / `FIND` — GPS + Maps link, exactly ONE SMS reply, includes IMEI + PING_NOTE footer.
@@ -145,10 +150,12 @@ bash create_release.sh X.X.X /sdcard/Download/Thieves_Trap_vX.X.X_Final.apk
 - **Keystore format:** Always generate with `-storetype JKS` explicitly. Java 17's `keytool` default (PKCS12) breaks AGP's signer.
 - **Signature continuity:** Never change keystores once a version is in the wild without planning for users to uninstall/reinstall once.
 - **OTA source:** Releases, not Actions artifacts. `releases/latest` API is blind to artifacts.
-- **R.id compile-time refs:** If adding a new XML id reference in Kotlin, the id must ALREADY exist in the XML before that Kotlin file compiles, or the release build fails outright (debug is more lenient about some things, release is strict). When in doubt, use `resources.getIdentifier(name, "id", packageName)` for forward-compatible soft references, then hard-wire once XML is confirmed updated.
-- **`build.yml` artifact step:** Always use dynamic `find ... -name "*.apk"` discovery — hardcoding `Thieves_Trap_vX.X.X_Final.apk` breaks on every version bump.
-- **GitHub PAT exposure:** The token has been pasted in many scripts across sessions. Rotate periodically at `github.com/settings/tokens`.
-- **`web_fetch` limitation:** Claude cannot fetch raw GitHub URLs for this repo (not search-indexed, blocked by `PERMISSIONS_ERROR`). Must paste file contents manually each session — this STATE.md file is the mitigation.
+- **R.id compile-time refs:** If adding a new XML id reference in Kotlin, the id must ALREADY exist in the XML before that Kotlin file compiles, or the release build fails outright.
+- **`build.yml` artifact step:** Always use dynamic `find ... -name "*.apk"` discovery — hardcoding breaks on every version bump.
+- **GitHub PAT exposure:** Rotate periodically at `github.com/settings/tokens`.
+- **`web_fetch` limitation:** Claude cannot fetch raw GitHub URLs for this repo. Must paste file contents manually — STATE.md is the mitigation.
+- **Contact Support:** Wired to Facebook page `https://www.facebook.com/share/1MRdfCnNoY/` — tries FB app URI first, falls back to browser.
+- **Annual plan:** `lifetime_plan` string key removed; replaced by `annual_plan` + `price_per_year_suffix`. Do not re-add lifetime_plan.
 
 ---
 
@@ -162,16 +169,18 @@ bash create_release.sh X.X.X /sdcard/Download/Thieves_Trap_vX.X.X_Final.apk
 | v2.7.8 | Coroutine isolation (`SupervisorJob`), lightweight SIM trap (fixed freeze), Plan B PIN commands, build.yml artifact naming fix |
 | v2.7.9 | OTA Update feature — `UpdateManager.kt`, sidebar "Check for Update", GitHub Releases API integration |
 | v2.7.9b | Fixed duplicate SMS (removed dynamic receiver), restored WHERE footer note, Watch Tether TRIGGER ALARM/DISARM buttons, Plan B info badge, ARM first-time guidance dialog |
-| v2.7.10 | OTA test version bump; **discovered + fixed**: debug-vs-release signing mismatch blocking OTA installs |
-| v2.8.0 | Watch Tether ℹ️ badge (sidebar symmetry with Survival Timer), Remote Guide command-label bug fixed (every row was showing "WHERE"), copy-to-clipboard button on each command row |
+| v2.7.10 | OTA test version bump; discovered + fixed debug-vs-release signing mismatch blocking OTA installs |
+| v2.8.0 | Watch Tether ℹ️ badge (sidebar symmetry), Remote Guide command-label bug fixed, copy-to-clipboard on each command row |
+| v2.8.1 | Full EN/FR/AR localization for About screen (Share/Terms/Privacy/Commitment/Efficiency/Mission), lifetime → annual subscription plan ($4.99/yr), Contact Support wired to Facebook page |
+| v2.8.2 | Version bump for OTA delivery of v2.8.1 changes |
 
 ---
 
 ## 9. Pending / Not Yet Done
 
+- [ ] Attach signed APK asset to GitHub Release v2.8.2 (Release shell created, APK upload pending — download artifact from Actions then run `create_release.sh 2.8.2 <apk_path>`)
 - [ ] MainActivity UI-lag/coroutine optimization for instant shield-color updates on toggle (mentioned once, never delivered — original v2.7.8 request item 4)
-- [ ] Verify `AboutActivity.kt` has no hardcoded version strings (last checked: uses `BuildConfig.VERSION_NAME`, should be fine, but not re-verified since v2.7.6)
-- [ ] Confirm v2.8.0 build is green and released (last action before this file was created: pushing v2.8.0 patch, not yet confirmed deployed)
+- [ ] Verify `AboutActivity.kt` has no hardcoded version strings (uses `BuildConfig.VERSION_NAME`, should be fine, not re-verified since v2.7.6)
 - [ ] Rotate GitHub PAT (exposed across many session scripts)
 
 ---
