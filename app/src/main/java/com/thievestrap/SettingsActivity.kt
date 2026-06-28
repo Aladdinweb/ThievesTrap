@@ -159,8 +159,7 @@ class SettingsActivity : AppCompatActivity() {
                     type = "text/plain"
                     putExtra(Intent.EXTRA_SUBJECT, getString(R.string.share_app_subject))
                     putExtra(Intent.EXTRA_TEXT,
-                        "${getString(R.string.share_app_body)}
-https://play.google.com/store/apps/details?id=$packageName")
+                        "${getString(R.string.share_app_body)}\nhttps://play.google.com/store/apps/details?id=$packageName")
                 }
                 startActivity(Intent.createChooser(shareIntent, getString(R.string.share_chooser_title)))
             }
