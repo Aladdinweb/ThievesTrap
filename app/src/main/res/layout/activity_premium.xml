@@ -62,9 +62,15 @@
                 android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:textSize="10sp" android:textColor="#00AA44" android:textStyle="bold"
                 android:layout_marginBottom="8dp"/>
-            <TextView android:text="@string/free_features_list"
+            <TextView android:text="@string/free_feat1"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:textSize="12sp" android:textColor="#555555" android:lineSpacingMultiplier="1.6"/>
+                android:textSize="12sp" android:textColor="#555555" android:layout_marginBottom="4dp"/>
+            <TextView android:text="@string/free_feat2"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:textSize="12sp" android:textColor="#555555" android:layout_marginBottom="4dp"/>
+            <TextView android:text="@string/free_feat3"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:textSize="12sp" android:textColor="#555555"/>
         </LinearLayout>
 
         <!-- Premium features -->
@@ -203,7 +209,7 @@
                 android:layout_weight="1" android:orientation="vertical">
                 <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
                     android:orientation="horizontal" android:gravity="center_vertical">
-                    <TextView android:text="&#128172; @string/contact_support_label"
+                    <TextView android:text="&#128172; Contact Support"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textSize="14sp" android:textColor="#AAAAAA" android:textStyle="bold"
                         android:layout_marginEnd="8dp"/>
