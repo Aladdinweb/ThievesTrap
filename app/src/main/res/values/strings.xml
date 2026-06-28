@@ -118,7 +118,6 @@ Open SMS app on any phone. Type command (e.g. WHERE). Send to your stolen phone 
     <string name="no_photos_yet">No intruder photos captured yet.</string>
     <string name="premium_lock">🔒 Premium</string>
     <string name="rate_app">Rate this app</string>
-    <string name="lifetime_plan">Lifetime — One-time payment, no subscription</string>
     <string name="price_premium">4.99</string>
     <string name="device_id_label">Device ID: ...</string>
     <string name="cmd_copy">COPY</string>
@@ -172,4 +171,44 @@ Automatically sends your GPS location if you do not confirm your safety before t
 <string name="update_cancel_btn">Cancel</string>
 <string name="update_not_now_btn">Not Now</string>
 <string name="update_downloading">Downloading update v%1$s…</string>
+
+    <string name="annual_plan">Annual — Renews yearly, cancel anytime</string>
+    <string name="price_per_year_suffix">/yr</string>
+    <string name="about_privacy_commitment_title">🔒 Privacy Commitment</string>
+    <string name="about_privacy_commitment_body">We value your privacy. Photos and location data are sent directly to your private Telegram bot or emergency SMS. We do not store any of your personal media on our servers.</string>
+    <string name="about_modern_efficiency_title">⚡ Modern Efficiency</string>
+    <string name="about_modern_efficiency_body">We upgraded our system to support Telegram Integration. Receive instant intruder selfies and security alerts faster and more reliably than traditional methods.</string>
+    <string name="about_our_mission_title">🎯 Our Mission</string>
+    <string name="about_our_mission_body">Providing a dual-protection layer through SMS and Telegram to ensure you recover your phone and stay informed of its status in real-time.</string>
+    <string name="free_vs_full_header">FREE vs FULL PROTECTION</string>
+    <string name="free_included_header">FREE INCLUDED</string>
+    <string name="free_features_list">✓ Emergency Contact 1
+✓ Selfie capture (saved locally)
+✓ 15s fixed grace period
+✓ SMS on wrong PIN</string>
+    <string name="premium_unlocks_header">👑 FULL PROTECTION UNLOCKS</string>
+    <string name="choose_payment_header">CHOOSE PAYMENT METHOD</string>
+    <string name="coming_soon_badge">COMING SOON</string>
+    <string name="card_payment_sub">Online secure payment</string>
+    <string name="soon_btn">SOON</string>
+    <string name="contact_support_label">Contact Support</string>
+    <string name="contact_support_sub">Message us on Facebook</string>
+    <string name="contact_btn">OPEN</string>
+    <string name="license_key_header">OR ENTER LICENSE KEY (ACTIVE NOW)</string>
+    <string name="license_key_hint">Keys are device-specific. Share your Device ID above when purchasing.</string>
+    <string name="license_key_placeholder">Enter license key</string>
+    <string name="get_device_id_btn">GET DEVICE ID FOR PURCHASE</string>
+    <string name="revoke_license_btn">REVOKE LICENSE KEY</string>
+    <string name="prem_feat1_title">Emergency Contact 2 + Recovery Email</string>
+    <string name="prem_feat1_sub">Alert 2 people simultaneously</string>
+    <string name="prem_feat2_title">Auto-email intruder photo</string>
+    <string name="prem_feat2_sub">Selfie sent to your email automatically</string>
+    <string name="prem_feat3_title">Full Remote SMS Commands</string>
+    <string name="prem_feat3_sub">WHERE, SELFIE, ALARM, LOCK from any phone</string>
+    <string name="prem_feat4_title">Customizable Grace Period (5–15s)</string>
+    <string name="prem_feat4_sub">Free version locked at 15s</string>
+    <string name="prem_feat5_title">All Theft Mode alerts</string>
+    <string name="prem_feat5_sub">Airplane, Shutdown, Silent mode, Charging</string>
+    <string name="prem_feat6_title">All future features — forever</string>
+    <string name="prem_feat6_sub">Every update included at no extra cost</string>
 </resources>
