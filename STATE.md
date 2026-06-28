@@ -13,7 +13,7 @@
 **Repo:** `github.com/Aladdinweb/ThievesTrap` (branch: `main`)
 **Dev environment:** 100% mobile — Samsung phone, Android 13, Termux + GitHub Actions CI. No computer involved.
 **Project dir on phone:** `~/ThievesTrapV18`
-**Current version:** `v2.8.2` (versionCode 126)
+**Current version:** `v2.8.3` (versionCode 127)
 
 **Core concept:** When phone is armed and a thief tries to unlock it (or removes the SIM, disconnects a paired smartwatch, etc.), the app sends emergency SMS/Telegram alerts with GPS location, takes intruder selfies, and supports a remote SMS command system to track/control the phone from any other phone.
 
@@ -95,12 +95,12 @@ bash create_release.sh X.X.X /sdcard/Download/Thieves_Trap_vX.X.X_Final.apk
 | File | Key points |
 |---|---|
 | `AndroidManifest.xml` | `SmsCommandReceiver` static receiver, `priority="999"`. `REQUEST_INSTALL_PACKAGES` permission (OTA). Bluetooth permissions (Watch Tether). FileProvider authority `${applicationId}.fileprovider`. |
-| `app/build.gradle` | `versionCode 126`, `versionName "2.8.2"`. `outputFileName` block names APK by version. Release `minifyEnabled true`. |
+| `app/build.gradle` | `versionCode 127`, `versionName "2.8.3"`. `outputFileName` block names APK by version. Release `minifyEnabled true`. |
 | `.github/workflows/build.yml` | `assembleRelease` with signing via GitHub Secrets. Dynamic APK discovery (no hardcoded filename). |
 
 ---
 
-## 4. SMS Remote Command Reference (current, v2.8.2)
+## 4. SMS Remote Command Reference (current, v2.8.3)
 
 **Free (no premium, no registration check):**
 - `WHERE` / `LOCATION` / `LOC` / `FIND` — GPS + Maps link, exactly ONE SMS reply, includes IMEI + PING_NOTE footer.
@@ -172,13 +172,14 @@ bash create_release.sh X.X.X /sdcard/Download/Thieves_Trap_vX.X.X_Final.apk
 | v2.7.10 | OTA test version bump; discovered + fixed debug-vs-release signing mismatch blocking OTA installs |
 | v2.8.0 | Watch Tether ℹ️ badge (sidebar symmetry), Remote Guide command-label bug fixed, copy-to-clipboard on each command row |
 | v2.8.1 | Full EN/FR/AR localization for About screen (Share/Terms/Privacy/Commitment/Efficiency/Mission), lifetime → annual subscription plan ($4.99/yr), Contact Support wired to Facebook page |
-| v2.8.2 | Version bump for OTA delivery of v2.8.1 changes |
+| v2.8.2 | Version bump (OTA delivery attempt — content changes not yet applied) |
+| v2.8.3 | Full EN/FR/AR i18n: About screen + Premium screen, lifetime→annual plan ($4.99/yr), Contact Support→Facebook, all pushed directly via GitHub API |
 
 ---
 
 ## 9. Pending / Not Yet Done
 
-- [ ] Attach signed APK asset to GitHub Release v2.8.2 (Release shell created, APK upload pending — download artifact from Actions then run `create_release.sh 2.8.2 <apk_path>`)
+- [x] v2.8.3 Release published with APK asset — OTA live
 - [ ] MainActivity UI-lag/coroutine optimization for instant shield-color updates on toggle (mentioned once, never delivered — original v2.7.8 request item 4)
 - [ ] Verify `AboutActivity.kt` has no hardcoded version strings (uses `BuildConfig.VERSION_NAME`, should be fine, not re-verified since v2.7.6)
 - [ ] Rotate GitHub PAT (exposed across many session scripts)
