@@ -211,4 +211,16 @@ Automatically sends your GPS location if you do not confirm your safety before t
     <string name="prem_feat5_sub">Airplane, Shutdown, Silent mode, Charging</string>
     <string name="prem_feat6_title">All future features — forever</string>
     <string name="prem_feat6_sub">Every update included at no extra cost</string>
+
+    <string name="free_feat1">✓ Emergency Contact 1</string>
+    <string name="free_feat2">✓ 15s fixed grace period</string>
+    <string name="free_feat3">✓ SMS on wrong PIN</string>
+    <string name="tg_step1">1. Tap "Open Bot" below and press START</string>
+    <string name="tg_step2">2. The bot will reply with your Chat ID</string>
+    <string name="tg_step3">3. Copy the ID number</string>
+    <string name="tg_step4">4. Paste it in the field below</string>
+    <string name="tg_open_bot_btn">🤖 Open Bot — Get My Chat ID</string>
+    <string name="tg_share_app_btn">📤 Share App Link with Contact</string>
+    <string name="tg_share_bot_btn">🔗 Share Bot Link with Contact</string>
+    <string name="tg_bot_share_text">Stay safe with Thieves Trap! Connect our security alert bot on Telegram: https://t.me/ThievesTrap_Alert_bot</string>
 </resources>
