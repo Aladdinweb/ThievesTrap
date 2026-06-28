@@ -206,4 +206,16 @@
     <string name="prem_feat5_sub">الطيران، الإيقاف، الصامت، الشحن</string>
     <string name="prem_feat6_title">جميع الميزات المستقبلية — للأبد</string>
     <string name="prem_feat6_sub">كل تحديث مشمول بدون تكلفة إضافية</string>
+
+    <string name="free_feat1">✓ جهة الاتصال الطارئة 1</string>
+    <string name="free_feat2">✓ فترة سماح ثابتة 15 ثانية</string>
+    <string name="free_feat3">✓ SMS عند إدخال PIN خاطئ</string>
+    <string name="tg_step1">1. اضغط على «فتح البوت» أدناه ثم اضغط ابدأ</string>
+    <string name="tg_step2">2. سيرد البوت بـ Chat ID الخاص بك</string>
+    <string name="tg_step3">3. انسخ رقم ID</string>
+    <string name="tg_step4">4. الصقه في الحقل أدناه</string>
+    <string name="tg_open_bot_btn">🤖 فتح البوت — الحصول على Chat ID</string>
+    <string name="tg_share_app_btn">📤 مشاركة رابط التطبيق</string>
+    <string name="tg_share_bot_btn">🔗 مشاركة رابط البوت</string>
+    <string name="tg_bot_share_text">ابقَ آمناً مع Thieves Trap! اتصل ببوت تنبيهات الأمان على تيليغرام: https://t.me/ThievesTrap_Alert_bot</string>
 </resources>
