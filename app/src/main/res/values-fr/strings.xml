@@ -113,7 +113,6 @@
     <string name="no_photos_yet">Aucune photo capturee.</string>
     <string name="premium_lock">Premium</string>
     <string name="rate_app">Evaluer lapplication</string>
-    <string name="lifetime_plan">A vie — Paiement unique, sans abonnement</string>
     <string name="price_premium">4.99</string>
     <string name="device_id_label">ID Appareil: ...</string>
     <string name="cmd_copy">COPIER</string>
@@ -167,4 +166,44 @@ Elle envoie une alerte automatique avec votre position GPS si vous ne confirmez 
 <string name="update_cancel_btn">Annuler</string>
 <string name="update_not_now_btn">Plus tard</string>
 <string name="update_downloading">Telechargement v%1$s…</string>
+
+    <string name="annual_plan">Annuel — Renouvelable, resiliable a tout moment</string>
+    <string name="price_per_year_suffix">/an</string>
+    <string name="about_privacy_commitment_title">🔒 Engagement de confidentialite</string>
+    <string name="about_privacy_commitment_body">Nous respectons votre vie privee. Les photos et les donnees de localisation sont envoyees directement a votre bot Telegram prive ou par SMS. Nous ne stockons aucune de vos donnees personnelles sur nos serveurs.</string>
+    <string name="about_modern_efficiency_title">⚡ Efficacite moderne</string>
+    <string name="about_modern_efficiency_body">Nous avons integre Telegram pour vous permettre de recevoir instantanement les selfies des intrus et les alertes de securite, de maniere plus rapide et fiable.</string>
+    <string name="about_our_mission_title">🎯 Notre mission</string>
+    <string name="about_our_mission_body">Offrir une double protection via SMS et Telegram pour vous aider a retrouver votre telephone et rester informe de son etat en temps reel.</string>
+    <string name="free_vs_full_header">GRATUIT vs PROTECTION COMPLETE</string>
+    <string name="free_included_header">INCLUS GRATUITEMENT</string>
+    <string name="free_features_list">✓ Contact urgence 1
+✓ Selfie (enregistre localement)
+✓ Delai de grace fixe 15s
+✓ SMS en cas de mauvais PIN</string>
+    <string name="premium_unlocks_header">👑 LA PROTECTION COMPLETE DEVERROUILLE</string>
+    <string name="choose_payment_header">CHOISIR LE MODE DE PAIEMENT</string>
+    <string name="coming_soon_badge">BIENTOT</string>
+    <string name="card_payment_sub">Paiement securise en ligne</string>
+    <string name="soon_btn">BIENTOT</string>
+    <string name="contact_support_label">Contacter le support</string>
+    <string name="contact_support_sub">Ecrivez-nous sur Facebook</string>
+    <string name="contact_btn">OUVRIR</string>
+    <string name="license_key_header">OU ENTREZ UNE CLE DE LICENCE (ACTIF MAINTENANT)</string>
+    <string name="license_key_hint">Les cles sont liees a votre appareil. Partagez votre ID lors de lachat.</string>
+    <string name="license_key_placeholder">Entrez la cle de licence</string>
+    <string name="get_device_id_btn">OBTENIR LID POUR LACHAT</string>
+    <string name="revoke_license_btn">REVOQUER LA CLE DE LICENCE</string>
+    <string name="prem_feat1_title">Contact urgence 2 + Email de recuperation</string>
+    <string name="prem_feat1_sub">Alerter 2 personnes simultanement</string>
+    <string name="prem_feat2_title">Photo intrus par email auto</string>
+    <string name="prem_feat2_sub">Selfie envoye automatiquement a votre email</string>
+    <string name="prem_feat3_title">Commandes SMS a distance completes</string>
+    <string name="prem_feat3_sub">WHERE, SELFIE, ALARM, LOCK depuis nimporte quel telephone</string>
+    <string name="prem_feat4_title">Delai de grace reglable (5-15s)</string>
+    <string name="prem_feat4_sub">Version gratuite bloquee a 15s</string>
+    <string name="prem_feat5_title">Toutes les alertes mode vol</string>
+    <string name="prem_feat5_sub">Avion, extinction, silencieux, chargement</string>
+    <string name="prem_feat6_title">Toutes les futures fonctionnalites — a vie</string>
+    <string name="prem_feat6_sub">Chaque mise a jour incluse sans frais supplementaires</string>
 </resources>
