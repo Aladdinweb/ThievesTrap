@@ -113,7 +113,6 @@
     <string name="no_photos_yet">لم يتم التقاط أي صورة للمتسلل بعد.</string>
     <string name="premium_lock">🔒 للمدفوعين</string>
     <string name="rate_app">تقييم التطبيق</string>
-    <string name="lifetime_plan">مدى الحياة — دفعة واحدة، بدون اشتراك</string>
     <string name="price_premium">4.99</string>
     <string name="device_id_label">معرّف الجهاز: ...</string>
     <string name="cmd_copy">نسخ</string>
@@ -167,4 +166,44 @@
 <string name="update_cancel_btn">إلغاء</string>
 <string name="update_not_now_btn">ليس الآن</string>
 <string name="update_downloading">جارٍ تنزيل v%1$s…</string>
+
+    <string name="annual_plan">سنوي — يتجدد سنوياً، يمكن الإلغاء في أي وقت</string>
+    <string name="price_per_year_suffix">/سنة</string>
+    <string name="about_privacy_commitment_title">🔒 التزام الخصوصية</string>
+    <string name="about_privacy_commitment_body">نحن نحترم خصوصيتك. يتم إرسال الصور وبيانات الموقع مباشرةً إلى بوت تيليغرام الخاص بك أو عبر SMS. لا نخزن أي بيانات شخصية على خوادمنا.</string>
+    <string name="about_modern_efficiency_title">⚡ الكفاءة الحديثة</string>
+    <string name="about_modern_efficiency_body">طورنا النظام ليدعم تيليغرام، لتستقبل صور المتسللين وتنبيهات الأمان فورياً بشكل أسرع وأكثر موثوقية من الطرق التقليدية.</string>
+    <string name="about_our_mission_title">🎯 مهمتنا</string>
+    <string name="about_our_mission_body">توفير طبقة حماية مزدوجة عبر SMS وتيليغرام لضمان استعادة هاتفك والبقاء على اطلاع بحالته في الوقت الفعلي.</string>
+    <string name="free_vs_full_header">المجاني مقابل الحماية الكاملة</string>
+    <string name="free_included_header">مشمول مجاناً</string>
+    <string name="free_features_list">✓ جهة الاتصال الطارئة 1
+✓ صورة المتسلل (محفوظة محلياً)
+✓ فترة سماح ثابتة 15 ثانية
+✓ SMS عند إدخال PIN خاطئ</string>
+    <string name="premium_unlocks_header">👑 مميزات الحماية الكاملة</string>
+    <string name="choose_payment_header">اختر طريقة الدفع</string>
+    <string name="coming_soon_badge">قريباً</string>
+    <string name="card_payment_sub">دفع آمن عبر الإنترنت</string>
+    <string name="soon_btn">قريباً</string>
+    <string name="contact_support_label">تواصل مع الدعم</string>
+    <string name="contact_support_sub">راسلنا على فيسبوك</string>
+    <string name="contact_btn">فتح</string>
+    <string name="license_key_header">أو أدخل مفتاح الترخيص (متاح الآن)</string>
+    <string name="license_key_hint">المفاتيح مرتبطة بجهازك. شارك معرّف جهازك عند الشراء.</string>
+    <string name="license_key_placeholder">أدخل مفتاح الترخيص</string>
+    <string name="get_device_id_btn">الحصول على معرّف الجهاز للشراء</string>
+    <string name="revoke_license_btn">إلغاء مفتاح الترخيص</string>
+    <string name="prem_feat1_title">جهة الاتصال الطارئة 2 + بريد الاسترداد</string>
+    <string name="prem_feat1_sub">تنبيه شخصين في آنٍ واحد</string>
+    <string name="prem_feat2_title">إرسال صورة المتسلل تلقائياً بالبريد</string>
+    <string name="prem_feat2_sub">الصورة ترسل إلى بريدك الإلكتروني تلقائياً</string>
+    <string name="prem_feat3_title">أوامر SMS عن بُعد الكاملة</string>
+    <string name="prem_feat3_sub">WHERE، SELFIE، ALARM، LOCK من أي هاتف</string>
+    <string name="prem_feat4_title">فترة سماح قابلة للتخصيص (5–15 ثانية)</string>
+    <string name="prem_feat4_sub">النسخة المجانية مقفلة عند 15 ثانية</string>
+    <string name="prem_feat5_title">جميع تنبيهات وضع السرقة</string>
+    <string name="prem_feat5_sub">الطيران، الإيقاف، الصامت، الشحن</string>
+    <string name="prem_feat6_title">جميع الميزات المستقبلية — للأبد</string>
+    <string name="prem_feat6_sub">كل تحديث مشمول بدون تكلفة إضافية</string>
 </resources>
