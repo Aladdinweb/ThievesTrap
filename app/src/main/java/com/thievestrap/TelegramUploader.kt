@@ -2,6 +2,7 @@ package com.thievestrap
 
 import android.content.Context
 import android.util.Log
+import org.json.JSONObject
 import java.io.File
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
@@ -65,7 +66,6 @@ object TelegramUploader {
                         }
                         part("chat_id", chatId)
                         part("caption", caption)
-                        // Photo part
                         os.write("--$boundary\r\nContent-Disposition: form-data; name=\"photo\"; filename=\"intruder.jpg\"\r\nContent-Type: image/jpeg\r\n\r\n".toByteArray())
                         photoFile.inputStream().use { it.copyTo(os) }
                         os.write("\r\n--$boundary--\r\n".toByteArray())
@@ -85,50 +85,82 @@ object TelegramUploader {
     }
 
     /**
-     * Poll Telegram for /start or /id commands and auto-reply with Chat ID.
-     * Call periodically (e.g. every 30s when app is in foreground).
+     * Poll Telegram getUpdates for /start or /id commands.
+     * Parses the JSON response properly and replies with Chat ID.
+     * Call from SettingsActivity when user taps "Open Bot" button.
      */
     fun pollAndReply(context: Context) {
         Thread {
             try {
                 val prefs = context.getSharedPreferences("tt_prefs", Context.MODE_PRIVATE)
-                val off = prefs.getLong("tg_offset", 0L)
-                val apiUrl = BASE + "/getUpdates?offset=" + off + "&timeout=5"
-                val conn = java.net.URL(apiUrl).openConnection() as java.net.HttpURLConnection
-                conn.connectTimeout = 12000
-                val resp = conn.inputStream.bufferedReader().readText()
-                conn.disconnect()
-                if (!resp.contains("update_id")) return@Thread
-                val blocks = resp.split("update_id").drop(1)
-                for (block in blocks) {
-                    val uid = block.substringAfter(":").substringBefore(",").trim().toLongOrNull() ?: continue
-                    val fromIdx = block.indexOf("from")
-                    if (fromIdx < 0) { prefs.edit().putLong("tg_offset", uid + 1L).apply(); continue }
-                    val fromSlice = block.substring(fromIdx)
-                    val idIdx = fromSlice.indexOf("id")
-                    if (idIdx < 0) { prefs.edit().putLong("tg_offset", uid + 1L).apply(); continue }
-                    val afterId = fromSlice.substring(idIdx + 2).trimStart()
-                    val afterColon = if (afterId.startsWith(":")) afterId.substring(1).trimStart() else afterId
-                    val chatId = afterColon.substringBefore(",").trim().filter { c -> c.isDigit() }
-                    val textIdx = block.indexOf("text")
-                    val cmd = if (textIdx >= 0) {
-                        val afterText = block.substring(textIdx + 4).trimStart()
-                        val afterTextColon = if (afterText.startsWith(":")) afterText.substring(1).trimStart() else afterText
-                        afterTextColon.substringBefore(",").substringBefore("}")
-                            .replace("\\u002F", "/").trim().uppercase()
-                    } else ""
-                    if (chatId.isNotBlank() && (cmd.contains("START") || cmd.contains("/ID"))) {
-                        val reply = "Your Chat ID: " + chatId +
-                            "\n\nCopy and paste into: Settings > Telegram Chat IDs."
-                        sendReply(chatId, reply)
-                        Log.i(TAG, "Sent ID to: " + chatId)
-                    }
-                    prefs.edit().putLong("tg_offset", uid + 1L).apply()
+                val offset = prefs.getLong("tg_offset", 0L)
+
+                val conn = (URL("$BASE/getUpdates?offset=$offset&timeout=10&allowed_updates=[\"message\"]")
+                    .openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 15_000
+                    readTimeout = 15_000
+                    requestMethod = "GET"
                 }
-            } catch (e: Exception) { Log.e(TAG, "poll: " + e.message) }
+
+                val responseCode = conn.responseCode
+                if (responseCode != 200) {
+                    Log.w(TAG, "getUpdates HTTP $responseCode")
+                    conn.disconnect()
+                    return@Thread
+                }
+
+                val resp = conn.inputStream.bufferedReader().use { it.readText() }
+                conn.disconnect()
+
+                val json = JSONObject(resp)
+                if (!json.optBoolean("ok", false)) {
+                    Log.w(TAG, "getUpdates not ok: $resp")
+                    return@Thread
+                }
+
+                val results = json.optJSONArray("result") ?: return@Thread
+                var maxUpdateId = offset
+
+                for (i in 0 until results.length()) {
+                    val update = results.getJSONObject(i)
+                    val updateId = update.optLong("update_id", 0L)
+                    if (updateId >= maxUpdateId) maxUpdateId = updateId + 1
+
+                    val message = update.optJSONObject("message") ?: continue
+                    val from = message.optJSONObject("from") ?: continue
+                    val chatId = from.optLong("id", 0L)
+                    if (chatId == 0L) continue
+
+                    val text = message.optString("text", "").uppercase().trim()
+                    // Respond to /start, /id, or any start variant
+                    if (text.startsWith("/START") || text.startsWith("/ID") || text == "START") {
+                        val firstName = from.optString("first_name", "")
+                        val reply = buildIdReply(chatId.toString(), firstName)
+                        sendReply(chatId.toString(), reply)
+                        Log.i(TAG, "Sent Chat ID to: $chatId")
+                    }
+                }
+
+                // Persist offset so we don't reprocess old updates
+                if (maxUpdateId > offset) {
+                    prefs.edit().putLong("tg_offset", maxUpdateId).apply()
+                    Log.i(TAG, "tg_offset updated to $maxUpdateId")
+                }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "pollAndReply: ${e.message}")
+            }
         }.start()
     }
 
+    private fun buildIdReply(chatId: String, firstName: String): String {
+        val greeting = if (firstName.isNotBlank()) "Hello $firstName!\n\n" else ""
+        return "${greeting}✅ Your Telegram Chat ID is:\n\n" +
+               "`$chatId`\n\n" +
+               "👉 Copy this number and paste it in:\n" +
+               "Thieves Trap → Settings → Telegram Alerts → Paste Chat ID field\n\n" +
+               "Once saved, you will receive security alerts and intruder photos directly here."
+    }
 
     private fun sendReply(chatId: String, text: String) {
         try {
@@ -138,10 +170,38 @@ object TelegramUploader {
             conn.setRequestProperty("Content-Type", "application/json")
             conn.doOutput = true
             conn.connectTimeout = 10_000
-            val body = """{"chat_id":"$chatId","text":"$text","parse_mode":"Markdown"}"""
-            java.io.OutputStreamWriter(conn.outputStream).use { it.write(body) }
-            Log.i(TAG, "Reply sent to $chatId: HTTP ${conn.responseCode}")
+            conn.readTimeout = 10_000
+            // Use JSON body — escape properly
+            val body = JSONObject().apply {
+                put("chat_id", chatId)
+                put("text", text)
+                put("parse_mode", "Markdown")
+            }.toString()
+            OutputStreamWriter(conn.outputStream).use { it.write(body) }
+            val code = conn.responseCode
+            Log.i(TAG, "sendReply → $chatId: HTTP $code")
+            if (code != 200) {
+                val err = conn.errorStream?.bufferedReader()?.readText()
+                Log.e(TAG, "sendReply error: $err")
+            }
             conn.disconnect()
         } catch (e: Exception) { Log.e(TAG, "sendReply: ${e.message}") }
+    }
+
+    /** Share bot link text — used by Share Bot Link button */
+    fun getBotShareText(): String =
+        "🛡️ Thieves Trap Security Bot\n\n" +
+        "Tap the link below to open our Telegram bot, then press START to get your Chat ID:\n\n" +
+        "https://t.me/ThievesTrap_Alert_bot\n\n" +
+        "Once you have your ID, paste it in: Settings → Telegram Alerts"
+
+    /** Share chat ID text — used by Share Bot ID button */
+    fun getChatIdShareText(context: Context): String {
+        val ids = getChatIds(context)
+        return if (ids.isEmpty())
+            "No Chat ID configured yet. Open Thieves Trap → Settings → Telegram to set it up."
+        else
+            "My Thieves Trap Chat ID: ${ids.joinToString(", ")}\n\n" +
+            "Add this to your Thieves Trap app under Settings → Telegram Alerts."
     }
 }
