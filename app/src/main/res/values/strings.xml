@@ -220,7 +220,9 @@ Automatically sends your GPS location if you do not confirm your safety before t
     <string name="tg_step3">3. Copy the ID number</string>
     <string name="tg_step4">4. Paste it in the field below</string>
     <string name="tg_open_bot_btn">🤖 Open Bot — Get My Chat ID</string>
-    <string name="tg_share_app_btn">📤 Share App Link with Contact</string>
-    <string name="tg_share_bot_btn">🔗 Share Bot Link with Contact</string>
     <string name="tg_bot_share_text">Stay safe with Thieves Trap! Connect our security alert bot on Telegram: https://t.me/ThievesTrap_Alert_bot</string>
+
+    <string name="tg_share_bot_btn">🔗 Share Bot Link with Contact</string>
+    <string name="tg_share_id_btn">📋 Share My Chat ID</string>
+    <string name="tg_poll_hint">Open the bot, press START, then return — your ID will auto-fill shortly.</string>
 </resources>
