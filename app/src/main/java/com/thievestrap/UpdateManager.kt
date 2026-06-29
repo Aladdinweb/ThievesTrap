@@ -1,7 +1,9 @@
 package com.thievestrap
 
-import android.app.AlertDialog
 import android.app.DownloadManager
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -12,6 +14,8 @@ import android.os.Environment
 import android.util.Log
 import android.widget.ProgressBar
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import androidx.core.app.NotificationCompat
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -27,116 +31,104 @@ object UpdateManager {
     private const val TAG          = "TT-Update"
     private const val GITHUB_OWNER = "Aladdinweb"
     private const val GITHUB_REPO  = "ThievesTrap"
-    private const val API_URL =
-        "https://api.github.com/repos/$GITHUB_OWNER/$GITHUB_REPO/releases/latest"
-    // v2.8.1: serverless static JSON — update this file in repo on every release
     private const val VERSION_JSON_URL =
         "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/main/version.json"
-    private const val MIN_APK_BYTES = 1_000_000L
 
-    // ── PATH 1: GitHub Releases API (original, wired to sidebar button) ──
+    // OTA notification channel
+    private const val OTA_CHANNEL_ID = "tt_ota_update"
+    private const val OTA_NOTIF_ID   = 9001
+
+    // Minimum valid APK size — 500 KB is enough to detect wrappers/stubs
+    // NOTE: The "corrupt" error was caused by this being 1 MB which rejected real APKs
+    // that had already been partially streamed. Now 500 KB.
+    private const val MIN_APK_BYTES = 500_000L
+
+    // ── Manual check (sidebar button) ────────────────────────────────────────
 
     fun checkForUpdate(context: Context) {
         val dlg = buildProgressDialog(context, context.getString(R.string.update_checking))
         dlg.show()
         CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val (ver, url) = fetchLatestRelease()
-                withContext(Dispatchers.Main) {
-                    dlg.dismiss()
-                    if (ver == null || url == null) {
-                        Toast.makeText(context,
-                            context.getString(R.string.update_check_failed),
-                            Toast.LENGTH_LONG).show()
-                        return@withContext
-                    }
-                    Log.i(TAG, "[API] current=${BuildConfig.VERSION_NAME} latest=$ver")
-                    if (isNewerVersion(ver, BuildConfig.VERSION_NAME))
-                        showUpdateDialog(context, ver, url)
-                    else
-                        Toast.makeText(context,
-                            context.getString(R.string.update_up_to_date),
-                            Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    dlg.dismiss()
+            val result = fetchVersionJson()
+            withContext(Dispatchers.Main) {
+                dlg.dismiss()
+                if (result == null) {
                     Toast.makeText(context,
                         context.getString(R.string.update_check_failed),
                         Toast.LENGTH_LONG).show()
+                    return@withContext
                 }
+                val (remoteCode, remoteName, downloadUrl) = result
+                Log.i(TAG, "[JSON] local=${BuildConfig.VERSION_CODE} remote=$remoteCode")
+                if (remoteCode > BuildConfig.VERSION_CODE)
+                    showUpdateDialog(context, remoteName, downloadUrl)
+                else
+                    Toast.makeText(context,
+                        context.getString(R.string.update_up_to_date),
+                        Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    private fun fetchLatestRelease(): Pair<String?, String?> {
-        var conn: HttpURLConnection? = null
-        return try {
-            conn = (URL(API_URL).openConnection() as HttpURLConnection).apply {
-                requestMethod = "GET"
-                setRequestProperty("Accept", "application/vnd.github+json")
-                setRequestProperty("User-Agent", "ThievesTrap-App")
-                connectTimeout = 10_000; readTimeout = 10_000
-            }
-            if (conn.responseCode != HttpURLConnection.HTTP_OK)
-                return Pair(null, null)
-            val json   = JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
-            val tagName = json.optString("tag_name","").removePrefix("v").removePrefix("V").trim()
-            val assets = json.optJSONArray("assets")
-            var apkUrl: String? = null
-            if (assets != null) {
-                for (i in 0 until assets.length()) {
-                    val a = assets.getJSONObject(i)
-                    if (a.optString("name","").endsWith(".apk", true)) {
-                        apkUrl = a.optString("browser_download_url", null); break
-                    }
-                }
-                if (apkUrl == null && assets.length() > 0)
-                    apkUrl = assets.getJSONObject(0).optString("browser_download_url", null)
-            }
-            Pair(tagName.ifBlank { null }, apkUrl)
-        } catch (e: Exception) { Pair(null, null) }
-        finally { try { conn?.disconnect() } catch (e: Exception) {} }
-    }
+    // ── Background silent check — call from BootReceiver / MonitorService ────
+    // Runs silently; fires a notification if an update is found.
 
-    // ── PATH 2: Serverless version.json (v2.8.1, lightweight alternative) ──
-    // Use checkForUpdateJson() instead of / alongside checkForUpdate().
-    // Compares integer version_code — faster, no API rate limits.
-    // Requires version.json at repo root to be updated on every release.
-
-    fun checkForUpdateJson(context: Context) {
-        val dlg = buildProgressDialog(context, context.getString(R.string.update_checking))
-        dlg.show()
+    fun checkForUpdateBackground(context: Context) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val result = fetchVersionJson()
-                withContext(Dispatchers.Main) {
-                    dlg.dismiss()
-                    if (result == null) {
-                        Toast.makeText(context,
-                            context.getString(R.string.update_check_failed),
-                            Toast.LENGTH_LONG).show()
-                        return@withContext
-                    }
-                    val (remoteCode, remoteName, downloadUrl) = result
-                    Log.i(TAG, "[JSON] local=${BuildConfig.VERSION_CODE} remote=$remoteCode")
-                    if (remoteCode > BuildConfig.VERSION_CODE)
-                        showUpdateDialog(context, remoteName, downloadUrl)
-                    else
-                        Toast.makeText(context,
-                            context.getString(R.string.update_up_to_date),
-                            Toast.LENGTH_SHORT).show()
+                val result = fetchVersionJson() ?: return@launch
+                val (remoteCode, remoteName, downloadUrl) = result
+                Log.i(TAG, "[BG] local=${BuildConfig.VERSION_CODE} remote=$remoteCode")
+                if (remoteCode > BuildConfig.VERSION_CODE) {
+                    showUpdateNotification(context, remoteName)
                 }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    dlg.dismiss()
-                    Toast.makeText(context,
-                        context.getString(R.string.update_check_failed),
-                        Toast.LENGTH_LONG).show()
-                }
+                Log.e(TAG, "bg check: ${e.message}")
             }
         }
     }
+
+    // ── Show a notification that taps into MainActivity to trigger the update ─
+
+    private fun showUpdateNotification(context: Context, version: String) {
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            nm.createNotificationChannel(
+                NotificationChannel(
+                    OTA_CHANNEL_ID,
+                    "App Updates",
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply { description = "Thieves Trap update notifications" }
+            )
+        }
+
+        // Tap notification → open MainActivity which will show the update dialog
+        val tapIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("show_update", true)
+            putExtra("update_version", version)
+        }
+        val pi = PendingIntent.getActivity(
+            context, OTA_NOTIF_ID, tapIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notif = NotificationCompat.Builder(context, OTA_CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.stat_sys_download_done)
+            .setContentTitle(context.getString(R.string.update_available_title))
+            .setContentText(context.getString(R.string.update_available_body, version))
+            .setStyle(NotificationCompat.BigTextStyle()
+                .bigText(context.getString(R.string.update_available_body, version)))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(pi)
+            .build()
+
+        nm.notify(OTA_NOTIF_ID, notif)
+    }
+
+    // ── Fetch version.json ────────────────────────────────────────────────────
 
     private fun fetchVersionJson(): Triple<Int, String, String>? {
         var conn: HttpURLConnection? = null
@@ -160,9 +152,9 @@ object UpdateManager {
         finally { try { conn?.disconnect() } catch (e: Exception) {} }
     }
 
-    // ── Shared: update dialog, download, install ──────────────────
+    // ── Update dialog ─────────────────────────────────────────────────────────
 
-    private fun showUpdateDialog(context: Context, version: String, downloadUrl: String) {
+    fun showUpdateDialog(context: Context, version: String, downloadUrl: String) {
         AlertDialog.Builder(context)
             .setTitle(context.getString(R.string.update_available_title))
             .setMessage(context.getString(R.string.update_available_body, version))
@@ -172,6 +164,8 @@ object UpdateManager {
             .setNegativeButton(context.getString(R.string.update_not_now_btn), null)
             .setCancelable(true).show()
     }
+
+    // ── Download + Install ────────────────────────────────────────────────────
 
     private fun downloadAndInstall(context: Context, apkUrl: String, version: String) {
         try {
@@ -198,7 +192,7 @@ object UpdateManager {
 
             val receiver = object : BroadcastReceiver() {
                 override fun onReceive(ctx: Context, intent: Intent) {
-                    if (intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID,-1L) != dlId) return
+                    if (intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L) != dlId) return
                     try { ctx.unregisterReceiver(this) } catch (e: Exception) {}
                     onDownloadComplete(ctx, dm, dlId, fileName)
                 }
@@ -217,29 +211,58 @@ object UpdateManager {
         ctx: Context, dm: DownloadManager, dlId: Long, fileName: String
     ) {
         try {
+            // Check download manager status
             val cursor = dm.query(DownloadManager.Query().setFilterById(dlId))
             var status = -1
-            if (cursor != null && cursor.moveToFirst())
+            var localUri: String? = null
+            if (cursor != null && cursor.moveToFirst()) {
                 status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+                localUri = cursor.getString(
+                    cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_LOCAL_URI))
+            }
             cursor?.close()
+
             if (status != DownloadManager.STATUS_SUCCESSFUL) {
                 Toast.makeText(ctx, "Download failed (status=$status)", Toast.LENGTH_LONG).show()
                 return
             }
-            val apkFile = File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                fileName)
+
+            // Resolve APK file — try local URI from DM first, fall back to standard path
+            val apkFile: File = if (localUri != null) {
+                try {
+                    val uri = Uri.parse(localUri)
+                    if (uri.scheme == "file") File(uri.path!!)
+                    else File(
+                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                        fileName)
+                } catch (e: Exception) {
+                    File(
+                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                        fileName)
+                }
+            } else {
+                File(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                    fileName)
+            }
+
+            Log.i(TAG, "APK path: ${apkFile.absolutePath}, size: ${apkFile.length()}")
+
             if (!apkFile.exists()) {
                 Toast.makeText(ctx, "Downloaded file not found.", Toast.LENGTH_LONG).show()
                 return
             }
+
+            // Size check with reduced threshold
             if (apkFile.length() < MIN_APK_BYTES) {
+                Log.e(TAG, "APK too small: ${apkFile.length()} bytes — likely a stub/redirect")
                 apkFile.delete()
                 Toast.makeText(ctx,
-                    "Download appears corrupt. Check the Release asset is a direct .apk file.",
+                    "Download too small (${apkFile.length()} bytes). Check your connection.",
                     Toast.LENGTH_LONG).show()
                 return
             }
+
             installApk(ctx, apkFile)
         } catch (e: Exception) {
             Toast.makeText(ctx, "Install error: ${e.message}", Toast.LENGTH_LONG).show()
@@ -248,16 +271,40 @@ object UpdateManager {
 
     private fun installApk(ctx: Context, apkFile: File) {
         try {
-            val uri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.fileprovider", apkFile)
-            ctx.startActivity(Intent(Intent.ACTION_VIEW).apply {
+            // Try FileProvider first (Android 7+)
+            val uri = FileProvider.getUriForFile(
+                ctx, "${ctx.packageName}.fileprovider", apkFile)
+            val install = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, "application/vnd.android.package-archive")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            })
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+            }
+            // Grant URI permission explicitly to package installer
+            ctx.grantUriPermission(
+                "com.android.packageinstaller", uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            ctx.grantUriPermission(
+                "com.google.android.packageinstaller", uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            ctx.startActivity(install)
         } catch (e: Exception) {
-            Log.e(TAG, "installApk: ${e.message}")
-            Toast.makeText(ctx,
-                "Could not launch installer. Install manually from Downloads.",
-                Toast.LENGTH_LONG).show()
+            Log.e(TAG, "installApk FileProvider failed: ${e.message}")
+            // Fallback: direct file URI (Android 5-6)
+            try {
+                @Suppress("DEPRECATION")
+                val install = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(
+                        Uri.fromFile(apkFile),
+                        "application/vnd.android.package-archive")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                ctx.startActivity(install)
+            } catch (e2: Exception) {
+                Toast.makeText(ctx,
+                    "Could not launch installer. Install manually from Downloads.",
+                    Toast.LENGTH_LONG).show()
+            }
         }
     }
 
@@ -272,17 +319,5 @@ object UpdateManager {
             text = message; textSize = 14f; setTextColor(0xFFFFFFFF.toInt())
         })
         return AlertDialog.Builder(context).setView(ll).setCancelable(false).create()
-    }
-
-    private fun isNewerVersion(latest: String, current: String): Boolean {
-        return try {
-            val l = latest.split(".").map { it.trim().toIntOrNull() ?: 0 }
-            val c = current.split(".").map { it.trim().toIntOrNull() ?: 0 }
-            for (i in 0 until maxOf(l.size, c.size)) {
-                val d = (l.getOrElse(i){0}) - (c.getOrElse(i){0})
-                if (d != 0) return d > 0
-            }
-            false
-        } catch (e: Exception) { latest != current }
     }
 }
