@@ -133,45 +133,12 @@ class SettingsActivity : AppCompatActivity() {
         // ── TELEGRAM section ──
         try {
             val etTg = findViewById<android.widget.EditText>(R.id.et_telegram_ids)
-            val btnBot = findViewById<Button>(R.id.btn_setup_bot)
-            val btnIdBot = try { findViewById<Button>(R.id.btn_open_id_bot) } catch (e: Exception) { null }
-            val btnShareApp = try { findViewById<Button>(R.id.btn_share_app_tg) } catch (e: Exception) { null }
-            val btnShareBot = try { findViewById<Button>(R.id.btn_share_bot) } catch (e: Exception) { null }
+            val btnConnectBot  = findViewById<Button>(R.id.btn_setup_bot)
+            val btnShareBot    = try { findViewById<Button>(R.id.btn_share_bot) } catch (e: Exception) { null }
+            val btnShareBotId  = try { findViewById<Button>(R.id.btn_share_bot_id) } catch (e: Exception) { null }
             val badge = try {
                 findViewById<android.widget.TextView>(R.id.tv_telegram_premium_badge)
             } catch (e: Exception) { null }
-
-            // "Open Bot" button — opens @ThievesTrap_Alert_bot, shows start message with ID retrieval link
-            btnIdBot?.setOnClickListener {
-                val tgUri = android.net.Uri.parse("tg://resolve?domain=ThievesTrap_Alert_bot&start=getid")
-                val tgIntent = Intent(Intent.ACTION_VIEW, tgUri)
-                if (tgIntent.resolveActivity(packageManager) != null) {
-                    startActivity(tgIntent)
-                } else {
-                    startActivity(Intent(Intent.ACTION_VIEW,
-                        android.net.Uri.parse("https://t.me/ThievesTrap_Alert_bot?start=getid")))
-                }
-            }
-
-            // "Share App Link" — shares app download link via any app
-            btnShareApp?.setOnClickListener {
-                val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_SUBJECT, getString(R.string.share_app_subject))
-                    putExtra(Intent.EXTRA_TEXT,
-                        "${getString(R.string.share_app_body)}\nhttps://play.google.com/store/apps/details?id=$packageName")
-                }
-                startActivity(Intent.createChooser(shareIntent, getString(R.string.share_chooser_title)))
-            }
-
-            // "Share Bot Link" — shares the Telegram bot link with a contact
-            btnShareBot?.setOnClickListener {
-                val botShareIntent = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_TEXT, getString(R.string.tg_bot_share_text))
-                }
-                startActivity(Intent.createChooser(botShareIntent, getString(R.string.share_chooser_title)))
-            }
 
             if (isPremium) {
                 etTg.isFocusable = true
@@ -190,37 +157,67 @@ class SettingsActivity : AppCompatActivity() {
                         prefs.edit().putString("telegram_chat_ids", s?.toString()?.trim() ?: "").apply()
                     }
                 })
-                btnBot.text = getString(R.string.connect_bot)
-                btnBot.setTextColor(android.graphics.Color.parseColor("#4A90D9"))
-                btnBot.backgroundTintList = android.content.res.ColorStateList.valueOf(
+
+                // CONNECT BOT — opens bot, triggers poll to capture Chat ID
+                btnConnectBot.text = getString(R.string.connect_bot)
+                btnConnectBot.setTextColor(android.graphics.Color.parseColor("#4A90D9"))
+                btnConnectBot.backgroundTintList = android.content.res.ColorStateList.valueOf(
                     android.graphics.Color.parseColor("#1A1A2E"))
-                btnBot.alpha = 1f
-                btnBot.isEnabled = true
-                btnBot.setOnClickListener {
-                    startActivity(Intent(Intent.ACTION_VIEW,
-                        android.net.Uri.parse("https://t.me/ThievesTrap_Alert_bot")))
+                btnConnectBot.alpha = 1f
+                btnConnectBot.isEnabled = true
+                btnConnectBot.setOnClickListener {
+                    // Open bot in Telegram
+                    val tgUri = android.net.Uri.parse("tg://resolve?domain=ThievesTrap_Alert_bot&start=getid")
+                    val tgIntent = Intent(Intent.ACTION_VIEW, tgUri)
+                    if (tgIntent.resolveActivity(packageManager) != null) {
+                        startActivity(tgIntent)
+                    } else {
+                        startActivity(Intent(Intent.ACTION_VIEW,
+                            android.net.Uri.parse("https://t.me/ThievesTrap_Alert_bot?start=getid")))
+                    }
+                    // Poll for reply (delayed to let user press START first)
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        TelegramUploader.pollAndReply(this@SettingsActivity)
+                    }, 5000)
+                    android.widget.Toast.makeText(this,
+                        getString(R.string.tg_poll_hint), android.widget.Toast.LENGTH_LONG).show()
                 }
-                btnIdBot?.alpha = 1f
-                btnIdBot?.isEnabled = true
-                btnShareApp?.alpha = 1f
-                btnShareApp?.isEnabled = true
+
+                // SHARE BOT LINK — send bot link to a trusted contact
                 btnShareBot?.alpha = 1f
                 btnShareBot?.isEnabled = true
+                btnShareBot?.setOnClickListener {
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, TelegramUploader.getBotShareText())
+                    }
+                    startActivity(Intent.createChooser(intent, getString(R.string.share_chooser_title)))
+                }
+
+                // SHARE BOT ID — share own Chat ID with a trusted contact
+                btnShareBotId?.alpha = 1f
+                btnShareBotId?.isEnabled = true
+                btnShareBotId?.setOnClickListener {
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, TelegramUploader.getChatIdShareText(this@SettingsActivity))
+                    }
+                    startActivity(Intent.createChooser(intent, getString(R.string.share_chooser_title)))
+                }
+
                 badge?.visibility = android.view.View.GONE
             } else {
                 etTg.isFocusable = false
                 etTg.isEnabled = false
                 etTg.alpha = 0.35f
                 etTg.hint = "Premium required"
-                btnBot.alpha = 0.35f
-                btnBot.isEnabled = false
-                btnBot.setOnClickListener { showUpgradeDialog("Telegram Alerts") }
-                btnIdBot?.alpha = 0.35f
-                btnIdBot?.isEnabled = false
-                btnShareApp?.alpha = 0.6f
-                btnShareApp?.isEnabled = true  // Share app link works for everyone
+                btnConnectBot.alpha = 0.35f
+                btnConnectBot.isEnabled = false
+                btnConnectBot.setOnClickListener { showUpgradeDialog("Telegram Alerts") }
                 btnShareBot?.alpha = 0.35f
                 btnShareBot?.isEnabled = false
+                btnShareBotId?.alpha = 0.35f
+                btnShareBotId?.isEnabled = false
                 badge?.visibility = android.view.View.VISIBLE
             }
         } catch (e: Exception) {}
