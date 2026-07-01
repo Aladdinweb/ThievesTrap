@@ -309,16 +309,23 @@ class MainActivity : AppCompatActivity() {
         try {
             val tvStatus = findViewById<TextView>(R.id.tv_watch_tether_status)
             val tvHint   = findViewById<TextView>(R.id.tv_watch_tether_hint)
+            val swWatch  = findViewById<Switch>(R.id.sw_watch_tether)
             if (on) {
                 tvStatus?.text = getString(R.string.watch_tether_on_status)
                 tvStatus?.setTextColor(0xFF00CC44.toInt())
                 tvHint?.text = getString(R.string.watch_tether_hint_active)
                 tvHint?.setTextColor(0xFF1A4D1A.toInt())
+                // Green thumb + track when ON (matches Survival Timer style)
+                swWatch?.thumbTintList = android.content.res.ColorStateList.valueOf(0xFF00CC44.toInt())
+                swWatch?.trackTintList = android.content.res.ColorStateList.valueOf(0xFF003311.toInt())
             } else {
                 tvStatus?.text = getString(R.string.watch_tether_off_status)
                 tvStatus?.setTextColor(0xFF444444.toInt())
                 tvHint?.text = getString(R.string.watch_tether_hint)
                 tvHint?.setTextColor(0xFF333333.toInt())
+                // Grey thumb + track when OFF
+                swWatch?.thumbTintList = android.content.res.ColorStateList.valueOf(0xFF888888.toInt())
+                swWatch?.trackTintList = android.content.res.ColorStateList.valueOf(0xFF222222.toInt())
             }
         } catch (e: Exception) {}
     }
