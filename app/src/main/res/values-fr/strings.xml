@@ -210,14 +210,16 @@ Elle envoie une alerte automatique avec votre position GPS si vous ne confirmez 
     <string name="free_feat1">✓ Contact urgence 1</string>
     <string name="free_feat2">✓ Délai de grâce fixe 15s</string>
     <string name="free_feat3">✓ SMS en cas de mauvais PIN</string>
-    <string name="tg_step1">1. Appuyez sur « Ouvrir le bot » ci-dessous et appuyez sur DÉMARRER</string>
-    <string name="tg_step2">2. Le bot répondra avec votre Chat ID</string>
-    <string name="tg_step3">3. Copiez le numéro ID</string>
-    <string name="tg_step4">4. Collez-le dans le champ ci-dessous</string>
-    <string name="tg_open_bot_btn">🤖 Ouvrir le bot — Obtenir mon Chat ID</string>
     <string name="tg_bot_share_text">Restez en sécurité avec Thieves Trap ! Connectez notre bot d\'alerte sur Telegram : https://t.me/ThievesTrap_Alert_bot</string>
 
     <string name="tg_share_bot_btn">🔗 Partager le lien du bot</string>
-    <string name="tg_share_id_btn">📋 Partager mon Chat ID</string>
     <string name="tg_poll_hint">Ouvrez le bot, appuyez sur DEMARRER, puis revenez — votre ID sera recupere automatiquement.</string>
+
+    <string name="bt_not_available">Le Bluetooth n\'est pas disponible sur cet appareil.</string>
+    <string name="bt_enable_denied">Le Bluetooth est requis pour le Lien Montre.</string>
+    <string name="bt_no_paired_title">Aucune montre jumelee trouvee</string>
+    <string name="bt_no_paired_msg">Aucun appareil Bluetooth jumele. Ouvrez les parametres Bluetooth pour jumeler votre montre connectee.</string>
+    <string name="bt_open_settings">Ouvrir les parametres Bluetooth</string>
+    <string name="bt_perm_denied">La permission Bluetooth est requise pour le Lien Montre.</string>
+    <string name="bt_pick_watch_title">Selectionnez votre montre</string>
 </resources>

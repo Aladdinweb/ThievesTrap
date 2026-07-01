@@ -215,14 +215,16 @@ Automatically sends your GPS location if you do not confirm your safety before t
     <string name="free_feat1">✓ Emergency Contact 1</string>
     <string name="free_feat2">✓ 15s fixed grace period</string>
     <string name="free_feat3">✓ SMS on wrong PIN</string>
-    <string name="tg_step1">1. Tap "Open Bot" below and press START</string>
-    <string name="tg_step2">2. The bot will reply with your Chat ID</string>
-    <string name="tg_step3">3. Copy the ID number</string>
-    <string name="tg_step4">4. Paste it in the field below</string>
-    <string name="tg_open_bot_btn">🤖 Open Bot — Get My Chat ID</string>
     <string name="tg_bot_share_text">Stay safe with Thieves Trap! Connect our security alert bot on Telegram: https://t.me/ThievesTrap_Alert_bot</string>
 
     <string name="tg_share_bot_btn">🔗 Share Bot Link with Contact</string>
-    <string name="tg_share_id_btn">📋 Share My Chat ID</string>
     <string name="tg_poll_hint">Open the bot, press START, then return — your ID will auto-fill shortly.</string>
+
+    <string name="bt_not_available">Bluetooth is not available on this device.</string>
+    <string name="bt_enable_denied">Bluetooth is required for Watch Tether.</string>
+    <string name="bt_no_paired_title">No Paired Watch Found</string>
+    <string name="bt_no_paired_msg">No paired Bluetooth devices found. Open Bluetooth settings to pair your smartwatch first.</string>
+    <string name="bt_open_settings">Open Bluetooth Settings</string>
+    <string name="bt_perm_denied">Bluetooth permission is required for Watch Tether.</string>
+    <string name="bt_pick_watch_title">Select Your Smartwatch</string>
 </resources>

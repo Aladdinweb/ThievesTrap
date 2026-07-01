@@ -130,12 +130,11 @@ class SettingsActivity : AppCompatActivity() {
             -1 -> 0; 1 -> 1; 2 -> 2; 4 -> 4; 5 -> 5; else -> 3
         })
 
-        // ── TELEGRAM section ──
+        // ── TELEGRAM section (simplified: 2 buttons — Connect Bot, Share Bot Link) ──
         try {
             val etTg = findViewById<android.widget.EditText>(R.id.et_telegram_ids)
-            val btnConnectBot  = findViewById<Button>(R.id.btn_setup_bot)
-            val btnShareBot    = try { findViewById<Button>(R.id.btn_share_bot) } catch (e: Exception) { null }
-            val btnShareBotId  = try { findViewById<Button>(R.id.btn_share_bot_id) } catch (e: Exception) { null }
+            val btnConnectBot = findViewById<Button>(R.id.btn_setup_bot)
+            val btnShareBot   = try { findViewById<Button>(R.id.btn_share_bot) } catch (e: Exception) { null }
             val badge = try {
                 findViewById<android.widget.TextView>(R.id.tv_telegram_premium_badge)
             } catch (e: Exception) { null }
@@ -166,7 +165,6 @@ class SettingsActivity : AppCompatActivity() {
                 btnConnectBot.alpha = 1f
                 btnConnectBot.isEnabled = true
                 btnConnectBot.setOnClickListener {
-                    // Open bot in Telegram
                     val tgUri = android.net.Uri.parse("tg://resolve?domain=ThievesTrap_Alert_bot&start=getid")
                     val tgIntent = Intent(Intent.ACTION_VIEW, tgUri)
                     if (tgIntent.resolveActivity(packageManager) != null) {
@@ -175,7 +173,6 @@ class SettingsActivity : AppCompatActivity() {
                         startActivity(Intent(Intent.ACTION_VIEW,
                             android.net.Uri.parse("https://t.me/ThievesTrap_Alert_bot?start=getid")))
                     }
-                    // Poll for reply (delayed to let user press START first)
                     android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                         TelegramUploader.pollAndReply(this@SettingsActivity)
                     }, 5000)
@@ -183,24 +180,13 @@ class SettingsActivity : AppCompatActivity() {
                         getString(R.string.tg_poll_hint), android.widget.Toast.LENGTH_LONG).show()
                 }
 
-                // SHARE BOT LINK — send bot link to a trusted contact
+                // SHARE BOT LINK WITH CONTACT
                 btnShareBot?.alpha = 1f
                 btnShareBot?.isEnabled = true
                 btnShareBot?.setOnClickListener {
                     val intent = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
                         putExtra(Intent.EXTRA_TEXT, TelegramUploader.getBotShareText())
-                    }
-                    startActivity(Intent.createChooser(intent, getString(R.string.share_chooser_title)))
-                }
-
-                // SHARE BOT ID — share own Chat ID with a trusted contact
-                btnShareBotId?.alpha = 1f
-                btnShareBotId?.isEnabled = true
-                btnShareBotId?.setOnClickListener {
-                    val intent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, TelegramUploader.getChatIdShareText(this@SettingsActivity))
                     }
                     startActivity(Intent.createChooser(intent, getString(R.string.share_chooser_title)))
                 }
@@ -216,8 +202,6 @@ class SettingsActivity : AppCompatActivity() {
                 btnConnectBot.setOnClickListener { showUpgradeDialog("Telegram Alerts") }
                 btnShareBot?.alpha = 0.35f
                 btnShareBot?.isEnabled = false
-                btnShareBotId?.alpha = 0.35f
-                btnShareBotId?.isEnabled = false
                 badge?.visibility = android.view.View.VISIBLE
             }
         } catch (e: Exception) {}

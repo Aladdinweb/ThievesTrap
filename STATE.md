@@ -13,7 +13,7 @@
 **Repo:** `github.com/Aladdinweb/ThievesTrap` (branch: `main`)
 **Dev environment:** 100% mobile — Samsung phone, Android 13, Termux + GitHub Actions CI. No computer involved.
 **Project dir on phone:** `~/ThievesTrapV18`
-**Current version:** `v2.8.3` (versionCode 127)
+**Current version:** `v2.8.3` (versionCode 130)
 
 **Core concept:** When phone is armed and a thief tries to unlock it (or removes the SIM, disconnects a paired smartwatch, etc.), the app sends emergency SMS/Telegram alerts with GPS location, takes intruder selfies, and supports a remote SMS command system to track/control the phone from any other phone.
 
@@ -95,7 +95,7 @@ bash create_release.sh X.X.X /sdcard/Download/Thieves_Trap_vX.X.X_Final.apk
 | File | Key points |
 |---|---|
 | `AndroidManifest.xml` | `SmsCommandReceiver` static receiver, `priority="999"`. `REQUEST_INSTALL_PACKAGES` permission (OTA). Bluetooth permissions (Watch Tether). FileProvider authority `${applicationId}.fileprovider`. |
-| `app/build.gradle` | `versionCode 127`, `versionName "2.8.3"`. `outputFileName` block names APK by version. Release `minifyEnabled true`. |
+| `app/build.gradle` | `versionCode 130`, `versionName "2.8.6"`. `outputFileName` block names APK by version. Release `minifyEnabled true`. |
 | `.github/workflows/build.yml` | `assembleRelease` with signing via GitHub Secrets. Dynamic APK discovery (no hardcoded filename). |
 
 ---
@@ -174,6 +174,9 @@ bash create_release.sh X.X.X /sdcard/Download/Thieves_Trap_vX.X.X_Final.apk
 | v2.8.1 | Full EN/FR/AR localization for About screen (Share/Terms/Privacy/Commitment/Efficiency/Mission), lifetime → annual subscription plan ($4.99/yr), Contact Support wired to Facebook page |
 | v2.8.2 | Version bump (OTA delivery attempt — content changes not yet applied) |
 | v2.8.3 | Full EN/FR/AR i18n: About screen + Premium screen, lifetime→annual plan ($4.99/yr), Contact Support→Facebook, all pushed directly via GitHub API |
+| v2.8.4 | Fixed Contact Support label display bug, free features list layout (selfie removed from free tier), Telegram section rebuilt with 3 buttons, all via API pushes |
+| v2.8.5 | Fixed OTA corrupt file error (MIN_APK_BYTES 1MB→500KB), background OTA notification, Telegram bot /start polling fixed (JSONObject parser), 3-button Telegram UI, version.json updated |
+| v2.8.6 | Watch Tether: premium-gated + real BT enable/scan/pair flow (btEnableLauncher, btPermLauncher, device picker dialog); Telegram: simplified to 2 buttons (Connect Bot + Share Bot Link), removed instruction card + Share My Chat ID; 7 new BT string keys in EN/FR/AR |
 
 ---
 
