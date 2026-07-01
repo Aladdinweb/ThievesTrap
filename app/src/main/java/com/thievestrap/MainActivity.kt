@@ -350,30 +350,47 @@ class MainActivity : AppCompatActivity() {
     // ── Watch Tether: Bluetooth enable → scan → pair flow (v2.8.6, Premium only) ──
 
     private fun startWatchTetherBluetoothFlow(swWatch: Switch) {
+        // Always revert switch immediately — re-enable only after full success
+        // This prevents the switch staying ON while any step fails or is pending
+        swWatch.isChecked = false
+
+        // Step 1: Null-check adapter (BT hardware not available)
         val btManager = getSystemService(BLUETOOTH_SERVICE) as? android.bluetooth.BluetoothManager
         val btAdapter = btManager?.adapter
-
         if (btAdapter == null) {
             Toast.makeText(this, getString(R.string.bt_not_available), Toast.LENGTH_LONG).show()
-            swWatch.isChecked = false
             return
         }
 
-        // Step 1: Ensure Bluetooth is enabled
+        // Step 2: Check BLUETOOTH_CONNECT permission BEFORE touching any adapter state
+        // Calling btAdapter.isEnabled without this permission on API 31+ throws SecurityException
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
+                != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                // Request permissions — proceedWithWatchScan will be called from btPermLauncher
+                btPermLauncher.launch(arrayOf(
+                    Manifest.permission.BLUETOOTH_CONNECT,
+                    Manifest.permission.BLUETOOTH_SCAN
+                ))
+                return
+            }
+        }
+
+        // Step 3: Now safe to check isEnabled
         if (!btAdapter.isEnabled) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                // Android 13+: request via system intent (can't enable programmatically)
-                btEnableLauncher.launch(android.content.Intent(android.bluetooth.BluetoothAdapter.ACTION_REQUEST_ENABLE))
-            } else {
-                @Suppress("DEPRECATION")
-                btAdapter.enable()
-                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                    proceedWithWatchScan(btAdapter, swWatch)
-                }, 1500)
+            // Launch system dialog asking user to enable Bluetooth
+            // On Android 13+ this is the only allowed approach
+            try {
+                btEnableLauncher.launch(
+                    android.content.Intent(android.bluetooth.BluetoothAdapter.ACTION_REQUEST_ENABLE)
+                )
+            } catch (e: Exception) {
+                Toast.makeText(this, getString(R.string.bt_enable_denied), Toast.LENGTH_LONG).show()
             }
             return
         }
 
+        // Step 4: BT is on and permissions granted — proceed to scan/pair
         proceedWithWatchScan(btAdapter, swWatch)
     }
 
