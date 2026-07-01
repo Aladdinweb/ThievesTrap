@@ -200,17 +200,18 @@ class MainActivity : AppCompatActivity() {
                 } catch (e: Exception) {}
 
                 val swWatch = findViewById<Switch>(R.id.sw_watch_tether)
+                    ?: throw Exception("sw_watch_tether not found in layout")
                 val watchOn = prefs.getBoolean("watch_tether_on", false) && LicenseManager.isPremium(this)
                 swWatch.isChecked = watchOn
                 updateWatchTetherStatus(watchOn)
 
                 swWatch.setOnCheckedChangeListener { _, checked ->
-                    // v2.8.6: Watch Tether is now a Premium-only feature
+                    // v2.8.6: Watch Tether — Premium only + real BT scan/pair flow
                     if (checked && !LicenseManager.isPremium(this)) {
                         swWatch.isChecked = false
                         AlertDialog.Builder(this)
                             .setTitle("Premium Required")
-                            .setMessage("Watch Tether (Bluetooth smartwatch pairing) is available in the Full Protection plan.")
+                            .setMessage("Watch Tether requires Full Protection. Upgrade to enable Bluetooth smartwatch pairing.")
                             .setPositiveButton("Upgrade Now") { _, _ ->
                                 startActivity(Intent(this, PremiumActivity::class.java))
                             }
@@ -422,17 +423,29 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Step 3: Check for already-bonded devices first
+        // Step 3: Check for already-bonded devices
         val bonded = try { btAdapter.bondedDevices?.toList() ?: emptyList() } catch (e: Exception) { emptyList() }
 
         if (bonded.isEmpty()) {
-            // No paired devices — offer to open system Bluetooth settings to pair
+            // No paired devices — start BT discovery + open pairing settings
             AlertDialog.Builder(this)
                 .setTitle(getString(R.string.bt_no_paired_title))
                 .setMessage(getString(R.string.bt_no_paired_msg))
                 .setPositiveButton(getString(R.string.bt_open_settings)) { _, _ ->
+                    // Start Bluetooth discovery so nearby devices appear
+                    try {
+                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
+                            ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN)
+                                == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                            btAdapter.startDiscovery()
+                        }
+                    } catch (e: Exception) {}
+                    // Open system Bluetooth settings for pairing
                     startActivity(android.content.Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS))
                     swWatch.isChecked = false
+                    Toast.makeText(this,
+                        "Pair your watch, then enable Watch Tether again.",
+                        Toast.LENGTH_LONG).show()
                 }
                 .setNegativeButton(getString(R.string.update_cancel_btn)) { _, _ ->
                     swWatch.isChecked = false
@@ -443,12 +456,14 @@ class MainActivity : AppCompatActivity() {
 
         // Step 4: One bonded device — use it automatically
         if (bonded.size == 1) {
+            val device = bonded[0]
+            prefs.edit().putString("watch_tether_device", device.address).apply()
             activateWatchTether(swWatch)
             return
         }
 
         // Step 5: Multiple bonded devices — let user pick their smartwatch
-        val names = bonded.map { it.name ?: it.address }.toTypedArray()
+        val names = bonded.map { "${it.name ?: "Unknown"} (${it.address})" }.toTypedArray()
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.bt_pick_watch_title))
             .setItems(names) { _, which ->
