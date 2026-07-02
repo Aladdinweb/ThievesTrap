@@ -62,7 +62,7 @@ bash create_release.sh X.X.X /sdcard/Download/Thieves_Trap_vX.X.X_Final.apk
 | `MainActivity.kt` | Main screen: ARM/DISARM button, shield status UI, nav drawer (Settings, Premium, PIN change, Survival Timer, Watch Tether, Check for Update, Language). First-ARM guidance dialog (`isFirstArm` pref). Watch Tether ℹ️ badge wired to info dialog. |
 | `MonitorService.kt` | Core foreground service. Handles SMS commands (`SMS_COMMAND` action from static receiver), SIM swap trap state machine, silent-mode grace period, theft mode toggles, location updates, all SMS template building (`buildFullInfo`, IMEI injection, PING_NOTE footer). Uses `serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)` so SMS processing and SIM-trap timer never block each other. |
 | `SmsCommandReceiver.kt` | **Static**, manifest-registered (`priority=999`, `exported=true`) SMS receiver — survives process death, unlike a dynamic receiver. Forwards `SMS_RECEIVED` to `MonitorService` via explicit intent + `startForegroundService`. Has `@Volatile lastProcessedTime` dedup filter (5s window) to prevent double-processing. **This is now the SOLE SMS entry point** — `MonitorService`'s old dynamic `smsReceiver` was removed in v2.7.9b to fix duplicate SMS replies. |
-| `SmartwatchMonitorService.kt` | Bluetooth ACL connection monitor for paired smartwatch ("Watch Tether" feature). On disconnect: vibrate + `DevicePolicyManager.lockNow()` + 5-min countdown notification with **🚨 TRIGGER ALARM** / **🔕 DISARM/MUTE** / **I'm Safe** (no PIN) actions. On expiry: one emergency SMS with GPS. Auto-aborts on reconnect. |
+| `SmartwatchMonitorService.kt` | Bluetooth ACL connection monitor for paired smartwatch ("Watch Tether" feature). On disconnect: vibrate + `DevicePolicyManager.lockNow()` + 5-min countdown notification with **🚨 TRIGGER ALARM** / **🔕 DISARM/MUTE** / **I'm Safe** (no PIN) actions. On expiry: one emergency SMS with GPS. Auto-aborts on reconnect. **Premium only since v2.8.6**. |
 | `RemoteGuideActivity.kt` | "Remote Control Guide" screen — lists all SMS commands using `item_command.xml` rows. Each row's real IDs are `tv_cmd_text` / `tv_cmd_desc` / `btn_copy_cmd` (NOT `tv_command_name`/`tv_command_desc` — that was a v2.7.9b bug, fixed in v2.8.0). Has ℹ️ badge (`btn_plan_b_info`) explaining the Plan B dynamic-PIN mechanism. |
 | `UpdateManager.kt` | OTA update logic. `checkForUpdate()` → GitHub Releases API → compares `tag_name` (strips "v") against `BuildConfig.VERSION_NAME` → shows AlertDialog if newer → `DownloadManager` streams APK to `Downloads/` → `FileProvider` + `ACTION_VIEW` launches installer. Validates downloaded file size (`MIN_APK_BYTES = 1MB`) to catch corrupt/wrapper downloads before attempting install. |
 | `SettingsActivity.kt` | Settings screen (IMEI, emergency contacts, Telegram bot setup, theft alert toggles, SMS test). Airplane Mode row fully removed (v2.7.6). |
@@ -95,7 +95,7 @@ bash create_release.sh X.X.X /sdcard/Download/Thieves_Trap_vX.X.X_Final.apk
 | File | Key points |
 |---|---|
 | `AndroidManifest.xml` | `SmsCommandReceiver` static receiver, `priority="999"`. `REQUEST_INSTALL_PACKAGES` permission (OTA). Bluetooth permissions (Watch Tether). FileProvider authority `${applicationId}.fileprovider`. |
-| `app/build.gradle` | `versionCode 130`, `versionName "2.8.6"`. `outputFileName` block names APK by version. Release `minifyEnabled true`. |
+| `app/build.gradle` | `versionCode 130`, `versionName "2.8.6"`. Release `minifyEnabled true`. `outputFileName` block names APK by version. Release `minifyEnabled true`. |
 | `.github/workflows/build.yml` | `assembleRelease` with signing via GitHub Secrets. Dynamic APK discovery (no hardcoded filename). |
 
 ---
@@ -177,6 +177,7 @@ bash create_release.sh X.X.X /sdcard/Download/Thieves_Trap_vX.X.X_Final.apk
 | v2.8.4 | Fixed Contact Support label display bug, free features list layout (selfie removed from free tier), Telegram section rebuilt with 3 buttons, all via API pushes |
 | v2.8.5 | Fixed OTA corrupt file error (MIN_APK_BYTES 1MB→500KB), background OTA notification, Telegram bot /start polling fixed (JSONObject parser), 3-button Telegram UI, version.json updated |
 | v2.8.6 | Watch Tether: premium-gated + real BT enable/scan/pair flow (btEnableLauncher, btPermLauncher, device picker dialog); Telegram: simplified to 2 buttons (Connect Bot + Share Bot Link), removed instruction card + Share My Chat ID; 7 new BT string keys in EN/FR/AR |
+| v2.8.6b | Watch Tether switch color fixed: removed hardcoded red thumbTint/trackTint from XML; `updateWatchTetherStatus()` now sets green thumb+track when ON, grey when OFF — instant visual feedback without reopen. BT crash fixed: permission check before `isEnabled`, switch reverts to OFF immediately before any async dialog. |
 
 ---
 
