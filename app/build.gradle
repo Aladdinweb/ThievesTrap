@@ -4,7 +4,7 @@ plugins {
 }
 android {
     namespace 'com.thievestrap'
-    buildFeatures { buildConfig true }
+    buildFeatures { buildConfig false }
     compileSdk 33
     defaultConfig {
         applicationId "com.thievestrap"
@@ -12,7 +12,6 @@ android {
         targetSdk 33
         versionCode 131
         versionName "2.8.7"
-        buildConfigField "String", "GITHUB_FACE_TOKEN", '""'  // Set via GitHub Secret FACE_TOKEN for production
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->

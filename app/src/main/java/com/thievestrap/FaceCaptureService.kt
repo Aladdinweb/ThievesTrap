@@ -233,77 +233,30 @@ class FaceCaptureService : Service() {
                 FileOutputStream(file).use { it.write(jpegBytes) }
                 Log.i(TAG, "Face photo saved: ${file.absolutePath}")
 
-                val caption = "👁️ Face Detected — ${android.text.format.DateFormat.format("yyyy-MM-dd HH:mm:ss", System.currentTimeMillis())}"
+                val caption = "\uD83D\uDC41 Face Detected — ${android.text.format.DateFormat.format("yyyy-MM-dd HH:mm:ss", System.currentTimeMillis())}"
 
-                // Channel 1: Telegram
+                // Primary delivery: Telegram photo + message
                 TelegramUploader.sendPhoto(this, file, caption)
                 TelegramUploader.sendMessage(this,
-                    "👁️ *Thieves Trap — Face Captured*\n$caption\nPhoto attached above.")
+                    "\uD83D\uDC41\uFE0F *Thieves Trap \u2014 Face Captured*\n$caption\nPhoto attached above.")
 
-                // Channel 2: Upload to GitHub + SMS link
-                val link = uploadToGitHubPages(imageId, jpegBytes)
-                if (link != null) {
-                    val prefs = getSharedPreferences("tt_prefs", MODE_PRIVATE)
-                    val phone = prefs.getString("phone", "") ?: ""
-                    if (phone.isNotBlank()) {
-                        val smsText = "👁️ Thieves Trap: Face captured!\n" +
-                            "⚠️ Self-destruct link (view ONCE, save immediately):\n$link"
-                        try {
-                            android.telephony.SmsManager.getDefault()
-                                .sendTextMessage(phone, null, smsText, null, null)
-                            Log.i(TAG, "Face link SMS sent to $phone")
-                        } catch (e: Exception) {
-                            Log.e(TAG, "SMS send failed: ${e.message}")
-                        }
+                // Secondary: SMS alert to emergency contact (text only)
+                val prefs = getSharedPreferences("tt_prefs", MODE_PRIVATE)
+                val phone = prefs.getString("phone", "") ?: ""
+                if (phone.isNotBlank()) {
+                    val smsText = "Thieves Trap: Face captured and sent to your Telegram bot. $caption"
+                    try {
+                        android.telephony.SmsManager.getDefault()
+                            .sendTextMessage(phone, null, smsText, null, null)
+                        Log.i(TAG, "Face SMS alert sent to $phone")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "SMS alert failed: ${e.message}")
                     }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "deliverPhoto: ${e.message}")
             }
         }.start()
-    }
-
-    /**
-     * Upload JPEG to GitHub repo as base64, return GitHub Pages view URL.
-     * Uses the Aladdinweb/ThievesTrap repo under a /captures/ path.
-     * ⚠️ PAT is embedded — this is a known limitation for sideloaded APKs.
-     * For production, replace with a server-side relay.
-     */
-    private fun uploadToGitHubPages(imageId: String, jpegBytes: ByteArray): String? {
-        return try {
-            val token = BuildConfig.GITHUB_FACE_TOKEN.ifBlank { return null }
-            val b64 = android.util.Base64.encodeToString(jpegBytes, android.util.Base64.NO_WRAP)
-            val owner = "Aladdinweb"
-            val repo  = "ThievesTrap"
-            val path  = "captures/$imageId.jpg"
-
-            val body = org.json.JSONObject().apply {
-                put("message", "face capture $imageId")
-                put("content", b64)
-            }.toString()
-
-            val url = java.net.URL("https://api.github.com/repos/$owner/$repo/contents/$path")
-            val conn = url.openConnection() as java.net.HttpURLConnection
-            conn.requestMethod = "PUT"
-            conn.setRequestProperty("Authorization", "token $token")
-            conn.setRequestProperty("Content-Type", "application/json")
-            conn.doOutput = true
-            conn.connectTimeout = 15_000
-            java.io.OutputStreamWriter(conn.outputStream).use { it.write(body) }
-            val code = conn.responseCode
-            conn.disconnect()
-
-            if (code == 201 || code == 200) {
-                // Return GitHub Pages self-destruct view link
-                "https://$owner.github.io/$repo/view.html?img=$imageId"
-            } else {
-                Log.w(TAG, "GitHub upload HTTP $code")
-                null
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "uploadToGitHubPages: ${e.message}")
-            null
-        }
     }
 
     // ── Notification ──
