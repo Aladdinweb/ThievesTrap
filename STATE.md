@@ -13,7 +13,7 @@
 **Repo:** `github.com/Aladdinweb/ThievesTrap` (branch: `main`)
 **Dev environment:** 100% mobile — Samsung phone, Android 13, Termux + GitHub Actions CI. No computer involved.
 **Project dir on phone:** `~/ThievesTrapV18`
-**Current version:** `v2.8.3` (versionCode 130)
+**Current version:** `v2.8.3` (versionCode 131)
 
 **Core concept:** When phone is armed and a thief tries to unlock it (or removes the SIM, disconnects a paired smartwatch, etc.), the app sends emergency SMS/Telegram alerts with GPS location, takes intruder selfies, and supports a remote SMS command system to track/control the phone from any other phone.
 
@@ -73,6 +73,7 @@ bash create_release.sh X.X.X /sdcard/Download/Thieves_Trap_vX.X.X_Final.apk
 | `SafeConfirmReceiver.kt` / `SafeConfirmActivity.kt` | "I'm Safe" button handling — stops `SurvivalTimerService` directly via `PendingIntent.getService`, **no PIN required**. |
 | `AlarmService.kt` | Max-volume siren service, controlled via `START_ALARM`/`STOP_ALARM` actions — used by remote ALARM command, Watch Tether TRIGGER ALARM, and Plan B ALARM. |
 | `LicenseManager.kt` | Free/Premium gating logic. |
+| `FaceCaptureService.kt` | **v2.8.7** Foreground service: ML Kit face detection on `ACTION_SCREEN_ON`, Camera2 front-camera preview, captures JPEG on face detected. Dual delivery: `TelegramUploader.sendPhoto()` + GitHub Pages upload → self-destruct SMS link. Activated by SMS `FACE ON`, stopped by `FACE OFF`. Premium only. |
 | `TelegramUploader.kt` | Sends messages/photos to Telegram bot (@ThievesTrap_Alert_bot) — premium feature. |
 | `BootReceiver.kt` | Restarts monitoring on device boot if `running=true`. |
 | `DeviceAdminReceiver.kt` | Device Admin callbacks — failed/succeeded password attempts trigger selfie + alert. |
@@ -95,7 +96,7 @@ bash create_release.sh X.X.X /sdcard/Download/Thieves_Trap_vX.X.X_Final.apk
 | File | Key points |
 |---|---|
 | `AndroidManifest.xml` | `SmsCommandReceiver` static receiver, `priority="999"`. `REQUEST_INSTALL_PACKAGES` permission (OTA). Bluetooth permissions (Watch Tether). FileProvider authority `${applicationId}.fileprovider`. |
-| `app/build.gradle` | `versionCode 130`, `versionName "2.8.6"`. Release `minifyEnabled true`. `outputFileName` block names APK by version. Release `minifyEnabled true`. |
+| `app/build.gradle` | `versionCode 131`, `versionName "2.8.7"`. Release `minifyEnabled true`. `outputFileName` block names APK by version. Release `minifyEnabled true`. |
 | `.github/workflows/build.yml` | `assembleRelease` with signing via GitHub Secrets. Dynamic APK discovery (no hardcoded filename). |
 
 ---
@@ -111,6 +112,10 @@ bash create_release.sh X.X.X /sdcard/Download/Thieves_Trap_vX.X.X_Final.apk
 - `ALARM`/`RING`, `STOP ALARM`/`SILENCE`, `LOCK`, `SELFIE`/`PHOTO`/`PICTURE`
 - `PING <mins>`, `STOP PING`
 - `ACTIVE`/`ACTIVATE`, `DEACTIVATE`, `DISARM <pin>`
+
+**FACE capture (Premium, v2.8.7):**
+- `FACE ON` — starts `FaceCaptureService`, ML Kit face detection active, Telegram+SMS delivery on capture
+- `FACE OFF` — stops service, closes camera
 
 **Plan B (dynamic PIN, works from ANY unknown phone number):**
 - Pattern: `COMMAND PIN` e.g. `WHERE 2026`, `ALARM 2026`
@@ -178,6 +183,7 @@ bash create_release.sh X.X.X /sdcard/Download/Thieves_Trap_vX.X.X_Final.apk
 | v2.8.5 | Fixed OTA corrupt file error (MIN_APK_BYTES 1MB→500KB), background OTA notification, Telegram bot /start polling fixed (JSONObject parser), 3-button Telegram UI, version.json updated |
 | v2.8.6 | Watch Tether: premium-gated + real BT enable/scan/pair flow (btEnableLauncher, btPermLauncher, device picker dialog); Telegram: simplified to 2 buttons (Connect Bot + Share Bot Link), removed instruction card + Share My Chat ID; 7 new BT string keys in EN/FR/AR |
 | v2.8.6b | Watch Tether switch color fixed: removed hardcoded red thumbTint/trackTint from XML; `updateWatchTetherStatus()` now sets green thumb+track when ON, grey when OFF — instant visual feedback without reopen. BT crash fixed: permission check before `isEnabled`, switch reverts to OFF immediately before any async dialog. |
+| v2.8.7 | **FACE ON/OFF**: `FaceCaptureService.kt` — ML Kit face detection on screen wake, dual delivery (Telegram photo + GitHub Pages self-destruct SMS link), premium-gated UI switch in Settings, Plan B PIN supported. 7 files in one combined commit. |: removed hardcoded red thumbTint/trackTint from XML; `updateWatchTetherStatus()` now sets green thumb+track when ON, grey when OFF — instant visual feedback without reopen. BT crash fixed: permission check before `isEnabled`, switch reverts to OFF immediately before any async dialog. |
 
 ---
 
