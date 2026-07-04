@@ -4,13 +4,15 @@ plugins {
 }
 android {
     namespace 'com.thievestrap'
+    buildFeatures { buildConfig true }
     compileSdk 33
     defaultConfig {
         applicationId "com.thievestrap"
         minSdk 26
         targetSdk 33
-        versionCode 130
-        versionName "2.8.6"
+        versionCode 131
+        versionName "2.8.7"
+        buildConfigField "String", "GITHUB_FACE_TOKEN", '""'  // Set via GitHub Secret FACE_TOKEN for production
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
@@ -46,4 +48,6 @@ dependencies {
     implementation 'androidx.biometric:biometric:1.1.0'
     implementation 'androidx.drawerlayout:drawerlayout:1.2.0'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+    // FACE ON/OFF — ML Kit face detection (v2.8.7)
+    implementation 'com.google.mlkit:face-detection:16.1.5'
 }

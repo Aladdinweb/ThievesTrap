@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 
 class SettingsActivity : AppCompatActivity() {
 
@@ -120,6 +121,52 @@ class SettingsActivity : AppCompatActivity() {
         swSilent?.isChecked = isPremium && theftActive && prefs.getBoolean("alert_silent", true)
         swSilent?.isEnabled = isPremium
         swSilent?.alpha = if (isPremium) 1f else 0.4f
+
+        // ── FACE CAPTURE switch (v2.8.7 — Premium, controlled by remote SMS FACE ON/OFF) ──
+        val swFace = try { findViewById<Switch>(R.id.sw_face_capture) } catch (e: Exception) { null }
+        swFace?.let { sw ->
+            val faceOn = isPremium && prefs.getBoolean("face_capture_enabled", false)
+            sw.isChecked = faceOn
+            sw.isEnabled = isPremium
+            sw.alpha = if (isPremium) 1f else 0.4f
+            // Update thumb color
+            if (faceOn) {
+                sw.thumbTintList = android.content.res.ColorStateList.valueOf(0xFF00CC44.toInt())
+                sw.trackTintList = android.content.res.ColorStateList.valueOf(0xFF003311.toInt())
+            } else {
+                sw.thumbTintList = android.content.res.ColorStateList.valueOf(0xFF888888.toInt())
+                sw.trackTintList = android.content.res.ColorStateList.valueOf(0xFF222222.toInt())
+            }
+            sw.setOnClickListener {
+                if (!isPremium) {
+                    sw.isChecked = false
+                    showUpgradeDialog("Intelligent Face Capture")
+                    return@setOnClickListener
+                }
+            }
+            sw.setOnCheckedChangeListener { _, checked ->
+                if (!isPremium) { sw.isChecked = false; return@setOnCheckedChangeListener }
+                prefs.edit().putBoolean("face_capture_enabled", checked).apply()
+                if (checked) {
+                    ContextCompat.startForegroundService(this,
+                        android.content.Intent(this, FaceCaptureService::class.java).apply {
+                            action = "FACE_ON"
+                        })
+                    sw.thumbTintList = android.content.res.ColorStateList.valueOf(0xFF00CC44.toInt())
+                    sw.trackTintList = android.content.res.ColorStateList.valueOf(0xFF003311.toInt())
+                    android.widget.Toast.makeText(this,
+                        getString(R.string.face_on_activated), android.widget.Toast.LENGTH_SHORT).show()
+                } else {
+                    startService(android.content.Intent(this, FaceCaptureService::class.java).apply {
+                        action = "FACE_OFF"
+                    })
+                    sw.thumbTintList = android.content.res.ColorStateList.valueOf(0xFF888888.toInt())
+                    sw.trackTintList = android.content.res.ColorStateList.valueOf(0xFF222222.toInt())
+                    android.widget.Toast.makeText(this,
+                        getString(R.string.face_off_deactivated), android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
 
         // ── FAILED THRESHOLD ──
         val spinnerFailed = findViewById<Spinner>(R.id.spinner_failed)

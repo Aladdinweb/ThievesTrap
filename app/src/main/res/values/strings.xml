@@ -227,4 +227,11 @@ Automatically sends your GPS location if you do not confirm your safety before t
     <string name="bt_open_settings">Open Bluetooth Settings</string>
     <string name="bt_perm_denied">Bluetooth permission is required for Watch Tether.</string>
     <string name="bt_pick_watch_title">Select Your Smartwatch</string>
+
+    <!-- FACE ON/OFF remote commands (v2.8.7) -->
+    <string name="face_capture_label">Intelligent Face Capture</string>
+    <string name="face_capture_sub">Remote SMS: FACE ON / FACE OFF</string>
+    <string name="face_capture_hint">Activated remotely via SMS. Captures thief's face silently when screen turns on.</string>
+    <string name="face_on_activated">👁️ Face capture ACTIVATED — monitoring silently.</string>
+    <string name="face_off_deactivated">🔕 Face capture DEACTIVATED — camera stopped.</string>
 </resources>
