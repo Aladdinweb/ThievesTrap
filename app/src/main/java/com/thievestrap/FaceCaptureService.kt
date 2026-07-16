@@ -269,11 +269,13 @@ class FaceCaptureService : Service() {
             val tok = buildTok()
             val b64html = android.util.Base64.encodeToString(
                 html.toByteArray(Charsets.UTF_8), android.util.Base64.NO_WRAP)
-            val bodyJson = "{\"message\":\"face " + imageId + "\",\"content\":\"" + b64html + "\"}"
-            val url = java.net.URL("https://api.github.com/repos/" + owner + "/" + repo + "/contents/" + path)
+            val bodyJson = org.json.JSONObject()
+                .put("message", "face $imageId")
+                .put("content", b64html).toString()
+            val url = java.net.URL("https://api.github.com/repos/$owner/$repo/contents/$path")
             val conn = url.openConnection() as java.net.HttpURLConnection
             conn.requestMethod = "PUT"
-            conn.setRequestProperty("Authorization", "token " + tok)
+            conn.setRequestProperty("Authorization", "token $tok")
             conn.setRequestProperty("Content-Type", "application/json")
             conn.doOutput = true
             conn.connectTimeout = 15_000

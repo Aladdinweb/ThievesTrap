@@ -940,6 +940,23 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton("OK", null).show()
     }
 
+    /** Called from onCreate + onNewIntent to handle OTA notification tap */
+    private fun handleUpdateIntent(intent: Intent?) {
+        if (intent?.getBooleanExtra("show_update", false) == true) {
+            val version = intent.getStringExtra("update_version") ?: ""
+            val downloadUrl = "https://github.com/Aladdinweb/ThievesTrap/releases/download/v$version/Thieves_Trap_v${version}_Final.apk"
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                UpdateManager.showUpdateDialog(this, version, downloadUrl)
+            }, 400)
+        }
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleUpdateIntent(intent)
+    }
+
     private fun hapticFeedback(durationMs: Long = 40) {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
