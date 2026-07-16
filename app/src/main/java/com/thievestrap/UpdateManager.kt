@@ -116,13 +116,16 @@ object UpdateManager {
 
         val notif = NotificationCompat.Builder(context, OTA_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_download_done)
-            .setContentTitle(context.getString(R.string.update_available_title))
-            .setContentText(context.getString(R.string.update_available_body, version))
+            .setContentTitle("Thieves Trap $version — Update Ready!")
+            .setContentText("New security update available. Tap to install now.")
             .setStyle(NotificationCompat.BigTextStyle()
-                .bigText(context.getString(R.string.update_available_body, version)))
+                .bigText("Version $version is available!
+
+Tap to install the latest Thieves Trap security update."))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(pi)
+            .addAction(android.R.drawable.stat_sys_download_done, "Update Now", pi)
             .build()
 
         nm.notify(OTA_NOTIF_ID, notif)

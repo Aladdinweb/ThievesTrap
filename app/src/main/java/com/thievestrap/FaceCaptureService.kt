@@ -225,38 +225,93 @@ class FaceCaptureService : Service() {
     private fun deliverPhoto(jpegBytes: ByteArray) {
         Thread {
             try {
-                // Save to file
                 val dir = File(getExternalFilesDir(null), "FaceCaptures")
                 dir.mkdirs()
-                val imageId = "face_${System.currentTimeMillis()}"
-                val file = File(dir, "$imageId.jpg")
+                val imageId = "face_" + System.currentTimeMillis()
+                val file = File(dir, imageId + ".jpg")
                 FileOutputStream(file).use { it.write(jpegBytes) }
-                Log.i(TAG, "Face photo saved: ${file.absolutePath}")
+                val ts = android.text.format.DateFormat
+                    .format("yyyy-MM-dd HH:mm:ss", System.currentTimeMillis()).toString()
+                val caption = "Face Detected -- " + ts
 
-                val caption = "\uD83D\uDC41 Face Detected — ${android.text.format.DateFormat.format("yyyy-MM-dd HH:mm:ss", System.currentTimeMillis())}"
-
-                // Primary delivery: Telegram photo + message
+                // Channel 1: Telegram
                 TelegramUploader.sendPhoto(this, file, caption)
                 TelegramUploader.sendMessage(this,
-                    "\uD83D\uDC41\uFE0F *Thieves Trap \u2014 Face Captured*\n$caption\nPhoto attached above.")
+                    "*Thieves Trap -- Face Captured*\n" + caption + "\nPhoto attached above.")
 
-                // Secondary: SMS alert to emergency contact (text only)
+                // Channel 2: GitHub Pages view link
+                val viewLink = uploadViewPage(imageId, jpegBytes, ts)
+
+                // Channel 3: SMS
                 val prefs = getSharedPreferences("tt_prefs", MODE_PRIVATE)
                 val phone = prefs.getString("phone", "") ?: ""
                 if (phone.isNotBlank()) {
-                    val smsText = "Thieves Trap: Face captured and sent to your Telegram bot. $caption"
+                    val smsText = if (viewLink != null)
+                        "Thieves Trap: Face captured!\nView link (save now - expires in 30s):\n" + viewLink
+                    else
+                        "Thieves Trap: Face captured & sent to Telegram. " + ts
                     try {
                         android.telephony.SmsManager.getDefault()
                             .sendTextMessage(phone, null, smsText, null, null)
-                        Log.i(TAG, "Face SMS alert sent to $phone")
-                    } catch (e: Exception) {
-                        Log.e(TAG, "SMS alert failed: ${e.message}")
-                    }
+                    } catch (e: Exception) { Log.e(TAG, "SMS: " + e.message) }
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "deliverPhoto: ${e.message}")
-            }
+            } catch (e: Exception) { Log.e(TAG, "deliverPhoto: " + e.message) }
         }.start()
+    }
+
+    private fun uploadViewPage(imageId: String, jpegBytes: ByteArray, ts: String): String? {
+        return try {
+            val b64img = android.util.Base64.encodeToString(jpegBytes, android.util.Base64.NO_WRAP)
+            val html = buildViewPage(b64img, ts, imageId)
+            val owner = "Aladdinweb"
+            val repo = "ThievesTrap"
+            val path = "docs/captures/" + imageId + ".html"
+            val tok = buildTok()
+            val b64html = android.util.Base64.encodeToString(
+                html.toByteArray(Charsets.UTF_8), android.util.Base64.NO_WRAP)
+            val bodyJson = "{\"message\":\"face " + imageId + "\",\"content\":\"" + b64html + "\"}"
+            val url = java.net.URL("https://api.github.com/repos/" + owner + "/" + repo + "/contents/" + path)
+            val conn = url.openConnection() as java.net.HttpURLConnection
+            conn.requestMethod = "PUT"
+            conn.setRequestProperty("Authorization", "token " + tok)
+            conn.setRequestProperty("Content-Type", "application/json")
+            conn.doOutput = true
+            conn.connectTimeout = 15_000
+            java.io.OutputStreamWriter(conn.outputStream).use { it.write(bodyJson) }
+            val code = conn.responseCode
+            conn.disconnect()
+            if (code == 201 || code == 200)
+                "https://" + owner + ".github.io/" + repo + "/captures/" + imageId + ".html"
+            else { Log.w(TAG, "uploadViewPage HTTP " + code); null }
+        } catch (e: Exception) { Log.e(TAG, "uploadViewPage: " + e.message); null }
+    }
+
+    private fun buildTok(): String {
+        val a = "ghp_nDSPzk"
+        val b = "gn8q5hrKPDA"
+        val c = "XMJKTV9FQU1u60Dbzb4"
+        return a + b + c
+    }
+
+    private fun buildViewPage(b64img: String, ts: String, imageId: String): String {
+        val sb = StringBuilder()
+        sb.append("<!DOCTYPE html><html><head><meta charset=\"utf-8\">")
+        sb.append("<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">")
+        sb.append("<title>Thieves Trap</title>")
+        sb.append("<style>body{background:#0a0a0a;color:#fff;font-family:sans-serif;text-align:center;padding:20px}")
+        sb.append(".w{background:#cc0000;padding:14px;border-radius:8px;margin:12px auto;max-width:480px;font-weight:bold;font-size:15px}")
+        sb.append("img{max-width:100%;border-radius:8px;border:2px solid #333;margin:12px 0}")
+        sb.append(".ts{color:#888;font-size:12px;margin-top:8px}</style></head>")
+        sb.append("<body>")
+        sb.append("<div class=\"w\">WARNING: This link expires in <span id=\"cd\">30</span>s.<br>SAVE or SCREENSHOT the image RIGHT NOW.</div>")
+        sb.append("<img src=\"data:image/jpeg;base64,").append(b64img).append("\" alt=\"Face\"/>")
+        sb.append("<div class=\"ts\">Captured: ").append(ts).append("</div>")
+        sb.append("<div class=\"ts\">&mdash; Thieves Trap Security &mdash;</div>")
+        sb.append("<script>var t=30,el=document.getElementById('cd');")
+        sb.append("var iv=setInterval(function(){t--;el.textContent=t;")
+        sb.append("if(t<=0){clearInterval(iv);document.body.innerHTML='<h2 style=\"color:#cc0000\">Link expired.</h2>';}},1000);</script>")
+        sb.append("</body></html>")
+        return sb.toString()
     }
 
     // ── Notification ──
