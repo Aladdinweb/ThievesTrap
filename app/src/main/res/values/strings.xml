@@ -106,8 +106,8 @@ Open SMS app on any phone. Type command (e.g. WHERE). Send to your stolen phone 
     <string name="grace_off_label">Smart Grace Period: OFF</string>
     <string name="selfie_label">Selfie on failed attempts</string>
     <string name="sim_change_label">SMS on SIM change</string>
-    <string name="intruder_selfies">📸 Intruder Selfies</string>
-    <string name="delete_all_btn">🗑 Delete All</string>
+    <string name="intruder_selfies">[CAM] Intruder Selfies</string>
+    <string name="delete_all_btn">[DEL] Delete All</string>
     <string name="back_arrow_left">← Back</string>
     <string name="splash_powered">POWERED BY ILINE TECH</string>
     <string name="premium_full_title">FULL PROTECTION</string>
@@ -116,7 +116,7 @@ Open SMS app on any phone. Type command (e.g. WHERE). Send to your stolen phone 
     <string name="copyright_iline">© 2026 ILINE TECH</string>
     <string name="free_version">FREE VERSION</string>
     <string name="no_photos_yet">No intruder photos captured yet.</string>
-    <string name="premium_lock">🔒 Premium</string>
+    <string name="premium_lock">[LOCK] Premium</string>
     <string name="rate_app">Rate this app</string>
     <string name="price_premium">4.99</string>
     <string name="device_id_label">Device ID: ...</string>
@@ -153,19 +153,19 @@ Automatically sends your GPS location if you do not confirm your safety before t
 <string name="share_app_body">Protect your phone from thieves! Download Thieves Trap:</string>
 <string name="cannot_open_link">Cannot open link</string>
 <string name="watch_tether_info_title">⌚ Watch Tether — How It Works</string>
-<string name="watch_tether_info_body">When enabled, Thieves Trap monitors the Bluetooth connection to your paired smartwatch in the background.\n\n🔒 If the watch disconnects:\n   • Screen locks immediately via Device Admin\n   • Repeating vibration alert fires\n   • A 5-minute silent countdown begins\n\n✅ During the countdown you can tap:\n   • \"I\'m Safe\" — cancels, no PIN required\n   • \"🚨 TRIGGER ALARM\" — max-volume siren\n   • \"🔕 DISARM / MUTE\" — stops alarm + cancels\n\n📩 If the countdown expires, one emergency SMS with GPS is sent to your Emergency Contact.</string>
+<string name="watch_tether_info_body">When enabled, Thieves Trap monitors the Bluetooth connection to your paired smartwatch in the background.\n\n[LOCK] If the watch disconnects:\n   • Screen locks immediately via Device Admin\n   • Repeating vibration alert fires\n   • A 5-minute silent countdown begins\n\n✅ During the countdown you can tap:\n   • \"I\'m Safe\" — cancels, no PIN required\n   • \"[ALARM] TRIGGER ALARM\" — max-volume siren\n   • \"[BELL-OFF] DISARM / MUTE\" — stops alarm + cancels\n\n&#x1F4E9; If the countdown expires, one emergency SMS with GPS is sent to your Emergency Contact.</string>
 <string name="watch_tether_info_button">Got It</string>
-<string name="plan_b_info_title">🔐 Secure Plan B Commands</string>
+<string name="plan_b_info_title">[KEY] Secure Plan B Commands</string>
 <string name="plan_b_info_body">By default, commands without a PIN send alerts only to your registered emergency contacts.\n\nHowever, if you append your live APP PIN (e.g., \"WHERE 2026\"), the app will bypass all registration limits and reply directly to that unknown sender\'s phone!\n\nThis PIN updates dynamically in real-time whenever you modify it inside the application settings.</string>
 <string name="plan_b_info_button">Got it</string>
-<string name="first_arm_title">📋 Important: Save Your Commands</string>
+<string name="first_arm_title">[LIST] Important: Save Your Commands</string>
 <string name="first_arm_body">Before locking your protection, please read the remote SMS control guide so you can track your device if it goes missing.</string>
 <string name="first_arm_view_guide">View Commands Guide</string>
 <string name="first_arm_activate">Got It, Activate Protection</string>
 <string name="update_checking">Checking for updates…</string>
 <string name="update_up_to_date">Your application is fully up to date!</string>
 <string name="update_check_failed">Could not check for updates. Try again later.</string>
-<string name="update_available_title">🚨 New Update Available!</string>
+<string name="update_available_title">[ALARM] New Update Available!</string>
 <string name="update_available_body">Version %1$s is ready.\n\nWould you like to update now to unlock the latest security patches and features?</string>
 <string name="update_now_btn">Update Now</string>
 <string name="update_cancel_btn">Cancel</string>
@@ -174,11 +174,11 @@ Automatically sends your GPS location if you do not confirm your safety before t
 
     <string name="annual_plan">Annual — Renews yearly, cancel anytime</string>
     <string name="price_per_year_suffix">/yr</string>
-    <string name="about_privacy_commitment_title">🔒 Privacy Commitment</string>
+    <string name="about_privacy_commitment_title">[LOCK] Privacy Commitment</string>
     <string name="about_privacy_commitment_body">We value your privacy. Photos and location data are sent directly to your private Telegram bot or emergency SMS. We do not store any of your personal media on our servers.</string>
     <string name="about_modern_efficiency_title">⚡ Modern Efficiency</string>
     <string name="about_modern_efficiency_body">We upgraded our system to support Telegram Integration. Receive instant intruder selfies and security alerts faster and more reliably than traditional methods.</string>
-    <string name="about_our_mission_title">🎯 Our Mission</string>
+    <string name="about_our_mission_title">[TARGET] Our Mission</string>
     <string name="about_our_mission_body">Providing a dual-protection layer through SMS and Telegram to ensure you recover your phone and stay informed of its status in real-time.</string>
     <string name="free_vs_full_header">FREE vs FULL PROTECTION</string>
     <string name="free_included_header">FREE INCLUDED</string>
@@ -186,7 +186,7 @@ Automatically sends your GPS location if you do not confirm your safety before t
 ✓ Selfie capture (saved locally)
 ✓ 15s fixed grace period
 ✓ SMS on wrong PIN</string>
-    <string name="premium_unlocks_header">👑 FULL PROTECTION UNLOCKS</string>
+    <string name="premium_unlocks_header">[CROWN] FULL PROTECTION UNLOCKS</string>
     <string name="choose_payment_header">CHOOSE PAYMENT METHOD</string>
     <string name="coming_soon_badge">COMING SOON</string>
     <string name="card_payment_sub">Online secure payment</string>
@@ -217,7 +217,7 @@ Automatically sends your GPS location if you do not confirm your safety before t
     <string name="free_feat3">✓ SMS on wrong PIN</string>
     <string name="tg_bot_share_text">Stay safe with Thieves Trap! Connect our security alert bot on Telegram: https://t.me/ThievesTrap_Alert_bot</string>
 
-    <string name="tg_share_bot_btn">🔗 Share Bot Link with Contact</string>
+    <string name="tg_share_bot_btn">[LINK] Share Bot Link with Contact</string>
     <string name="tg_poll_hint">Open the bot, press START, then return — your ID will auto-fill shortly.</string>
 
     <string name="bt_not_available">Bluetooth is not available on this device.</string>
@@ -232,6 +232,6 @@ Automatically sends your GPS location if you do not confirm your safety before t
     <string name="face_capture_label">Intelligent Face Capture</string>
     <string name="face_capture_sub">Remote SMS: FACE ON / FACE OFF</string>
     <string name="face_capture_hint">Activated remotely via SMS. Captures the thief face silently when screen turns on.</string>
-    <string name="face_on_activated">👁️ Face capture ACTIVATED — monitoring silently.</string>
-    <string name="face_off_deactivated">🔕 Face capture DEACTIVATED — camera stopped.</string>
+    <string name="face_on_activated">[EYE]️ Face capture ACTIVATED — monitoring silently.</string>
+    <string name="face_off_deactivated">[BELL-OFF] Face capture DEACTIVATED — camera stopped.</string>
 </resources>
