@@ -311,7 +311,6 @@ class MonitorService : Service() {
                 "HISTORY", "ALARM", "RING", "STOP ALARM", "SILENCE", "LOCK",
                 "SELFIE", "PHOTO", "PICTURE",
                 "PING", "ACTIVE", "ACTIVATE", "DEACTIVATE", "DISARM",
-                "FACE ON", "FACE OFF",
                 "HELP", "COMMANDS", "?", "STOP PING"
             )
             val isKnownCmd = knownCommands.any {
@@ -340,8 +339,7 @@ class MonitorService : Service() {
         val planBCommands = setOf(
             "WHERE","LOCATION","LOC","FIND","ALARM","RING",
             "SELFIE","PHOTO","PICTURE","INFO","DEVICE",
-            "STATUS","BATTERY","BAT","SIM","IMEI","LOCK",
-            "FACE ON","FACE OFF"
+            "STATUS","BATTERY","BAT","SIM","IMEI","LOCK"
         )
         if (cmd !in planBCommands || pin.isBlank()) return null
         return cmd to pin
@@ -715,25 +713,6 @@ class MonitorService : Service() {
                     (getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager).lockNow()
                     TelegramUploader.sendMessage(this, "${s("app_name")}: ${s("sms_locked")}")
                 } catch (e: Exception) { TelegramUploader.sendMessage(this, "Lock failed.") }
-            }
-            cmd == "FACE ON" -> {
-                if (!LicenseManager.isPremium(this)) {
-                    TelegramUploader.sendMessage(this, "${s("app_name")}: FACE ON is a Premium feature.")
-                    return
-                }
-                prefs().edit().putBoolean("face_capture_enabled", true).apply()
-                ContextCompat.startForegroundService(this,
-                    Intent(this, FaceCaptureService::class.java).apply { action = "FACE_ON" })
-                TelegramUploader.sendMessage(this,
-                    "👁️ ${s("app_name")}: Face capture ACTIVATED. Monitoring for faces silently.")
-                smsAll("👁️ ${s("app_name")}: FACE ON — intelligent face capture is now active.")
-            }
-            cmd == "FACE OFF" -> {
-                prefs().edit().putBoolean("face_capture_enabled", false).apply()
-                startService(Intent(this, FaceCaptureService::class.java).apply { action = "FACE_OFF" })
-                TelegramUploader.sendMessage(this,
-                    "🔕 ${s("app_name")}: Face capture DEACTIVATED. Camera stopped.")
-                smsAll("🔕 ${s("app_name")}: FACE OFF — face capture stopped.")
             }
             cmd == "HELP" || cmd == "COMMANDS" || cmd == "?" ->
                 TelegramUploader.sendMessage(this, s("sms_help"))
