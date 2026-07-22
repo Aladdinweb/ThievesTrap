@@ -1,0 +1,144 @@
+name: Deploy Face Capture
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type DEPLOY to confirm'
+        required: true
+        default: ''
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.confirm == 'DEPLOY' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.THIEVES_TRAP_PAT }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Apply Face Capture patch
+        env:
+          THIEVES_TRAP_PAT: ${{ secrets.THIEVES_TRAP_PAT }}
+        run: |
+          python3 scripts/apply_face_capture_patch.py
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Download Gradle Wrapper JAR
+        run: |
+          mkdir -p gradle/wrapper
+          curl -sL https://github.com/gradle/gradle/raw/v8.4.0/gradle/wrapper/gradle-wrapper.jar \
+            -o gradle/wrapper/gradle-wrapper.jar
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/*.gradle*') }}
+
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
+
+      - name: Build Signed Release APK
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          THIEVES_TRAP_PAT: ${{ secrets.THIEVES_TRAP_PAT }}
+        run: |
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file="$(pwd)/keystore.jks" \
+            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+
+      - name: Find APK
+        id: find_apk
+        run: |
+          APK=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
+          echo "apk_path=$APK" >> $GITHUB_OUTPUT
+          echo "Found APK: $APK"
+
+      - name: Read version
+        id: version
+        run: |
+          VER=$(python3 -c "
+          import re, open as o
+          g = open('app/build.gradle').read()
+          print(re.search(r'versionName \"([^\"]+)\"', g).group(1))
+          ")
+          echo "version=$VER" >> $GITHUB_OUTPUT
+
+      - name: Delete existing release if present
+        env:
+          GH_TOKEN: ${{ secrets.THIEVES_TRAP_PAT }}
+        run: |
+          gh release delete "v${{ steps.version.outputs.version }}" --yes 2>/dev/null || true
+          git push origin --delete "v${{ steps.version.outputs.version }}" 2>/dev/null || true
+
+      - name: Create GitHub Release and upload APK
+        env:
+          GH_TOKEN: ${{ secrets.THIEVES_TRAP_PAT }}
+        run: |
+          gh release create "v${{ steps.version.outputs.version }}" \
+            "${{ steps.find_apk.outputs.apk_path }}" \
+            --title "v${{ steps.version.outputs.version }}" \
+            --notes "Automated release — Face Capture v${{ steps.version.outputs.version }}"
+
+      - name: Update version.json
+        env:
+          THIEVES_TRAP_PAT: ${{ secrets.THIEVES_TRAP_PAT }}
+        run: |
+          python3 - <<'PYEOF'
+          import json, re, subprocess, os
+
+          g = open('app/build.gradle').read()
+          ver_name = re.search(r'versionName "([^"]+)"', g).group(1)
+          ver_code = int(re.search(r'versionCode (\d+)', g).group(1))
+
+          vj = {
+            "version_code": ver_code,
+            "version_name": ver_name,
+            "download_url": f"https://github.com/Aladdinweb/ThievesTrap/releases/download/v{ver_name}/Thieves_Trap_v{ver_name}_Final.apk"
+          }
+          open('version.json','w').write(json.dumps(vj, indent=2) + '\n')
+          print(f"version.json updated: {ver_name} / {ver_code}")
+          PYEOF
+
+      - name: Commit patched code + version.json
+        env:
+          THIEVES_TRAP_PAT: ${{ secrets.THIEVES_TRAP_PAT }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -m "v${{ steps.version.outputs.version }}: deploy Face Capture feature [automated]"
+          git push origin main
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Thieves_Trap_v${{ steps.version.outputs.version }}_Final.apk
+          path: ${{ steps.find_apk.outputs.apk_path }}

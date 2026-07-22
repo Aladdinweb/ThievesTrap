@@ -13,7 +13,7 @@
 **Repo:** `github.com/Aladdinweb/ThievesTrap` (branch: `main`)
 **Dev environment:** 100% mobile — Samsung phone, Android 13, Termux + GitHub Actions CI. No computer involved.
 **Project dir on phone:** `~/ThievesTrapV18`
-**Current version:** `v2.8.3` (versionCode 130)
+**Current version:** `v2.8.3` (versionCode 131)
 
 **Core concept:** When phone is armed and a thief tries to unlock it (or removes the SIM, disconnects a paired smartwatch, etc.), the app sends emergency SMS/Telegram alerts with GPS location, takes intruder selfies, and supports a remote SMS command system to track/control the phone from any other phone.
 
@@ -96,7 +96,7 @@ bash create_release.sh X.X.X /sdcard/Download/Thieves_Trap_vX.X.X_Final.apk
 | File | Key points |
 |---|---|
 | `AndroidManifest.xml` | `SmsCommandReceiver` static receiver, `priority="999"`. `REQUEST_INSTALL_PACKAGES` permission (OTA). Bluetooth permissions (Watch Tether). FileProvider authority `${applicationId}.fileprovider`. |
-| `app/build.gradle` | `versionCode 130`, `versionName "2.8.6"`. Release `minifyEnabled true`. `outputFileName` block names APK by version. Release `minifyEnabled true`. |
+| `app/build.gradle` | `versionCode 131`, `versionName "2.8.7"`. Release `minifyEnabled true`. `outputFileName` block names APK by version. Release `minifyEnabled true`. |
 | `.github/workflows/build.yml` | `assembleRelease` with signing via GitHub Secrets. Dynamic APK discovery (no hardcoded filename). |
 
 ---
@@ -184,7 +184,8 @@ bash create_release.sh X.X.X /sdcard/Download/Thieves_Trap_vX.X.X_Final.apk
 | v2.8.6 | Watch Tether: premium-gated + real BT enable/scan/pair flow (btEnableLauncher, btPermLauncher, device picker dialog); Telegram: simplified to 2 buttons (Connect Bot + Share Bot Link), removed instruction card + Share My Chat ID; 7 new BT string keys in EN/FR/AR |
 | v2.8.6b | Watch Tether switch color fixed: removed hardcoded red thumbTint/trackTint from XML; `updateWatchTetherStatus()` now sets green thumb+track when ON, grey when OFF — instant visual feedback without reopen. BT crash fixed: permission check before `isEnabled`, switch reverts to OFF immediately before any async dialog. |
 | v2.8.7 | FACE ON/OFF feature — REMOVED in v2.8.6 revert. Build failures due to 4-byte emoji in strings.xml (AAPT2 incompatible) and ML Kit OOM. Feature stripped completely. |
-| v2.8.6-final | `FaceCaptureService.kt` — ML Kit face detection on screen wake, dual delivery (Telegram photo + GitHub Pages self-destruct SMS link with 30s countdown), premium-gated UI switch in Settings, Plan B PIN supported. OTA notification improved: shows version, "Update Now" action button, tapping opens in-app update dialog directly. |
+| v2.8.6-final | Stable baseline — Watch Tether BT flow, Telegram 2-button UI, OTA in-app tap, all emoji fixed |
+| v2.8.7 | Face Capture: ML Kit + Camera2, screen-on trigger, GitHub self-destruct viewer (5min auto-delete), SMS link, Telegram photo. Premium only. deploy_face_capture.yml workflow. THIEVES_TRAP_PAT via BuildConfig. | `FaceCaptureService.kt` — ML Kit face detection on screen wake, dual delivery (Telegram photo + GitHub Pages self-destruct SMS link with 30s countdown), premium-gated UI switch in Settings, Plan B PIN supported. OTA notification improved: shows version, "Update Now" action button, tapping opens in-app update dialog directly. |
 | v2.8.7b | Fix bare apostrophe in `face_capture_hint` string (AAPT build-breaker). Fix `bodyJson` escaping in `uploadViewPage` (used `JSONObject` instead of raw string). `handleUpdateIntent()` + `onNewIntent()` in MainActivity — OTA notification tap opens update dialog in-app without leaving app. | `FaceCaptureService.kt` — ML Kit face detection on screen wake, dual delivery (Telegram photo + GitHub Pages self-destruct SMS link), premium-gated UI switch in Settings, Plan B PIN supported. 7 files in one combined commit. |: removed hardcoded red thumbTint/trackTint from XML; `updateWatchTetherStatus()` now sets green thumb+track when ON, grey when OFF — instant visual feedback without reopen. BT crash fixed: permission check before `isEnabled`, switch reverts to OFF immediately before any async dialog. |
 
 ---
