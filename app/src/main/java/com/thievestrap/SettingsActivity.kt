@@ -122,6 +122,53 @@ class SettingsActivity : AppCompatActivity() {
         swSilent?.isEnabled = isPremium
         swSilent?.alpha = if (isPremium) 1f else 0.4f
 
+        // ── FACE CAPTURE switch (v2.8.7) ──
+        val swFace = try { findViewById<Switch>(R.id.sw_face_capture) } catch (e: Exception) { null }
+        swFace?.let { sw ->
+            val faceOn = isPremium && prefs.getBoolean("face_capture_enabled", false)
+            sw.isChecked = faceOn
+            sw.isEnabled = isPremium
+            sw.alpha = if (isPremium) 1f else 0.4f
+            sw.thumbTintList = android.content.res.ColorStateList.valueOf(
+                if (faceOn) 0xFF00CC44.toInt() else 0xFF888888.toInt())
+            sw.trackTintList = android.content.res.ColorStateList.valueOf(
+                if (faceOn) 0xFF003311.toInt() else 0xFF222222.toInt())
+            sw.setOnCheckedChangeListener { _, checked ->
+                if (!isPremium) {
+                    sw.isChecked = false
+                    showUpgradeDialog(getString(R.string.face_capture_label))
+                    return@setOnCheckedChangeListener
+                }
+                prefs.edit().putBoolean("face_capture_enabled", checked).apply()
+                sw.thumbTintList = android.content.res.ColorStateList.valueOf(
+                    if (checked) 0xFF00CC44.toInt() else 0xFF888888.toInt())
+                sw.trackTintList = android.content.res.ColorStateList.valueOf(
+                    if (checked) 0xFF003311.toInt() else 0xFF222222.toInt())
+                if (checked) {
+                    ContextCompat.startForegroundService(this,
+                        android.content.Intent(this, FaceCaptureService::class.java)
+                            .apply { action = "FACE_ON" })
+                    android.widget.Toast.makeText(this,
+                        getString(R.string.face_on_reply),
+                        android.widget.Toast.LENGTH_SHORT).show()
+                } else {
+                    startService(android.content.Intent(this, FaceCaptureService::class.java)
+                        .apply { action = "FACE_OFF" })
+                    android.widget.Toast.makeText(this,
+                        getString(R.string.face_off_reply),
+                        android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        try {
+            findViewById<android.widget.Button>(R.id.btn_face_info)?.setOnClickListener {
+                androidx.appcompat.app.AlertDialog.Builder(this)
+                    .setTitle(getString(R.string.face_capture_info_title))
+                    .setMessage(getString(R.string.face_capture_info_body))
+                    .setPositiveButton("OK", null).show()
+            }
+        } catch (e: Exception) {}
+
 
         // ── FAILED THRESHOLD ──
         val spinnerFailed = findViewById<Spinner>(R.id.spinner_failed)

@@ -311,6 +311,7 @@ class MonitorService : Service() {
                 "HISTORY", "ALARM", "RING", "STOP ALARM", "SILENCE", "LOCK",
                 "SELFIE", "PHOTO", "PICTURE",
                 "PING", "ACTIVE", "ACTIVATE", "DEACTIVATE", "DISARM",
+                "FACE ON", "FACE OFF",
                 "HELP", "COMMANDS", "?", "STOP PING"
             )
             val isKnownCmd = knownCommands.any {
@@ -339,7 +340,7 @@ class MonitorService : Service() {
         val planBCommands = setOf(
             "WHERE","LOCATION","LOC","FIND","ALARM","RING",
             "SELFIE","PHOTO","PICTURE","INFO","DEVICE",
-            "STATUS","BATTERY","BAT","SIM","IMEI","LOCK"
+            "STATUS","BATTERY","BAT","SIM","IMEI","LOCK","FACE ON","FACE OFF"
         )
         if (cmd !in planBCommands || pin.isBlank()) return null
         return cmd to pin
@@ -713,6 +714,23 @@ class MonitorService : Service() {
                     (getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager).lockNow()
                     TelegramUploader.sendMessage(this, "${s("app_name")}: ${s("sms_locked")}")
                 } catch (e: Exception) { TelegramUploader.sendMessage(this, "Lock failed.") }
+            }
+            cmd == "FACE ON" -> {
+                if (!LicenseManager.isPremium(this)) {
+                    smsAll(getString(R.string.face_premium_required))
+                    return@launch
+                }
+                prefs().edit().putBoolean("face_capture_enabled", true).apply()
+                ContextCompat.startForegroundService(this,
+                    Intent(this, FaceCaptureService::class.java).apply { action = "FACE_ON" })
+                smsAll(getString(R.string.face_on_reply))
+                TelegramUploader.sendMessage(this, getString(R.string.face_on_reply))
+            }
+            cmd == "FACE OFF" -> {
+                prefs().edit().putBoolean("face_capture_enabled", false).apply()
+                startService(Intent(this, FaceCaptureService::class.java).apply { action = "FACE_OFF" })
+                smsAll(getString(R.string.face_off_reply))
+                TelegramUploader.sendMessage(this, getString(R.string.face_off_reply))
             }
             cmd == "HELP" || cmd == "COMMANDS" || cmd == "?" ->
                 TelegramUploader.sendMessage(this, s("sms_help"))
