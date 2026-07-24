@@ -219,7 +219,7 @@ if '"FACE ON","FACE OFF"' not in monitor:
 
 # Add handleCommand cases
 FACE_CASES = (
-    '            "FACE ON" -> {\n'
+    '            cmd == "FACE ON" -> {\n'
     '                if (!LicenseManager.isPremium(this)) {\n'
     '                    smsAll(getString(R.string.face_premium_required))\n'
     '                    return@launch\n'
@@ -230,13 +230,14 @@ FACE_CASES = (
     '                smsAll(getString(R.string.face_on_reply))\n'
     '                TelegramUploader.sendMessage(this, getString(R.string.face_on_reply))\n'
     '            }\n'
-    '            "FACE OFF" -> {\n'
+    '            cmd == "FACE OFF" -> {\n'
     '                prefs().edit().putBoolean("face_capture_enabled", false).apply()\n'
     '                startService(Intent(this, FaceCaptureService::class.java).apply { action = "FACE_OFF" })\n'
     '                smsAll(getString(R.string.face_off_reply))\n'
     '                TelegramUploader.sendMessage(this, getString(R.string.face_off_reply))\n'
     '            }\n'
-    '            "HELP", "COMMANDS", "?" -> {\n'
+    '            cmd == "HELP" || cmd == "COMMANDS" || cmd == \"?\" ->\n'
+    '                TelegramUploader.sendMessage(this, s(\"sms_help\"))\n'
 )
 
 if '"FACE ON" ->' not in monitor:
@@ -309,7 +310,9 @@ FACE_SWITCH_CODE = (
 
 ANCHOR = ('        swSilent?.isChecked = isPremium && theftActive && prefs.getBoolean("alert_silent", true)\n'
           '        swSilent?.isEnabled = isPremium\n'
-          '        swSilent?.alpha = if (isPremium) 1f else 0.4f\n')
+          '        swSilent?.alpha = if (isPremium) 1f else 0.4f\n'
+          '\n\n'
+          '        // ── FAILED THRESHOLD ──\n ')
 
 if 'sw_face_capture' not in settings_kt:
     settings_kt = patch(settings_kt, ANCHOR, FACE_SWITCH_CODE, "wire sw_face_capture switch")
