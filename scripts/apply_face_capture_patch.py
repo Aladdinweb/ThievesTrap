@@ -319,21 +319,6 @@ if 'sw_face_capture' not in settings_kt:
 write('app/src/main/java/com/thievestrap/SettingsActivity.kt', settings_kt)
 
 # ─────────────────────────────────────────────
-# 9. Write FaceCaptureService.kt
-# ─────────────────────────────────────────────
-print("\n[9] FaceCaptureService.kt")
-face_svc_path = 'app/src/main/java/com/thievestrap/FaceCaptureService.kt'
-if not os.path.exists(os.path.join(ROOT, face_svc_path)):
-    write(face_svc_path, FACE_CAPTURE_SERVICE_CODE)
-    print("  [OK] FaceCaptureService.kt created")
-else:
-    print("  [SKIP] FaceCaptureService.kt already exists")
-
-print("\n=== Patch complete ===")
-print("Next: gradlew assembleRelease")
-
-
-# ─────────────────────────────────────────────
 # FaceCaptureService source (embedded in script)
 # ─────────────────────────────────────────────
 FACE_CAPTURE_SERVICE_CODE = '''package com.thievestrap
@@ -658,3 +643,17 @@ class FaceCaptureService : Service() {
             .setOngoing(true).build()
 }
 '''
+
+# ─────────────────────────────────────────────
+# 9. Write FaceCaptureService.kt
+# ─────────────────────────────────────────────
+print("\n[9] FaceCaptureService.kt")
+face_svc_path = 'app/src/main/java/com/thievestrap/FaceCaptureService.kt'
+if not os.path.exists(os.path.join(ROOT, face_svc_path)):
+    write(face_svc_path, FACE_CAPTURE_SERVICE_CODE)
+    print("  [OK] FaceCaptureService.kt created")
+else:
+    print("  [SKIP] FaceCaptureService.kt already exists")
+
+print("\n=== Patch complete ===")
+print("Next: gradlew assembleRelease")
