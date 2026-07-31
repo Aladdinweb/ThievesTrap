@@ -649,11 +649,13 @@ class FaceCaptureService : Service() {
 # ─────────────────────────────────────────────
 print("\n[9] FaceCaptureService.kt")
 face_svc_path = 'app/src/main/java/com/thievestrap/FaceCaptureService.kt'
-if not os.path.exists(os.path.join(ROOT, face_svc_path)):
-    write(face_svc_path, FACE_CAPTURE_SERVICE_CODE)
-    print("  [OK] FaceCaptureService.kt created")
+# File is committed directly to repo — always skip regeneration from embedded constant
+if os.path.exists(os.path.join(ROOT, face_svc_path)):
+    print("  [SKIP] FaceCaptureService.kt already in repo")
 else:
-    print("  [SKIP] FaceCaptureService.kt already exists")
+    # Should not happen — file is committed. Write as fallback.
+    write(face_svc_path, FACE_CAPTURE_SERVICE_CODE)
+    print("  [OK] FaceCaptureService.kt written (fallback)")
 
 print("\n=== Patch complete ===")
 print("Next: gradlew assembleRelease")
