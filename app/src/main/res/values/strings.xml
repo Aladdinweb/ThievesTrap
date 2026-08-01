@@ -228,4 +228,13 @@ Automatically sends your GPS location if you do not confirm your safety before t
     <string name="bt_perm_denied">Bluetooth permission is required for Watch Tether.</string>
     <string name="bt_pick_watch_title">Select Your Smartwatch</string>
 
+
+    <!-- Face Capture (v2.8.7) -->
+    <string name="face_capture_label">Face Capture</string>
+    <string name="face_capture_sub">Remote SMS: FACE ON / FACE OFF</string>
+    <string name="face_capture_info_title">How Face Capture Works</string>
+    <string name="face_capture_info_body">When enabled (via app switch or SMS command FACE ON), the app silently uses ML-based face detection in the background. As soon as a face is detected, it snaps a photo, uploads it temporarily to GitHub, and sends an SMS link to your recovery number. The photo automatically self-destructs immediately upon opening the link, or after 5 minutes if unread.</string>
+    <string name="face_on_reply">Face capture ON - monitoring silently.</string>
+    <string name="face_off_reply">Face capture OFF - camera stopped.</string>
+    <string name="face_premium_required">Face Capture is a Premium feature. Upgrade to activate.</string>
 </resources>

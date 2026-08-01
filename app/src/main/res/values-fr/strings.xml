@@ -222,4 +222,13 @@ Elle envoie une alerte automatique avec votre position GPS si vous ne confirmez 
     <string name="bt_open_settings">Ouvrir les parametres Bluetooth</string>
     <string name="bt_perm_denied">La permission Bluetooth est requise pour le Lien Montre.</string>
     <string name="bt_pick_watch_title">Selectionnez votre montre</string>
+
+    <!-- Face Capture (v2.8.7) -->
+    <string name="face_capture_label">Capture faciale</string>
+    <string name="face_capture_sub">SMS distant: FACE ON / FACE OFF</string>
+    <string name="face_capture_info_title">Fonctionnement de la capture faciale</string>
+    <string name="face_capture_info_body">Lorsqu\'elle est activee via le commutateur ou la commande FACE ON, l\'application utilise silencieusement la detection de visage ML en arriere-plan. Des qu\'un visage est detecte, elle prend une photo et envoie un lien SMS. La photo s\'autodestruit a l\'ouverture du lien ou apres 5 minutes.</string>
+    <string name="face_on_reply">Capture faciale ACTIVEE - surveillance silencieuse.</string>
+    <string name="face_off_reply">Capture faciale DESACTIVEE - camera arretee.</string>
+    <string name="face_premium_required">La capture faciale est une fonction Premium.</string>
 </resources>
