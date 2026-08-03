@@ -148,19 +148,19 @@ Elle envoie une alerte automatique avec votre position GPS si vous ne confirmez 
 <string name="share_app_body">Protegez votre telephone contre le vol ! Telechargez Thieves Trap :</string>
 <string name="cannot_open_link">Impossible douvrir le lien</string>
 <string name="watch_tether_info_title">⌚ Lien Montre — Fonctionnement</string>
-<string name="watch_tether_info_body">Lorsquil est active, Thieves Trap surveille la connexion Bluetooth avec votre montre connectee en arriere-plan.\n\n🔒 Si la montre se deconnecte :\n   • Lecran se verrouille immediatement\n   • Une alerte vibrante repetee se declenche\n   • Un compte a rebours silencieux de 5 minutes commence\n\n✅ Pendant le compte a rebours :\n   • « Je suis en securite » — annule sans PIN\n   • « 🚨 ALARME » — sirene a volume maximal\n   • « 🔕 DESACTIVER » — arrete lalarme + annule\n\n📩 A lexpiration, un SMS durgence GPS est envoye a votre contact durgence.</string>
+<string name="watch_tether_info_body">Lorsquil est active, Thieves Trap surveille la connexion Bluetooth avec votre montre connectee en arriere-plan.\n\n&#x1F512; Si la montre se deconnecte :\n   • Lecran se verrouille immediatement\n   • Une alerte vibrante repetee se declenche\n   • Un compte a rebours silencieux de 5 minutes commence\n\n✅ Pendant le compte a rebours :\n   • « Je suis en securite » — annule sans PIN\n   • « &#x1F6A8; ALARME » — sirene a volume maximal\n   • « &#x1F515; DESACTIVER » — arrete lalarme + annule\n\n&#x1F4E9; A lexpiration, un SMS durgence GPS est envoye a votre contact durgence.</string>
 <string name="watch_tether_info_button">Compris</string>
-<string name="plan_b_info_title">🔐 Commandes Plan B securisees</string>
+<string name="plan_b_info_title">&#x1F510; Commandes Plan B securisees</string>
 <string name="plan_b_info_body">Par defaut, les commandes sans PIN envoient des alertes uniquement a vos contacts durgence enregistres.\n\nCependant, si vous ajoutez votre PIN actuel (ex : « WHERE 2026 »), lapplication repondra directement au numero de lexpediteur inconnu !\n\nCe PIN se met a jour dynamiquement des que vous le modifiez dans les parametres.</string>
 <string name="plan_b_info_button">Compris</string>
-<string name="first_arm_title">📋 Important : Enregistrez vos commandes</string>
+<string name="first_arm_title">&#x1F4CB; Important : Enregistrez vos commandes</string>
 <string name="first_arm_body">Avant de verrouiller votre protection, consultez le guide des commandes SMS a distance.</string>
 <string name="first_arm_view_guide">Voir le guide des commandes</string>
 <string name="first_arm_activate">Compris, activer la protection</string>
 <string name="update_checking">Verification des mises a jour…</string>
 <string name="update_up_to_date">Votre application est a jour !</string>
 <string name="update_check_failed">Impossible de verifier les mises a jour. Reessayez plus tard.</string>
-<string name="update_available_title">🚨 Nouvelle mise a jour disponible !</string>
+<string name="update_available_title">&#x1F6A8; Nouvelle mise a jour disponible !</string>
 <string name="update_available_body">La version %1$s est prete.\n\nSouhaitez-vous mettre a jour maintenant ?</string>
 <string name="update_now_btn">Mettre a jour</string>
 <string name="update_cancel_btn">Annuler</string>
@@ -169,11 +169,11 @@ Elle envoie une alerte automatique avec votre position GPS si vous ne confirmez 
 
     <string name="annual_plan">Annuel — Renouvelable, resiliable a tout moment</string>
     <string name="price_per_year_suffix">/an</string>
-    <string name="about_privacy_commitment_title">🔒 Engagement de confidentialite</string>
+    <string name="about_privacy_commitment_title">&#x1F512; Engagement de confidentialite</string>
     <string name="about_privacy_commitment_body">Nous respectons votre vie privee. Les photos et les donnees de localisation sont envoyees directement a votre bot Telegram prive ou par SMS. Nous ne stockons aucune de vos donnees personnelles sur nos serveurs.</string>
     <string name="about_modern_efficiency_title">⚡ Efficacite moderne</string>
     <string name="about_modern_efficiency_body">Nous avons integre Telegram pour vous permettre de recevoir instantanement les selfies des intrus et les alertes de securite, de maniere plus rapide et fiable.</string>
-    <string name="about_our_mission_title">🎯 Notre mission</string>
+    <string name="about_our_mission_title">&#x1F3AF; Notre mission</string>
     <string name="about_our_mission_body">Offrir une double protection via SMS et Telegram pour vous aider a retrouver votre telephone et rester informe de son etat en temps reel.</string>
     <string name="free_vs_full_header">GRATUIT vs PROTECTION COMPLETE</string>
     <string name="free_included_header">INCLUS GRATUITEMENT</string>
@@ -181,7 +181,7 @@ Elle envoie une alerte automatique avec votre position GPS si vous ne confirmez 
 ✓ Selfie (enregistre localement)
 ✓ Delai de grace fixe 15s
 ✓ SMS en cas de mauvais PIN</string>
-    <string name="premium_unlocks_header">👑 LA PROTECTION COMPLETE DEVERROUILLE</string>
+    <string name="premium_unlocks_header">&#x1F451; LA PROTECTION COMPLETE DEVERROUILLE</string>
     <string name="choose_payment_header">CHOISIR LE MODE DE PAIEMENT</string>
     <string name="coming_soon_badge">BIENTOT</string>
     <string name="card_payment_sub">Paiement securise en ligne</string>
@@ -212,7 +212,7 @@ Elle envoie une alerte automatique avec votre position GPS si vous ne confirmez 
     <string name="free_feat3">✓ SMS en cas de mauvais PIN</string>
     <string name="tg_bot_share_text">Restez en sécurité avec Thieves Trap ! Connectez notre bot d\'alerte sur Telegram : https://t.me/ThievesTrap_Alert_bot</string>
 
-    <string name="tg_share_bot_btn">🔗 Partager le lien du bot</string>
+    <string name="tg_share_bot_btn">&#x1F517; Partager le lien du bot</string>
     <string name="tg_poll_hint">Ouvrez le bot, appuyez sur DEMARRER, puis revenez — votre ID sera recupere automatiquement.</string>
 
     <string name="bt_not_available">Le Bluetooth n\'est pas disponible sur cet appareil.</string>

@@ -101,8 +101,8 @@
     <string name="grace_off_label">فترة السماح: متوقفة</string>
     <string name="selfie_label">صورة عند المحاولات الفاشلة</string>
     <string name="sim_change_label">SMS عند تغيير SIM</string>
-    <string name="intruder_selfies">📸 صور المتسللين</string>
-    <string name="delete_all_btn">🗑 حذف الكل</string>
+    <string name="intruder_selfies">&#x1F4F8; صور المتسللين</string>
+    <string name="delete_all_btn">&#x1F5D1; حذف الكل</string>
     <string name="back_arrow_left">← رجوع</string>
     <string name="splash_powered">مدعوم من ILINE TECH</string>
     <string name="premium_full_title">الحماية الكاملة</string>
@@ -111,7 +111,7 @@
     <string name="copyright_iline">© 2026 ILINE TECH</string>
     <string name="free_version">النسخة المجانية</string>
     <string name="no_photos_yet">لم يتم التقاط أي صورة للمتسلل بعد.</string>
-    <string name="premium_lock">🔒 للمدفوعين</string>
+    <string name="premium_lock">&#x1F512; للمدفوعين</string>
     <string name="rate_app">تقييم التطبيق</string>
     <string name="price_premium">4.99</string>
     <string name="device_id_label">معرّف الجهاز: ...</string>
@@ -148,19 +148,19 @@
 <string name="share_app_body">احمِ هاتفك من السرقة! نزّل Thieves Trap:</string>
 <string name="cannot_open_link">تعذّر فتح الرابط</string>
 <string name="watch_tether_info_title">⌚ ربط الساعة — كيف يعمل</string>
-<string name="watch_tether_info_body">عند التفعيل، يراقب التطبيق اتصال البلوتوث بالساعة الذكية في الخلفية.\n\n🔒 عند انقطاع الاتصال:\n   • يُقفل الشاشة فوراً\n   • اهتزاز تنبيهي متكرر\n   • عد تنازلي صامت 5 دقائق\n\n✅ خلال العد التنازلي:\n   • «أنا بأمان» — يُلغي بدون PIN\n   • «🚨 إنذار» — صفارة بأقصى صوت\n   • «🔕 إيقاف» — يوقف الإنذار ويُلغي\n\n📩 عند انتهاء الوقت، رسالة استغاثة GPS تُرسل تلقائياً.</string>
+<string name="watch_tether_info_body">عند التفعيل، يراقب التطبيق اتصال البلوتوث بالساعة الذكية في الخلفية.\n\n&#x1F512; عند انقطاع الاتصال:\n   • يُقفل الشاشة فوراً\n   • اهتزاز تنبيهي متكرر\n   • عد تنازلي صامت 5 دقائق\n\n✅ خلال العد التنازلي:\n   • «أنا بأمان» — يُلغي بدون PIN\n   • «&#x1F6A8; إنذار» — صفارة بأقصى صوت\n   • «&#x1F515; إيقاف» — يوقف الإنذار ويُلغي\n\n&#x1F4E9; عند انتهاء الوقت، رسالة استغاثة GPS تُرسل تلقائياً.</string>
 <string name="watch_tether_info_button">حسناً</string>
-<string name="plan_b_info_title">🔐 أوامر الخطة البديلة الآمنة</string>
+<string name="plan_b_info_title">&#x1F510; أوامر الخطة البديلة الآمنة</string>
 <string name="plan_b_info_body">افتراضياً، الأوامر بدون PIN ترسل التنبيهات لجهات الاتصال الطارئة المسجلة فقط.\n\nإذا أضفت رمز PIN الحالي (مثال: «WHERE 2026»)، يرد التطبيق مباشرة على رقم المُرسِل غير المعروف!\n\nيتم تحديث الرمز تلقائياً عند تغييره في الإعدادات.</string>
 <string name="plan_b_info_button">فهمت</string>
-<string name="first_arm_title">📋 مهم: احفظ أوامرك</string>
+<string name="first_arm_title">&#x1F4CB; مهم: احفظ أوامرك</string>
 <string name="first_arm_body">قبل تفعيل الحماية، اطّلع على دليل أوامر التحكم عن بُعد.</string>
 <string name="first_arm_view_guide">عرض دليل الأوامر</string>
 <string name="first_arm_activate">فهمت، تفعيل الحماية</string>
 <string name="update_checking">جارٍ التحقق من التحديثات…</string>
 <string name="update_up_to_date">تطبيقك محدّث بالكامل!</string>
 <string name="update_check_failed">تعذّر التحقق من التحديثات. حاول لاحقاً.</string>
-<string name="update_available_title">🚨 تحديث جديد متوفر!</string>
+<string name="update_available_title">&#x1F6A8; تحديث جديد متوفر!</string>
 <string name="update_available_body">الإصدار %1$s جاهز.\n\nهل ترغب في التحديث الآن؟</string>
 <string name="update_now_btn">تحديث الآن</string>
 <string name="update_cancel_btn">إلغاء</string>
@@ -169,11 +169,11 @@
 
     <string name="annual_plan">سنوي — يتجدد سنوياً، يمكن الإلغاء في أي وقت</string>
     <string name="price_per_year_suffix">/سنة</string>
-    <string name="about_privacy_commitment_title">🔒 التزام الخصوصية</string>
+    <string name="about_privacy_commitment_title">&#x1F512; التزام الخصوصية</string>
     <string name="about_privacy_commitment_body">نحن نحترم خصوصيتك. يتم إرسال الصور وبيانات الموقع مباشرةً إلى بوت تيليغرام الخاص بك أو عبر SMS. لا نخزن أي بيانات شخصية على خوادمنا.</string>
     <string name="about_modern_efficiency_title">⚡ الكفاءة الحديثة</string>
     <string name="about_modern_efficiency_body">طورنا النظام ليدعم تيليغرام، لتستقبل صور المتسللين وتنبيهات الأمان فورياً بشكل أسرع وأكثر موثوقية من الطرق التقليدية.</string>
-    <string name="about_our_mission_title">🎯 مهمتنا</string>
+    <string name="about_our_mission_title">&#x1F3AF; مهمتنا</string>
     <string name="about_our_mission_body">توفير طبقة حماية مزدوجة عبر SMS وتيليغرام لضمان استعادة هاتفك والبقاء على اطلاع بحالته في الوقت الفعلي.</string>
     <string name="free_vs_full_header">المجاني مقابل الحماية الكاملة</string>
     <string name="free_included_header">مشمول مجاناً</string>
@@ -181,7 +181,7 @@
 ✓ صورة المتسلل (محفوظة محلياً)
 ✓ فترة سماح ثابتة 15 ثانية
 ✓ SMS عند إدخال PIN خاطئ</string>
-    <string name="premium_unlocks_header">👑 مميزات الحماية الكاملة</string>
+    <string name="premium_unlocks_header">&#x1F451; مميزات الحماية الكاملة</string>
     <string name="choose_payment_header">اختر طريقة الدفع</string>
     <string name="coming_soon_badge">قريباً</string>
     <string name="card_payment_sub">دفع آمن عبر الإنترنت</string>
@@ -212,7 +212,7 @@
     <string name="free_feat3">✓ SMS عند إدخال PIN خاطئ</string>
     <string name="tg_bot_share_text">ابقَ آمناً مع Thieves Trap! اتصل ببوت تنبيهات الأمان على تيليغرام: https://t.me/ThievesTrap_Alert_bot</string>
 
-    <string name="tg_share_bot_btn">🔗 مشاركة رابط البوت</string>
+    <string name="tg_share_bot_btn">&#x1F517; مشاركة رابط البوت</string>
     <string name="tg_poll_hint">افتح البوت واضغط START، ثم ارجع — سيتم جلب معرّفك تلقائياً.</string>
 
     <string name="bt_not_available">البلوتوث غير متاح على هذا الجهاز.</string>

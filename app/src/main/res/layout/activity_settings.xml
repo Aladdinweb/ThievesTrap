@@ -107,6 +107,44 @@
         </LinearLayout>
 
 
+
+        <!-- Face Capture (v2.8.7 - Premium) -->
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/face_capture_label"
+            android:textSize="10sp" android:textColor="#CC0000" android:textStyle="bold"
+            android:background="#0D0D10" android:padding="10dp"
+            android:layout_marginTop="10dp" android:layout_marginBottom="2dp"/>
+        <LinearLayout
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:background="#0D0D10"
+            android:padding="14dp" android:layout_marginBottom="12dp">
+            <LinearLayout
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
+                <LinearLayout
+                    android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="@string/face_capture_label"
+                        android:textColor="#DDDDDD" android:textSize="13sp" android:textStyle="bold"/>
+                    <TextView
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="@string/face_capture_sub"
+                        android:textColor="#444444" android:textSize="10sp"/>
+                </LinearLayout>
+                <Switch android:id="@+id/sw_face_capture"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+            </LinearLayout>
+            <Button android:id="@+id/btn_face_info"
+                android:layout_width="wrap_content" android:layout_height="32dp"
+                android:text="  How it works"
+                android:textSize="11sp" android:textColor="#4A90D9"
+                android:backgroundTint="#0D0D10" android:paddingStart="0dp"/>
+        </LinearLayout>
+
         <!-- THEFT ALERTS -->
         <TextView android:text="@string/theft_alerts_section"
             android:layout_width="match_parent" android:layout_height="wrap_content"
