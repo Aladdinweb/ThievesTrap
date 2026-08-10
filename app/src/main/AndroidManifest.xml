@@ -73,9 +73,6 @@
 
         <!-- Smartwatch Tether service (retained) -->
         <service android:name=".SmartwatchMonitorService" android:exported="false"/>
-        <!-- Face Capture -->
-        <service android:name=".FaceCaptureService" android:exported="false"
-            android:foregroundServiceType="camera"/>
 
 
         <!-- I'm Safe — no PIN (retained) -->

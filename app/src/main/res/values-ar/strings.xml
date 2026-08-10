@@ -222,13 +222,4 @@
     <string name="bt_open_settings">فتح إعدادات البلوتوث</string>
     <string name="bt_perm_denied">إذن البلوتوث مطلوب لميزة ربط الساعة.</string>
     <string name="bt_pick_watch_title">اختر ساعتك الذكية</string>
-
-    <!-- Face Capture (v2.8.7) -->
-    <string name="face_capture_label">التقاط الوجه</string>
-    <string name="face_capture_sub">SMS عن بعد: FACE ON / FACE OFF</string>
-    <string name="face_capture_info_title">كيف يعمل التقاط الوجه</string>
-    <string name="face_capture_info_body">عند التفعيل عبر المفتاح او الامر FACE ON، يستخدم التطبيق بصمت كشف الوجه في الخلفية. فور اكتشاف وجه، يلتقط صورة ويرفعها مؤقتا على GitHub ويرسل رابط SMS. تتلف الصورة فور فتح الرابط او بعد 5 دقائق.</string>
-    <string name="face_on_reply">التقاط الوجه نشط - مراقبة صامتة.</string>
-    <string name="face_off_reply">التقاط الوجه متوقف - الكاميرا اغلقت.</string>
-    <string name="face_premium_required">التقاط الوجه ميزة مميزة. يرجى الترقية للتفعيل.</string>
 </resources>
