@@ -9,8 +9,8 @@ android {
         applicationId "com.thievestrap"
         minSdk 26
         targetSdk 33
-        versionCode 130
-        versionName "2.8.6"
+        versionCode 132
+        versionName "2.8.8"
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
@@ -46,4 +46,7 @@ dependencies {
     implementation 'androidx.biometric:biometric:1.1.0'
     implementation 'androidx.drawerlayout:drawerlayout:1.2.0'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+    // Email Alerts (v2.8.8)
+    implementation 'com.sun.mail:android-mail:1.6.7'
+    implementation 'com.sun.mail:android-activation:1.6.7'
 }

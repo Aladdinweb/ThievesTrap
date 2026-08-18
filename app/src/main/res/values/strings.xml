@@ -227,4 +227,18 @@ Automatically sends your GPS location if you do not confirm your safety before t
     <string name="bt_open_settings">Open Bluetooth Settings</string>
     <string name="bt_perm_denied">Bluetooth permission is required for Watch Tether.</string>
     <string name="bt_pick_watch_title">Select Your Smartwatch</string>
+
+    <!-- Email Alerts (v2.8.8) -->
+    <string name="email_alerts_label">Email Alerts</string>
+    <string name="email_alerts_sub">Receive alerts and intruder photos by email</string>
+    <string name="email_from_hint">Your Gmail address (sender)</string>
+    <string name="email_password_hint">Gmail App Password (not your login password)</string>
+    <string name="email_to_hint">Recovery email address (recipient)</string>
+    <string name="email_test_btn">Send Test Email</string>
+    <string name="email_save_btn">Save Email Settings</string>
+    <string name="email_app_password_info">How to get a Gmail App Password</string>
+    <string name="email_app_password_body">1. Go to myaccount.google.com\n2. Security > 2-Step Verification (must be ON)\n3. Security > App passwords\n4. Select app: Mail, device: Other\n5. Copy the 16-character password shown\n6. Paste it in the App Password field above.</string>
+    <string name="email_test_success">Test email sent! Check your inbox.</string>
+    <string name="email_test_fail">Failed to send. Check your credentials.</string>
+    <string name="email_saved">Email settings saved.</string>
 </resources>
