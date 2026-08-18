@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "511307203250",
+    "project_id": "thievestrap-e531c",
+    "storage_bucket": "thievestrap-e531c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:511307203250:android:ec0869f57ae29ee349ffab",
+        "android_client_info": {
+          "package_name": "com.thievestrap"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCfclocAi6wXqW9wvpicLp6cNEEw3Q8NXo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
