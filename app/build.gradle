@@ -32,9 +32,19 @@ android {
     }
     kotlinOptions { jvmTarget = '11' }
     packagingOptions {
-        resources {
-            excludes += ['META-INF/NOTICE.md','META-INF/LICENSE.md','META-INF/NOTICE','META-INF/LICENSE']
-        }
+        excludes += [
+            'META-INF/NOTICE.md',
+            'META-INF/LICENSE.md',
+            'META-INF/NOTICE',
+            'META-INF/LICENSE',
+            'META-INF/NOTICE.txt',
+            'META-INF/LICENSE.txt',
+            'META-INF/DEPENDENCIES',
+            'META-INF/mailcap',
+            'META-INF/mimetypes.default',
+            'META-INF/gfprobe-provider.xml'
+        ]
+    }
     }
 }
 dependencies {
