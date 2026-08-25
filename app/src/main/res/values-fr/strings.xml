@@ -222,18 +222,4 @@ Elle envoie une alerte automatique avec votre position GPS si vous ne confirmez 
     <string name="bt_open_settings">Ouvrir les parametres Bluetooth</string>
     <string name="bt_perm_denied">La permission Bluetooth est requise pour le Lien Montre.</string>
     <string name="bt_pick_watch_title">Selectionnez votre montre</string>
-
-    <!-- Email Alerts (v2.8.8) -->
-    <string name="email_alerts_label">Alertes par email</string>
-    <string name="email_alerts_sub">Recevez les alertes et photos par email</string>
-    <string name="email_from_hint">Votre adresse Gmail (expediteur)</string>
-    <string name="email_password_hint">Mot de passe d\'application Gmail</string>
-    <string name="email_to_hint">Email de recuperation (destinataire)</string>
-    <string name="email_test_btn">Envoyer un email de test</string>
-    <string name="email_save_btn">Enregistrer</string>
-    <string name="email_app_password_info">Comment obtenir un mot de passe d\'application Gmail</string>
-    <string name="email_app_password_body">1. Allez sur myaccount.google.com\n2. Securite > Validation en 2 etapes (doit etre ACTIVE)\n3. Securite > Mots de passe des applications\n4. Selectionnez: Messagerie, Autre appareil\n5. Copiez le mot de passe a 16 caracteres\n6. Collez-le dans le champ ci-dessus.</string>
-    <string name="email_test_success">Email de test envoye! Verifiez votre boite.</string>
-    <string name="email_test_fail">Echec. Verifiez vos identifiants.</string>
-    <string name="email_saved">Parametres email enregistres.</string>
 </resources>

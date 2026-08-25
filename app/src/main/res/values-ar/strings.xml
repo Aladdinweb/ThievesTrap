@@ -222,18 +222,4 @@
     <string name="bt_open_settings">فتح إعدادات البلوتوث</string>
     <string name="bt_perm_denied">إذن البلوتوث مطلوب لميزة ربط الساعة.</string>
     <string name="bt_pick_watch_title">اختر ساعتك الذكية</string>
-
-    <!-- Email Alerts (v2.8.8) -->
-    <string name="email_alerts_label">تنبيهات البريد الالكتروني</string>
-    <string name="email_alerts_sub">استقبل التنبيهات وصور المتسللين بالبريد</string>
-    <string name="email_from_hint">عنوان Gmail الخاص بك (المرسل)</string>
-    <string name="email_password_hint">كلمة مرور تطبيق Gmail</string>
-    <string name="email_to_hint">بريد الاسترداد (المستلم)</string>
-    <string name="email_test_btn">ارسال بريد تجريبي</string>
-    <string name="email_save_btn">حفظ اعدادات البريد</string>
-    <string name="email_app_password_info">كيفية الحصول على كلمة مرور تطبيق Gmail</string>
-    <string name="email_app_password_body">1. افتح myaccount.google.com\n2. الامان > التحقق بخطوتين (يجب تفعيله)\n3. الامان > كلمات مرور التطبيقات\n4. اختر: البريد، جهاز اخر\n5. انسخ كلمة المرور المكونة من 16 حرفا\n6. الصقها في الحقل اعلاه.</string>
-    <string name="email_test_success">تم ارسال البريد التجريبي! تحقق من صندوقك.</string>
-    <string name="email_test_fail">فشل الارسال. تحقق من بياناتك.</string>
-    <string name="email_saved">تم حفظ اعدادات البريد.</string>
 </resources>
