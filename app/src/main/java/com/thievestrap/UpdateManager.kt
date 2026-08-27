@@ -119,9 +119,7 @@ object UpdateManager {
             .setContentTitle("Thieves Trap $version — Update Ready!")
             .setContentText("New security update available. Tap to install now.")
             .setStyle(NotificationCompat.BigTextStyle()
-                .bigText("Version $version is available!
-
-Tap to install the latest Thieves Trap security update."))
+                .bigText("Version $version is available!\n\nTap to install the latest Thieves Trap security update."))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(pi)
