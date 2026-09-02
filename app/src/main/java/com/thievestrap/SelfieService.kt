@@ -8,6 +8,7 @@ import android.hardware.camera2.*
 import android.media.ExifInterface
 import android.app.*
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import android.media.ImageReader
 import android.os.*
 import android.util.Log
@@ -317,11 +318,19 @@ class SelfieService : Service() {
     }
 
     companion object {
+        // FIX -- was context.startService(...). SelfieService calls
+        // startForeground() immediately in onStartCommand(), so it must be
+        // started via startForegroundService() -- especially since this is
+        // called from DeviceAdminReceiver.onPasswordFailed(), which fires
+        // from the lock screen with zero foreground presence. Plain
+        // startService() from that exact background-context scenario is
+        // unreliable on Android 8+ and explains capture failing on wrong PIN.
         fun takePhoto(context: Context, count: Int = 1) {
             try {
-                context.startService(Intent(context, SelfieService::class.java).apply {
-                    putExtra("count", count)
-                })
+                ContextCompat.startForegroundService(context,
+                    Intent(context, SelfieService::class.java).apply {
+                        putExtra("count", count)
+                    })
             } catch (e: Exception) { Log.e("TT", "SelfieService start failed: ${e.message}") }
         }
     }
