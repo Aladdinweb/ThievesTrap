@@ -55,29 +55,13 @@ jobs:
       # so no keystore credentials are stored in build.gradle
       - name: Build Signed Release APK
         run: |
-          set -o pipefail
           ./gradlew assembleRelease --no-daemon --stacktrace \
             -Pandroid.injected.signing.store.file="$(pwd)/app/thieves_trap.jks" \
             -Pandroid.injected.signing.store.password="${{ secrets.KEYSTORE_PASSWORD }}" \
             -Pandroid.injected.signing.key.alias="${{ secrets.KEY_ALIAS }}" \
-            -Pandroid.injected.signing.key.password="${{ secrets.KEY_PASSWORD }}" \
-            2>&1 | tee build_log.txt
+            -Pandroid.injected.signing.key.password="${{ secrets.KEY_PASSWORD }}"
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false"
-
-      # TEMPORARY DIAGNOSTIC STEP -- posts the failure log as a GitHub Issue
-      # so it can be read via the REST API (Actions log/artifact downloads
-      # redirect through Azure Blob Storage, which is unreachable from the
-      # debugging environment). Remove once the build is stable again.
-      - name: Post failure log as issue (diagnostic only)
-        if: failure()
-        run: |
-          TAIL=$(tail -c 55000 build_log.txt | python3 -c "import json,sys; print(json.dumps(sys.stdin.read()))")
-          curl -s -X POST \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${{ github.repository }}/issues" \
-            -d "{\"title\": \"[diagnostic] build failure log ${{ github.sha }}\", \"body\": $TAIL}"
 
       - name: Find APK
         id: find_apk
@@ -99,5 +83,3 @@ jobs:
           path: ${{ steps.find_apk.outputs.apk_path }}
           if-no-files-found: error
           retention-days: 30
-
-# retrigger after enabling GITHUB_TOKEN write perms
