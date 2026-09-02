@@ -96,6 +96,26 @@ class MonitorService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // FIX -- CRITICAL: startForeground() must be called unconditionally,
+        // first thing, every single time onStartCommand() runs. This service
+        // is started via ContextCompat.startForegroundService() from
+        // SmsCommandReceiver, DeviceAdminReceiver, and SelfieService's
+        // handoff. If the OS has killed this service's process (persisted
+        // "running"=true in prefs survives process death even though the
+        // process itself is gone), the next SMS_COMMAND/FAILED_ATTEMPTS
+        // intent recreates a FRESH process -- and some branches below return
+        // early (because "running" was already true) WITHOUT ever calling
+        // startForeground() in that branch. That violates Android's
+        // startForegroundService() contract and the OS kills the freshly
+        // recreated process before the command can be processed --
+        // explaining command failures independent of Premium status, since
+        // it happens before any command-specific logic runs. Calling
+        // startForeground() here is safe/idempotent even when the service is
+        // already in the foreground state -- it just updates the notification.
+        try { startForeground(NOTIF_ID, buildNotif()) } catch (e: Exception) {
+            Log.e(TAG, "startForeground failed in onStartCommand entry", e)
+        }
+
         when (intent?.action) {
             "TAMPER" -> {
                 val reason = intent.getStringExtra("reason") ?: "Unknown"
