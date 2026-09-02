@@ -99,3 +99,5 @@ jobs:
           path: ${{ steps.find_apk.outputs.apk_path }}
           if-no-files-found: error
           retention-days: 30
+
+# retrigger after enabling GITHUB_TOKEN write perms
