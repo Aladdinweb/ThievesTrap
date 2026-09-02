@@ -5,9 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.util.Log
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import androidx.core.content.ContextCompat
 
 /**
  * v2.7.9b — Static manifest-registered SMS receiver (priority=999).
@@ -51,16 +49,18 @@ class SmsCommandReceiver : BroadcastReceiver() {
             putExtras(intent)
         }
 
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(serviceIntent)
-                } else {
-                    context.startService(serviceIntent)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to forward SMS to MonitorService: ${e.message}")
-            }
+        // FIX -- was launching a Dispatchers.IO coroutine and calling
+        // startForegroundService() from inside it. onReceive() only
+        // guarantees the process stays alive for its own synchronous
+        // execution -- once it returns (immediately, since launching a
+        // coroutine doesn't block), Android can kill the process before
+        // that coroutine is ever scheduled, especially under Samsung One
+        // UI's background-process management. No blocking I/O happens here
+        // to justify the async wrapper -- this must run synchronously.
+        try {
+            ContextCompat.startForegroundService(context, serviceIntent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to forward SMS to MonitorService: ${e.message}")
         }
     }
 }
