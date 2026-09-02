@@ -391,12 +391,11 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun findWatchSwitch(): Switch? = try {
-        // The switch is inside the nav drawer — find it by traversing
-        val drawer = findViewById<android.view.ViewGroup>(R.id.nav_drawer_content)
-            ?: return null
-        findSwitchById(drawer, R.id.sw_watch_tether)
-    } catch (e: Exception) { null }
+    private fun findWatchSwitch(): Switch? {
+        return try {
+            findSwitchById(window.decorView as android.view.ViewGroup, R.id.sw_watch_tether)
+        } catch (e: Exception) { null }
+    }
 
     private fun findSwitchById(group: android.view.ViewGroup, id: Int): Switch? {
         for (i in 0 until group.childCount) {
