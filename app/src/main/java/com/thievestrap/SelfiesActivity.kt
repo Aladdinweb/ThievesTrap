@@ -19,10 +19,12 @@ class SelfiesActivity : AppCompatActivity() {
         setContentView(R.layout.activity_selfies)
         // Gallery: Delete All button
         try {
-            // Fix 1: use PUBLIC directory — matches where SelfieService.savePhoto() writes
+            // FIX: switched to app-private external-files dir, matching the
+            // corrected SelfieService.savePhoto() location -- the old public
+            // directory silently failed to write under Scoped Storage on
+            // this app's targetSdk 33.
             val dir = java.io.File(
-                android.os.Environment.getExternalStoragePublicDirectory(
-                    android.os.Environment.DIRECTORY_PICTURES), "ThievesTrap")
+                getExternalFilesDir(android.os.Environment.DIRECTORY_PICTURES), "ThievesTrap")
             dir.mkdirs()  // ensure it exists
             findViewById<Button>(R.id.btn_delete_all).setOnClickListener {
                 val files = dir.listFiles()?.filter { it.extension.lowercase() == "jpg" } ?: emptyList()
@@ -60,8 +62,7 @@ class SelfiesActivity : AppCompatActivity() {
         val tvEmpty = findViewById<TextView>(R.id.tv_no_selfies)
         container.removeAllViews()
 
-        val dir = File(Environment.getExternalStoragePublicDirectory(
-            Environment.DIRECTORY_PICTURES), "ThievesTrap")
+        val dir = File(getExternalFilesDir(Environment.DIRECTORY_PICTURES), "ThievesTrap")
 
         if (!dir.exists() || dir.listFiles().isNullOrEmpty()) {
             tvEmpty.visibility = android.view.View.VISIBLE
