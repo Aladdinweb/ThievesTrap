@@ -210,8 +210,20 @@ class SelfieService : Service() {
     private fun savePhoto(bytes: ByteArray) {
         if (isStopping) return
         try {
+            // FIX: was Environment.getExternalStoragePublicDirectory(...) --
+            // a raw public-storage path. This app targets SDK 33 and is
+            // fully subject to Scoped Storage (Android 10+): direct File
+            // writes to a public shared directory are blocked without the
+            // restricted MANAGE_EXTERNAL_STORAGE permission, which this app
+            // does not request. That write was throwing EACCES, silently
+            // caught below, and the whole capture pipeline died at the very
+          // last step -- explaining photos never appearing and Telegram
+            // never receiving anything (that only fires after a successful
+            // save). getExternalFilesDir() is app-private, needs zero
+            // permissions on any Android version, and as a bonus keeps the
+            // captured photos out of the thief's own visible Gallery app.
             val dir = File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+                getExternalFilesDir(Environment.DIRECTORY_PICTURES),
                 "ThievesTrap"
             )
             if (!dir.exists()) dir.mkdirs()
