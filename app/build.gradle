@@ -9,8 +9,8 @@ android {
         applicationId "com.thievestrap"
         minSdk 26
         targetSdk 33
-        versionCode 131
-        versionName "2.8.6.1"
+        versionCode 132
+        versionName "2.8.6.2"
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
