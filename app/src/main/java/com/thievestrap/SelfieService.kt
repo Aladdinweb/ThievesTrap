@@ -43,6 +43,23 @@ class SelfieService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForeground(NOTIF_ID, buildNotif())
+
+        // FIX: a capture already actively in progress (camera open, not yet
+        // stopped) was being torn down by cleanup() below every time a new
+        // start request arrived. DeviceAdminReceiver calls takePhoto() on
+        // EVERY wrong-PIN attempt, not just when the threshold is hit -- so
+        // rapid consecutive wrong-PIN entries (exactly what testing a
+        // threshold of 3+ requires) kept cancelling the previous attempt's
+        // in-flight capture before it could finish saving. Low thresholds
+        // had fewer chances for this collision; high thresholds had several,
+        // explaining "works for 1-2 attempts, never for 3+". Now a capture
+        // already underway simply ignores the new (redundant) start request
+        // instead of restarting from scratch.
+        if (cameraDevice != null && !isStopping) {
+            Log.i(TAG, "Capture already in progress -- ignoring duplicate start request")
+            return START_NOT_STICKY
+        }
+
         cleanup()
         maxPhotos = (intent?.getIntExtra("count", 1) ?: 1).coerceAtMost(ABSOLUTE_MAX)
         // Fix 1: Absolute timeout — stop after 30 seconds no matter what
