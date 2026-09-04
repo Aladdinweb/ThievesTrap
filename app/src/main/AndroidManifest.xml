@@ -96,7 +96,7 @@
 
         <!-- FIX 2026-09-03: static backup for SIM-change/ringer-mode
              detection, so these survive MonitorService's process being
-             killed by the OS -- the dynamic registerReceivers() path only
+             killed by the OS. The dynamic registerReceivers() path only
              works while the service instance is already alive. -->
         <receiver android:name=".PersistentAlertReceiver" android:exported="false">
             <intent-filter>
