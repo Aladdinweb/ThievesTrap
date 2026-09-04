@@ -94,6 +94,19 @@
             </intent-filter>
         </receiver>
 
+        <!-- FIX 2026-09-03: static backup for SIM-change/ringer-mode
+             detection, so these survive MonitorService's process being
+             killed by the OS -- the dynamic registerReceivers() path only
+             works while the service instance is already alive. -->
+        <receiver android:name=".PersistentAlertReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.SIM_STATE_CHANGED"/>
+                <action android:name="android.telephony.action.SIM_CARD_STATE_CHANGED"/>
+                <action android:name="android.telephony.action.SUBSCRIPTION_INFO_UPDATED"/>
+                <action android:name="android.media.RINGER_MODE_CHANGED"/>
+            </intent-filter>
+        </receiver>
+
         <!-- Static SMS command receiver — priority 999 (retained) -->
         <receiver android:name=".SmsCommandReceiver"
             android:exported="true"
