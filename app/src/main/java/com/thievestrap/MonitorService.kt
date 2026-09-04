@@ -117,6 +117,17 @@ class MonitorService : Service() {
         }
 
         when (intent?.action) {
+            // FIX: static-receiver backup for SIM-change/silent-mode detection.
+            // PersistentAlertReceiver (manifest-registered) forwards
+            // SIM_STATE_CHANGED / RINGER_MODE_CHANGED here even if this
+            // service's process was killed and needed to be freshly
+            // recreated -- the dynamic registerReceivers() path only works
+            // while an instance happens to already be alive.
+            "EXTERNAL_STATE_CHECK" -> {
+                checkSimChange()
+                checkSilentMode()
+                return START_STICKY
+            }
             "TAMPER" -> {
                 val reason = intent.getStringExtra("reason") ?: "Unknown"
                 val sosTarget = intent.getStringExtra("sos_target")
@@ -426,16 +437,7 @@ class MonitorService : Service() {
         })
 
         silentReceiver = object : BroadcastReceiver() {
-            override fun onReceive(ctx: Context, intent: Intent) {
-                if (!theftMode() || !prefs().getBoolean("alert_silent", false)) return
-                val am = getSystemService(AUDIO_SERVICE) as AudioManager
-                when (am.ringerMode) {
-                    AudioManager.RINGER_MODE_SILENT,
-                    AudioManager.RINGER_MODE_VIBRATE -> {
-                        if (canSendAlert("silent")) startSilentGracePeriod()
-                    }
-                }
-            }
+            override fun onReceive(ctx: Context, intent: Intent) { checkSilentMode() }
         }
         registerReceiver(silentReceiver, IntentFilter(AudioManager.RINGER_MODE_CHANGED_ACTION))
 
@@ -449,6 +451,20 @@ class MonitorService : Service() {
     private fun onUnlock() {
         screenOnCount = 0
         if (prefs().getBoolean("grace_enabled", false)) GracePeriodManager.cancelGrace()
+    }
+
+    // FIX: extracted from the dynamic silentReceiver's onReceive() so it
+    // can also be invoked from a static (manifest-registered) receiver that
+    // survives this service's process being killed -- see PersistentAlertReceiver.
+    private fun checkSilentMode() {
+        if (!theftMode() || !prefs().getBoolean("alert_silent", false)) return
+        val am = getSystemService(AUDIO_SERVICE) as AudioManager
+        when (am.ringerMode) {
+            AudioManager.RINGER_MODE_SILENT,
+            AudioManager.RINGER_MODE_VIBRATE -> {
+                if (canSendAlert("silent")) startSilentGracePeriod()
+            }
+        }
     }
 
     private fun checkSimChange() {
