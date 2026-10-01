@@ -72,8 +72,8 @@
         <service android:name=".AlarmService"           android:exported="false"/>
         <!-- FIX 2026-09-03: declared foregroundServiceType, matching the
              pattern MonitorService already uses for "location". SelfieService
-             calls startForeground() and does real camera work -- this was
-             the one core service missing its type declaration. -->
+             calls startForeground() and does real camera work, and was the
+             one core service missing its type declaration. -->
         <service android:name=".SelfieService"          android:exported="false"
             android:foregroundServiceType="camera"/>
         <service android:name=".SurvivalTimerService"   android:exported="false"/>
