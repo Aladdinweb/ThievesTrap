@@ -23,6 +23,8 @@
     <uses-permission android:name="android.permission.VIBRATE"/>
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
     <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- FIX 2026-09-03: required for SelfieService's foregroundServiceType="camera" below -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
 
@@ -68,7 +70,12 @@
         <service android:name=".MonitorService"         android:exported="false"
             android:foregroundServiceType="location"/>
         <service android:name=".AlarmService"           android:exported="false"/>
-        <service android:name=".SelfieService"          android:exported="false"/>
+        <!-- FIX 2026-09-03: declared foregroundServiceType, matching the
+             pattern MonitorService already uses for "location". SelfieService
+             calls startForeground() and does real camera work -- this was
+             the one core service missing its type declaration. -->
+        <service android:name=".SelfieService"          android:exported="false"
+            android:foregroundServiceType="camera"/>
         <service android:name=".SurvivalTimerService"   android:exported="false"/>
 
         <!-- Smartwatch Tether service (retained) -->
