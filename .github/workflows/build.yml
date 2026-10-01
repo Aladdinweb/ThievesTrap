@@ -18,9 +18,13 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
+      # FIX 2026-09-03: removed android-actions/setup-android@v3. GitHub
+      # deprecated Node.js 20 on Actions runners and force-runs older
+      # actions (including this one) on Node 24, which broke it. Every
+      # successful build all session actually used the Android SDK
+      # pre-installed on the ubuntu-latest runner image itself (visible at
+      # /usr/local/lib/android/sdk in build logs) -- this step was already
+      # redundant, so removing it fixes the failure with no functional loss.
       - name: Download Gradle Wrapper JAR
         run: |
           mkdir -p gradle/wrapper
@@ -55,29 +59,13 @@ jobs:
       # so no keystore credentials are stored in build.gradle
       - name: Build Signed Release APK
         run: |
-          set -o pipefail
           ./gradlew assembleRelease --no-daemon --stacktrace \
             -Pandroid.injected.signing.store.file="$(pwd)/app/thieves_trap.jks" \
             -Pandroid.injected.signing.store.password="${{ secrets.KEYSTORE_PASSWORD }}" \
             -Pandroid.injected.signing.key.alias="${{ secrets.KEY_ALIAS }}" \
-            -Pandroid.injected.signing.key.password="${{ secrets.KEY_PASSWORD }}" \
-            2>&1 | tee build_log.txt
+            -Pandroid.injected.signing.key.password="${{ secrets.KEY_PASSWORD }}"
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false"
-
-      - name: Push failure log to diagnostic-logs branch (diagnostic only)
-        if: failure()
-        run: |
-          git config user.email "diagnostic@thievestrap.local"
-          git config user.name "Diagnostic Bot"
-          git checkout --orphan diagnostic-logs-tmp
-          git rm -rf --cached . > /dev/null 2>&1 || true
-          cp build_log.txt /tmp/build_log.txt
-          rm -rf ./*
-          cp /tmp/build_log.txt build_log.txt
-          git add build_log.txt
-          git commit -m "diagnostic: build failure log for ${{ github.sha }}"
-          git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:refs/heads/diagnostic-logs --force
 
       - name: Find APK
         id: find_apk
