@@ -65,15 +65,19 @@ jobs:
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false"
 
-      - name: Post failure log as issue (diagnostic only)
+      - name: Push failure log to diagnostic-logs branch (diagnostic only)
         if: failure()
         run: |
-          TAIL=$(tail -c 55000 build_log.txt | python3 -c "import json,sys; print(json.dumps(sys.stdin.read()))")
-          curl -s -X POST \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${{ github.repository }}/issues" \
-            -d "{\"title\": \"[diagnostic] build failure log ${{ github.sha }}\", \"body\": $TAIL}"
+          git config user.email "diagnostic@thievestrap.local"
+          git config user.name "Diagnostic Bot"
+          git checkout --orphan diagnostic-logs-tmp
+          git rm -rf --cached . > /dev/null 2>&1 || true
+          cp build_log.txt /tmp/build_log.txt
+          rm -rf ./*
+          cp /tmp/build_log.txt build_log.txt
+          git add build_log.txt
+          git commit -m "diagnostic: build failure log for ${{ github.sha }}"
+          git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:refs/heads/diagnostic-logs --force
 
       - name: Find APK
         id: find_apk
@@ -95,5 +99,3 @@ jobs:
           path: ${{ steps.find_apk.outputs.apk_path }}
           if-no-files-found: error
           retention-days: 30
-
-# retry to check for transient infra failure
