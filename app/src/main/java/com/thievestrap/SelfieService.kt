@@ -35,6 +35,7 @@ class SelfieService : Service() {
     private val ABSOLUTE_MAX = 1  // hard ceiling — never captures more than 1
     private var isStopping = false
     private var sensorOrientation = 90
+    private var wakeLock: PowerManager.WakeLock? = null
 
     override fun onBind(intent: Intent?) = null
 
@@ -66,9 +67,38 @@ class SelfieService : Service() {
         mainHandler.postDelayed({ if (!isStopping) { Log.w(TAG, "Timeout stop"); safeStop() } }, 30_000)
         photosTaken = 0
         isStopping = false
+        // FIX 2026-09-03: acquire a wake lock before touching the camera so
+        // a remote SELFIE triggered while the screen is off/locked reliably
+        // wakes the CPU (and, per request, the screen) for the capture.
+        // Timeout matches the existing 30s absolute safety net so this can
+        // never be held indefinitely even if release is somehow skipped.
+        acquireWakeLock()
         startBackgroundThread()
         backgroundHandler?.post { openCamera() }  // immediate - no delay
         return START_NOT_STICKY
+    }
+
+    @Suppress("DEPRECATION")
+    private fun acquireWakeLock() {
+        try {
+            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+            wakeLock = pm.newWakeLock(
+                PowerManager.FULL_WAKE_LOCK or
+                    PowerManager.ACQUIRE_CAUSES_WAKEUP or
+                    PowerManager.ON_AFTER_RELEASE,
+                "ThievesTrap:SelfieWakeLock"
+            )
+            wakeLock?.acquire(30_000L)
+        } catch (e: Exception) {
+            Log.e(TAG, "acquireWakeLock failed: ${e.message}")
+        }
+    }
+
+    private fun releaseWakeLock() {
+        try {
+            if (wakeLock?.isHeld == true) wakeLock?.release()
+        } catch (e: Exception) { /* already released or never held */ }
+        wakeLock = null
     }
 
     override fun onDestroy() {
@@ -76,6 +106,11 @@ class SelfieService : Service() {
         isStopping = true
         cleanup()
         stopBackgroundThread()
+        // FIX 2026-09-03: guaranteed release point -- onDestroy() runs
+        // whenever safeStop()/stopSelf() fires, the 30s timeout trips, or
+        // the service is killed, so the wake lock can never be left held
+        // regardless of which path got us here.
+        releaseWakeLock()
     }
 
     private fun startBackgroundThread() {
