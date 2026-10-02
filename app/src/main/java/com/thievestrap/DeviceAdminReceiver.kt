@@ -22,14 +22,18 @@ class DeviceAdminReceiver : DeviceAdminReceiver() {
         prefs.edit().putInt("wrong_pin_count", count).apply()
         Log.i(TAG, "Wrong PIN #$count, threshold=$threshold")
 
-        // Fix 4: Take selfie for Premium users — selfie_enabled switch just controls the UI
-        // The photo is always taken silently when premium is active
-        if (LicenseManager.isPremium(context)) {
+        // FIX 2026-09-03: capture now strictly respects the user-selected
+        // threshold (1-5) instead of firing unconditionally on attempt #1.
+        // selfie_enabled still only controls the UI toggle visibility, not
+        // this gate -- isPremium() + reaching the threshold are what matter.
+        val thresholdReached = count >= threshold
+
+        if (LicenseManager.isPremium(context) && thresholdReached) {
             SelfieService.takePhoto(context, 1)
         }
 
         // Step 2: Check if count reached threshold
-        if (count >= threshold) {
+        if (thresholdReached) {
             prefs.edit().putInt("wrong_pin_count", 0).apply()
 
             // Step 3: Start grace period (only if enabled by user)
