@@ -178,9 +178,9 @@
     <string name="free_vs_full_header">المجاني مقابل الحماية الكاملة</string>
     <string name="free_included_header">مشمول مجاناً</string>
     <string name="free_features_list">✓ جهة الاتصال الطارئة 1
-✓ صورة المتسلل (محفوظة محلياً)
 ✓ فترة سماح ثابتة 15 ثانية
-✓ SMS عند إدخال PIN خاطئ</string>
+✓ تنبيهات SMS أساسية والموقع
+✓ أمر مجاني عن بُعد: WHERE</string>
     <string name="premium_unlocks_header">👑 مميزات الحماية الكاملة</string>
     <string name="choose_payment_header">اختر طريقة الدفع</string>
     <string name="coming_soon_badge">قريباً</string>
@@ -194,22 +194,25 @@
     <string name="license_key_placeholder">أدخل مفتاح الترخيص</string>
     <string name="get_device_id_btn">الحصول على معرّف الجهاز للشراء</string>
     <string name="revoke_license_btn">إلغاء مفتاح الترخيص</string>
-    <string name="prem_feat1_title">جهة الاتصال الطارئة 2 + بريد الاسترداد</string>
+    <string name="prem_feat1_title">جهة الاتصال الطارئة 2 + خيارات الاسترداد</string>
     <string name="prem_feat1_sub">تنبيه شخصين في آنٍ واحد</string>
-    <string name="prem_feat2_title">إرسال صورة المتسلل تلقائياً بالبريد</string>
-    <string name="prem_feat2_sub">الصورة ترسل إلى بريدك الإلكتروني تلقائياً</string>
+    <string name="prem_feat2_title">صورة المتسلل تلقائياً عبر تيليجرام</string>
+    <string name="prem_feat2_sub">تسليم فوري عبر بوت تيليجرام لصور المتسلل</string>
     <string name="prem_feat3_title">أوامر SMS عن بُعد الكاملة</string>
-    <string name="prem_feat3_sub">WHERE، SELFIE، ALARM، LOCK من أي هاتف</string>
-    <string name="prem_feat4_title">فترة سماح قابلة للتخصيص (5–15 ثانية)</string>
-    <string name="prem_feat4_sub">النسخة المجانية مقفلة عند 15 ثانية</string>
-    <string name="prem_feat5_title">جميع تنبيهات وضع السرقة</string>
-    <string name="prem_feat5_sub">الطيران، الإيقاف، الصامت، الشحن</string>
-    <string name="prem_feat6_title">جميع الميزات المستقبلية — للأبد</string>
-    <string name="prem_feat6_sub">كل تحديث مشمول بدون تكلفة إضافية</string>
+    <string name="prem_feat3_sub">SELFIE، LOCK، ALARM، STATUS، HELP من أي هاتف</string>
+    <string name="prem_feat4_title">مؤقت البقاء على قيد الحياة</string>
+    <string name="prem_feat4_sub">مؤقت تنبيه طوارئ من نوع \'الرجل الميت\'</string>
+    <string name="prem_feat5_title">ربط الساعة / تنبيه انقطاع البلوتوث</string>
+    <string name="prem_feat5_sub">حماية من النسيان والخطف عبر ربط البلوتوث</string>
+    <string name="prem_feat6_title">جميع تنبيهات وضع السرقة</string>
+    <string name="prem_feat6_sub">تغيير شريحة SIM، كشف الوضع الصامت</string>
+    <string name="prem_feat7_title">جميع الميزات المستقبلية — للأبد</string>
+    <string name="prem_feat7_sub">كل تحديث مشمول بدون تكلفة إضافية</string>
 
     <string name="free_feat1">✓ جهة الاتصال الطارئة 1</string>
     <string name="free_feat2">✓ فترة سماح ثابتة 15 ثانية</string>
-    <string name="free_feat3">✓ SMS عند إدخال PIN خاطئ</string>
+    <string name="free_feat3">✓ تنبيهات SMS أساسية والموقع</string>
+    <string name="free_feat4">✓ أمر مجاني عن بُعد: WHERE</string>
     <string name="tg_bot_share_text">ابقَ آمناً مع Thieves Trap! اتصل ببوت تنبيهات الأمان على تيليغرام: https://t.me/ThievesTrap_Alert_bot</string>
 
     <string name="tg_share_bot_btn">🔗 مشاركة رابط البوت</string>
