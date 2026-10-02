@@ -183,9 +183,9 @@ Automatically sends your GPS location if you do not confirm your safety before t
     <string name="free_vs_full_header">FREE vs FULL PROTECTION</string>
     <string name="free_included_header">FREE INCLUDED</string>
     <string name="free_features_list">✓ Emergency Contact 1
-✓ Selfie capture (saved locally)
 ✓ 15s fixed grace period
-✓ SMS on wrong PIN</string>
+✓ Basic SMS Alerts &amp; Location
+✓ Free Remote Command: WHERE</string>
     <string name="premium_unlocks_header">👑 FULL PROTECTION UNLOCKS</string>
     <string name="choose_payment_header">CHOOSE PAYMENT METHOD</string>
     <string name="coming_soon_badge">COMING SOON</string>
@@ -199,22 +199,25 @@ Automatically sends your GPS location if you do not confirm your safety before t
     <string name="license_key_placeholder">Enter license key</string>
     <string name="get_device_id_btn">GET DEVICE ID FOR PURCHASE</string>
     <string name="revoke_license_btn">REVOKE LICENSE KEY</string>
-    <string name="prem_feat1_title">Emergency Contact 2 + Recovery Email</string>
+    <string name="prem_feat1_title">Emergency Contact 2 + Recovery Options</string>
     <string name="prem_feat1_sub">Alert 2 people simultaneously</string>
-    <string name="prem_feat2_title">Auto-email intruder photo</string>
-    <string name="prem_feat2_sub">Selfie sent to your email automatically</string>
+    <string name="prem_feat2_title">Auto-Telegram Intruder Photo</string>
+    <string name="prem_feat2_sub">Instant Telegram Bot delivery of intruder selfies</string>
     <string name="prem_feat3_title">Full Remote SMS Commands</string>
-    <string name="prem_feat3_sub">WHERE, SELFIE, ALARM, LOCK from any phone</string>
-    <string name="prem_feat4_title">Customizable Grace Period (5–15s)</string>
-    <string name="prem_feat4_sub">Free version locked at 15s</string>
-    <string name="prem_feat5_title">All Theft Mode alerts</string>
-    <string name="prem_feat5_sub">Airplane, Shutdown, Silent mode, Charging</string>
-    <string name="prem_feat6_title">All future features — forever</string>
-    <string name="prem_feat6_sub">Every update included at no extra cost</string>
+    <string name="prem_feat3_sub">SELFIE, LOCK, ALARM, STATUS, HELP from any phone</string>
+    <string name="prem_feat4_title">Survival Timer</string>
+    <string name="prem_feat4_sub">Dead man\'s switch emergency alert timer</string>
+    <string name="prem_feat5_title">Watch Tether / Bluetooth Disconnect Alert</string>
+    <string name="prem_feat5_sub">Anti-forget &amp; anti-snatch Bluetooth tethering</string>
+    <string name="prem_feat6_title">All Theft Mode Alerts</string>
+    <string name="prem_feat6_sub">SIM change, Silent mode detection</string>
+    <string name="prem_feat7_title">All future features — forever</string>
+    <string name="prem_feat7_sub">Every update included at no extra cost</string>
 
     <string name="free_feat1">✓ Emergency Contact 1</string>
     <string name="free_feat2">✓ 15s fixed grace period</string>
-    <string name="free_feat3">✓ SMS on wrong PIN</string>
+    <string name="free_feat3">✓ Basic SMS Alerts &amp; Location</string>
+    <string name="free_feat4">✓ Free Remote Command: WHERE</string>
     <string name="tg_bot_share_text">Stay safe with Thieves Trap! Connect our security alert bot on Telegram: https://t.me/ThievesTrap_Alert_bot</string>
 
     <string name="tg_share_bot_btn">🔗 Share Bot Link with Contact</string>
