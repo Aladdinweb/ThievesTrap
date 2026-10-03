@@ -9,8 +9,8 @@ android {
         applicationId "com.thievestrap"
         minSdk 26
         targetSdk 33
-        versionCode 136
-        versionName "2.9.0"
+        versionCode 137
+        versionName "2.9.1"
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
@@ -46,4 +46,7 @@ dependencies {
     implementation 'androidx.biometric:biometric:1.1.0'
     implementation 'androidx.drawerlayout:drawerlayout:1.2.0'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+    // Added 2026-09-04 per request: official Google Play libraries
+    implementation 'com.google.android.play:review:2.0.1'
+    implementation 'com.google.android.play:app-update:2.1.0'
 }
