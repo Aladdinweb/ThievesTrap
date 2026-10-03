@@ -351,7 +351,7 @@ class MonitorService : Service() {
             if (!isKnownCmd) continue
             if (!passesCooldown(senderDigits)) continue
 
-            handleCommand(body, sender)
+            handleCommand(body, sender, isRegisteredSender)
         }
     }
 
@@ -646,13 +646,31 @@ class MonitorService : Service() {
     private val PING_NOTE_RAW = "Note: You can only enable and disable auto location ping remotely. Commands: (PING 2), (PING 5), or (STOP PING)."
     private val PING_NOTE = "\n\n$PING_NOTE_RAW"
 
-    private fun handleCommand(cmd: String, sender: String) {
+    private fun handleCommand(cmd: String, sender: String, isRegisteredSender: Boolean) {
         val password = prefs().getString("password", "") ?: ""
 
         // ── FREE: WHERE (+ footer note restored) ──
         if (cmd == "WHERE" || cmd == "LOCATION" || cmd == "LOC" || cmd == "FIND") {
-            sms(sender, buildFullInfo("\uD83D\uDCCD", s("sms_location")) + PING_NOTE)
-            Log.i(TAG, "WHERE → single location SMS + footer sent to $sender")
+            val locationMsg = buildFullInfo("\uD83D\uDCCD", s("sms_location")) + PING_NOTE
+            if (isRegisteredSender) {
+                sms(sender, locationMsg)
+                Log.i(TAG, "WHERE → single location SMS + footer sent to $sender (registered)")
+            } else {
+                // FIX 2026-09-04: previously replied directly to ANY sender
+                // for this free command, with no registration check at all --
+                // meaning anyone who merely knows the phone number could
+                // extract the device's exact live GPS coordinates with zero
+                // authentication, a genuine privacy/stalking exposure.
+                // Redirect to the registered emergency contact(s) instead;
+                // nothing is sent back to an unverified sender.
+                // TRADE-OFF: if the real owner's phone is lost/stolen and
+                // they query WHERE from a borrowed, unregistered phone, the
+                // reply no longer reaches that borrowed phone -- it goes to
+                // the emergency contact instead. Use Plan B ("WHERE <pin>")
+                // from any phone when a direct reply to that phone is needed.
+                smsAll(locationMsg)
+                Log.i(TAG, "WHERE from unregistered sender $sender — redirected to emergency contact(s), nothing sent to sender")
+            }
             return
         }
 
