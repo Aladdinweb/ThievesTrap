@@ -46,6 +46,11 @@ class MainActivity : AppCompatActivity() {
         dpm = getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager
         adminComponent = ComponentName(this, DeviceAdminReceiver::class.java)
         drawerLayout = findViewById(R.id.drawer_layout)
+        // FIX 2026-09-04: second safety net alongside PackageReplacedReceiver
+        // (MY_PACKAGE_REPLACED) for premium-state reconciliation after an
+        // app update, in case that broadcast doesn't fire reliably on some
+        // OEM/launcher combinations.
+        try { LicenseManager.reconcileAfterUpdate(this) } catch (e: Exception) {}
         if (!prefs.contains("password")) {
             startActivity(Intent(this, SetupActivity::class.java))
             finish(); return
@@ -308,16 +313,28 @@ class MainActivity : AppCompatActivity() {
         try {
             val tvStatus = findViewById<TextView>(R.id.tv_watch_tether_status)
             val tvHint   = findViewById<TextView>(R.id.tv_watch_tether_hint)
+            // FIX 2026-09-04: restores the runtime switch-tint logic lost
+            // when a prior revert to the literal v2.8.6 tag discarded this
+            // app's own later v2.8.6b fix (documented in STATE.md). Sets
+            // thumb/track color to match on/off state, same as the status
+            // text color right below -- instant visual feedback without
+            // reopening the screen, same guarantee Survival Timer's default
+            // switch styling already gives for free.
+            val swWatch = findViewById<Switch>(R.id.sw_watch_tether)
             if (on) {
                 tvStatus?.text = getString(R.string.watch_tether_on_status)
                 tvStatus?.setTextColor(0xFF00CC44.toInt())
                 tvHint?.text = getString(R.string.watch_tether_hint_active)
                 tvHint?.setTextColor(0xFF1A4D1A.toInt())
+                swWatch?.thumbTintList = android.content.res.ColorStateList.valueOf(0xFF00CC44.toInt())
+                swWatch?.trackTintList = android.content.res.ColorStateList.valueOf(0xFF1A4D1A.toInt())
             } else {
                 tvStatus?.text = getString(R.string.watch_tether_off_status)
                 tvStatus?.setTextColor(0xFF444444.toInt())
                 tvHint?.text = getString(R.string.watch_tether_hint)
                 tvHint?.setTextColor(0xFF333333.toInt())
+                swWatch?.thumbTintList = android.content.res.ColorStateList.valueOf(0xFFBBBBBB.toInt())
+                swWatch?.trackTintList = android.content.res.ColorStateList.valueOf(0xFF555555.toInt())
             }
         } catch (e: Exception) {}
     }
@@ -356,6 +373,26 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, getString(R.string.bt_not_available), Toast.LENGTH_LONG).show()
             swWatch.isChecked = false
             return
+        }
+
+        // FIX 2026-09-04: CRITICAL CRASH FIX. Reading BluetoothAdapter.isEnabled
+        // itself requires BLUETOOTH_CONNECT at runtime on Android 12+ (API 31+)
+        // -- this property access was happening BEFORE the permission check
+        // that already existed further down in proceedWithWatchScan(), with
+        // no try/catch around it. If BLUETOOTH_CONNECT wasn't yet granted,
+        // this threw an uncaught SecurityException the instant the switch
+        // was tapped, crashing the app immediately. The permission must be
+        // confirmed before touching ANY BluetoothAdapter property, not just
+        // before the bondedDevices call later in the flow.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
+                != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                btPermLauncher.launch(arrayOf(
+                    Manifest.permission.BLUETOOTH_CONNECT,
+                    Manifest.permission.BLUETOOTH_SCAN
+                ))
+                return
+            }
         }
 
         // Step 1: Ensure Bluetooth is enabled
