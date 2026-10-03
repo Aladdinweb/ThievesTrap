@@ -357,9 +357,15 @@
                 android:text="Off — Bluetooth monitoring inactive"
                 android:textSize="10sp" android:textColor="#444444" android:layout_marginTop="2dp"/>
         </LinearLayout>
+        <!-- FIX 2026-09-04: removed hardcoded red thumbTint/trackTint, which
+             made this switch always look the same (a solid red circle)
+             regardless of on/off state, unlike sw_survival_timer above which
+             has no such override. Color now set at runtime in
+             updateWatchTetherStatus() -- green when on, gray when off,
+             matching the pattern this app already uses elsewhere
+             (tv_watch_tether_status text color does the same). -->
         <Switch android:id="@+id/sw_watch_tether"
-            android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:thumbTint="#CC0000" android:trackTint="#330000"/>
+            android:layout_width="wrap_content" android:layout_height="wrap_content"/>
     </LinearLayout>
 
     <!-- Tether sub-hint -->
