@@ -114,6 +114,16 @@
             </intent-filter>
         </receiver>
 
+        <!-- FIX 2026-09-04: proactively reconciles Premium license state
+             right when an in-place app update completes, since the
+             Keystore-backed encrypted prefs holding that flag can be
+             invalidated by the update. -->
+        <receiver android:name=".PackageReplacedReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+            </intent-filter>
+        </receiver>
+
         <!-- Static SMS command receiver — priority 999 (retained) -->
         <receiver android:name=".SmsCommandReceiver"
             android:exported="true"
