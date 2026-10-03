@@ -295,9 +295,20 @@ class SelfieService : Service() {
                 })
             }
 
-            // Fix 2: ONE photo only — stop and release camera immediately
-            Log.i(TAG, "Capture complete ($photosTaken). Releasing camera immediately.")
-            backgroundHandler?.post { safeStop() }
+            // FIX 2026-09-04: previously called safeStop() here essentially
+            // immediately, which released the wake lock before
+            // MonitorService's async Telegram upload (a raw background
+            // Thread, not tied to this service's lifecycle) had any real
+            // chance to complete -- especially on a locked/resting phone
+            // where the CPU goes back to sleep within seconds of the wake
+            // lock releasing, starving the still-in-flight upload. The
+            // camera hardware itself is no longer needed once we have the
+            // JPEG bytes, so that's released right away; the wake lock and
+            // foreground service now stay alive up to 10s longer to give
+            // the upload a real window to finish.
+            Log.i(TAG, "Capture complete ($photosTaken). Releasing camera now, keeping wake lock up to 10s for upload to finish.")
+            backgroundHandler?.post { cleanup() }
+            mainHandler.postDelayed({ if (!isStopping) safeStop() }, 10_000L)
         } catch (e: Exception) { Log.e(TAG, "savePhoto: ${e.message}"); safeStop() }
     }
 
