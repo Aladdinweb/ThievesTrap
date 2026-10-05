@@ -270,7 +270,7 @@ object Strings {
         "consent_and" to " and ",
         "consent_terms_link" to "Terms of Use.",
         "get_started" to "GET STARTED",
-        "sms_help" to "THIEVES TRAP COMMANDS:\nWHERE - GPS location\nINFO - Full device info\nSTATUS - Quick status\nBATTERY - Battery level\nSIM - SIM details\nIMEI - Device IMEI\nHISTORY - Last 5 locations\nALARM - Loud alarm\nSTOP ALARM - Silence alarm\nLOCK - Lock screen\nSELFIE - Take 3 photos\nPING [n] - Auto ping every n min\nSTOP PING - Stop pings\nACTIVE - Activate theft mode\nDEACTIVATE - Deactivate\nDISARM [PIN] - Stop monitoring"
+        "sms_help" to "THIEVES TRAP COMMANDS:\nWHERE - GPS location\nINFO - Full device info\nSTATUS - Quick status\nBATTERY - Battery level\nSIM - SIM details\nIMEI - Device IMEI\nHISTORY - Last 5 locations\nALARM - Loud alarm\nSTOP ALARM - Silence alarm\nLOCK - Lock screen\nSELFIE - Take 1 photo\nPING [n] - Auto ping every n min\nSTOP PING - Stop pings\nACTIVE - Activate theft mode\nDEACTIVATE - Deactivate\nDISARM [PIN] - Stop monitoring"
     )
 
     val FR = mapOf(
@@ -517,7 +517,7 @@ object Strings {
         "consent_and" to " et les ",
         "consent_terms_link" to "Conditions d'utilisation.",
         "get_started" to "COMMENCER",
-        "sms_help" to "COMMANDES PIÈGE À VOLEURS :\nWHERE - Position GPS\nINFO - Infos complètes\nSTATUS - Statut rapide\nBATTERY - Batterie\nSIM - Détails SIM\nIMEI - IMEI appareil\nHISTORY - 5 dernières positions\nALARM - Alarme forte\nSTOP ALARM - Arrêter alarme\nLOCK - Verrouiller écran\nSELFIE - 3 photos\nPING [n] - Ping auto\nSTOP PING - Arrêter pings\nACTIVE - Activer mode vol\nDEACTIVATE - Désactiver\nDISARM [PIN] - Arrêter surveillance"
+        "sms_help" to "COMMANDES PIÈGE À VOLEURS :\nWHERE - Position GPS\nINFO - Infos complètes\nSTATUS - Statut rapide\nBATTERY - Batterie\nSIM - Détails SIM\nIMEI - IMEI appareil\nHISTORY - 5 dernières positions\nALARM - Alarme forte\nSTOP ALARM - Arrêter alarme\nLOCK - Verrouiller écran\nSELFIE - 1 photo\nPING [n] - Ping auto\nSTOP PING - Arrêter pings\nACTIVE - Activer mode vol\nDEACTIVATE - Désactiver\nDISARM [PIN] - Arrêter surveillance"
     )
 
     val AR = mapOf(
@@ -764,6 +764,6 @@ object Strings {
         "consent_and" to " و",
         "consent_terms_link" to "شروط الاستخدام.",
         "get_started" to "ابدأ الآن",
-        "sms_help" to "أوامر فخ اللصوص:\nWHERE - الموقع\nINFO - معلومات كاملة\nSTATUS - حالة سريعة\nBATTERY - البطارية\nSIM - تفاصيل SIM\nIMEI - رقم IMEI\nHISTORY - آخر 5 مواقع\nALARM - إنذار صوتي\nSTOP ALARM - إيقاف الإنذار\nLOCK - قفل الشاشة\nSELFIE - 3 صور\nPING [n] - إرسال تلقائي\nSTOP PING - إيقاف\nACTIVE - تفعيل وضع السرقة\nDEACTIVATE - إلغاء التفعيل\nDISARM [PIN] - إيقاف المراقبة"
+        "sms_help" to "أوامر فخ اللصوص:\nWHERE - الموقع\nINFO - معلومات كاملة\nSTATUS - حالة سريعة\nBATTERY - البطارية\nSIM - تفاصيل SIM\nIMEI - رقم IMEI\nHISTORY - آخر 5 مواقع\nALARM - إنذار صوتي\nSTOP ALARM - إيقاف الإنذار\nLOCK - قفل الشاشة\nSELFIE - صورة واحدة\nPING [n] - إرسال تلقائي\nSTOP PING - إيقاف\nACTIVE - تفعيل وضع السرقة\nDEACTIVATE - إلغاء التفعيل\nDISARM [PIN] - إيقاف المراقبة"
     )
 }

@@ -309,7 +309,15 @@ class MonitorService : Service() {
         for ((sender, sb) in messagesBySender) {
             val rawBody = sb.toString().trim()
             if (rawBody.isEmpty()) continue
-            val body = rawBody.uppercase()
+            // Sanitise: strip zero-width/BOM chars some keyboards insert, collapse
+            // any whitespace run (incl. NBSP, tabs, newlines) to one space,
+            // then trim + uppercase. "selfie ", "Stop  Alarm", "WHERE\u00A0" all match.
+            val body = rawBody
+                .replace(Regex("[\\u200B-\\u200D\\u2060\\uFEFF]"), "")
+                .replace(Regex("\\s+"), " ")
+                .trim()
+                .uppercase()
+            if (body.isEmpty()) continue
             val senderDigits = sender.filter { it.isDigit() }
 
             val isRegisteredSender =
@@ -389,8 +397,8 @@ class MonitorService : Service() {
                 sms(sender, "\uD83D\uDEA8 ${s("app_name")}: ${s("sms_alarm_on")} (Plan B)")
             }
             "SELFIE","PHOTO","PICTURE" -> {
-                SelfieService.takePhoto(this, 3)
-                sms(sender, "\uD83D\uDCF8 ${s("app_name")}: Taking 3 selfies now (Plan B).")
+                SelfieService.takePhoto(this, 1)
+                sms(sender, "\uD83D\uDCF8 ${s("app_name")}: Taking 1 selfie now (Plan B).")
             }
             "INFO","DEVICE"  -> sms(sender, buildFullInfo("\uD83D\uDCF1", s("sms_info")))
             "BATTERY","BAT"  -> sms(sender,
@@ -735,8 +743,8 @@ class MonitorService : Service() {
                     else locationHistory.forEachIndexed { i, loc -> appendLine("${i+1}. $loc") }
                 })
             cmd == "SELFIE" || cmd == "PHOTO" || cmd == "PICTURE" -> {
-                SelfieService.takePhoto(this, 3)
-                TelegramUploader.sendMessage(this, "\uD83D\uDCF8 ${s("app_name")}: Taking 3 selfies now.")
+                SelfieService.takePhoto(this, 1)
+                TelegramUploader.sendMessage(this, "\uD83D\uDCF8 ${s("app_name")}: Taking 1 selfie now.")
             }
             cmd == "ALARM" || cmd == "RING" -> {
                 ContextCompat.startForegroundService(this,

@@ -24,6 +24,7 @@ class SmsCommandReceiver : BroadcastReceiver() {
 
         // v2.7.9b: Deduplication — shared across all instances (static field)
         @Volatile private var lastProcessedTime: Long = 0
+        @Volatile private var lastProcessedKey: Int = 0
         private const val DEDUP_WINDOW_MS = 5000L
     }
 
@@ -34,12 +35,20 @@ class SmsCommandReceiver : BroadcastReceiver() {
         // Prevents double-firing when both this static receiver AND the
         // dynamic smsReceiver inside MonitorService both intercept the
         // same broadcast (which can happen on some ROMs/API levels).
+        // FIX: key on the message bytes, not just time. The old time-only
+        // check dropped a real command if ANY other SMS had arrived in the
+        // previous 5 seconds. Only an identical broadcast is a duplicate.
         val now = System.currentTimeMillis()
-        if (now - lastProcessedTime < DEDUP_WINDOW_MS) {
+        val key = try {
+            (intent.extras?.get("pdus") as? Array<*>)
+                ?.fold(17) { acc, p -> 31 * acc + ((p as? ByteArray)?.contentHashCode() ?: 0) } ?: 0
+        } catch (e: Exception) { 0 }
+        if (key == lastProcessedKey && now - lastProcessedTime < DEDUP_WINDOW_MS) {
             Log.d(TAG, "Duplicate SMS broadcast suppressed (within ${DEDUP_WINDOW_MS}ms window)")
             return
         }
         lastProcessedTime = now
+        lastProcessedKey = key
         // ───────────────────────────────────────────────────────────────
 
         Log.i(TAG, "SMS_RECEIVED intercepted — forwarding to MonitorService")

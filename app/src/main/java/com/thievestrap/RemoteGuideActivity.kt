@@ -56,7 +56,7 @@ class RemoteGuideActivity : AppCompatActivity() {
         setCmd(R.id.cmd_alarm,      "ALARM",        "Trigger loud alarm — forces phone out of silent mode")
         setCmd(R.id.cmd_stop_alarm, "STOP ALARM",   "Stop the alarm remotely")
         setCmd(R.id.cmd_lock,       "LOCK",         "Lock the screen immediately (Premium)")
-        setCmd(R.id.cmd_selfie,     "SELFIE",       "Silently capture 3 front-camera photos (Premium)")
+        setCmd(R.id.cmd_selfie,     "SELFIE",       "Silently capture 1 front-camera photo (Premium)")
         setCmd(R.id.cmd_ping2,      "PING 2",       "Send GPS location every 2 minutes (Premium)")
         setCmd(R.id.cmd_ping5,      "PING 5",       "Send GPS location every 5 minutes (Premium)")
         setCmd(R.id.cmd_stop_ping,  "STOP PING",    "Stop periodic location updates (Premium)")

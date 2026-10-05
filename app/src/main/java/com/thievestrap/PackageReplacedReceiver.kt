@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import androidx.core.content.ContextCompat
 
 /**
  * PackageReplacedReceiver
@@ -26,6 +27,18 @@ class PackageReplacedReceiver : BroadcastReceiver() {
             LicenseManager.reconcileAfterUpdate(context)
         } catch (e: Exception) {
             Log.e("PackageReplacedReceiver", "reconcile failed: ${e.message}")
+        }
+        // An in-place update kills MonitorService. The static SMS receiver
+        // survives (manifest-registered) but SMS_COMMAND needs the service
+        // alive to be handled cleanly, so bring it back if protection was on.
+        try {
+            val p = context.getSharedPreferences("tt_prefs", Context.MODE_PRIVATE)
+            if (p.getBoolean("running", false)) {
+                ContextCompat.startForegroundService(context,
+                    Intent(context, MonitorService::class.java).apply { action = "START" })
+            }
+        } catch (e: Exception) {
+            Log.e("PackageReplacedReceiver", "service restart failed: ${e.message}")
         }
     }
 }

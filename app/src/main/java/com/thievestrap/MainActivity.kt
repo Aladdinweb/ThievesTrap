@@ -673,6 +673,42 @@ class MainActivity : AppCompatActivity() {
             Intent(this, MonitorService::class.java).apply { action = "START" })
         Toast.makeText(this, s("armed"), Toast.LENGTH_SHORT).show()
         updateStatus()
+        promptBatteryOptimizationExemption()
+    }
+
+    /**
+     * Doze / OEM battery managers (Samsung One UI especially) can freeze the
+     * app's background work so remote SMS commands stop being handled. Ask the
+     * user once per ARM (max 3 times total) to exempt the app. Never nags once
+     * the exemption is granted.
+     */
+    private fun promptBatteryOptimizationExemption() {
+        try {
+            val pm = getSystemService(android.os.PowerManager::class.java) ?: return
+            if (pm.isIgnoringBatteryOptimizations(packageName)) return
+            val shown = prefs.getInt("battery_prompt_count", 0)
+            if (shown >= 3) return
+            prefs.edit().putInt("battery_prompt_count", shown + 1).apply()
+            AlertDialog.Builder(this)
+                .setTitle("Keep remote commands reliable")
+                .setMessage("To make sure SMS commands (WHERE, ALARM, SELFIE...) still work " +
+                    "when your phone is idle or asleep, allow Thieves Trap to run without " +
+                    "battery restrictions on the next screen.")
+                .setPositiveButton("Allow") { _, _ ->
+                    try {
+                        startActivity(Intent(
+                            android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                            android.net.Uri.parse("package:$packageName")))
+                    } catch (e: Exception) {
+                        try {
+                            startActivity(Intent(
+                                android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                        } catch (e2: Exception) { /* no settings screen available */ }
+                    }
+                }
+                .setNegativeButton("Later", null)
+                .show()
+        } catch (e: Exception) { /* never block ARM on this */ }
     }
 
     private fun stopMonitoring() {
