@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Terminal window: filled body with the prompt chevron and cursor cut out -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M4,4h16a2,2 0 0 1 2,2v12a2,2 0 0 1 -2,2H4a2,2 0 0 1 -2,-2V6a2,2 0 0 1 2,-2zM6.3,8.2L7.4,7L12.6,12L7.4,17L6.3,15.8L10.4,12zM13.5,15h4.5v1.6h-4.5z"/>
+</vector>

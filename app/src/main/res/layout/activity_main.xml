@@ -134,55 +134,105 @@
         </LinearLayout>
     </ScrollView>
 
-    <!-- BOTTOM BAR -->
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:orientation="horizontal" android:gravity="center_vertical"
-        android:background="#0A0A0D" android:paddingStart="16dp" android:paddingEnd="16dp"
-        android:paddingTop="10dp" android:paddingBottom="10dp">
+    <!-- BOTTOM BAR: floating glass pill with warm glow -->
+    <FrameLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginStart="9dp" android:layout_marginEnd="9dp"
+        android:layout_marginTop="4dp" android:layout_marginBottom="2dp"
+        android:padding="3dp"
+        android:background="@drawable/bg_navbar_glow">
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical"
+            android:background="@drawable/bg_navbar_pill"
+            android:paddingStart="4dp" android:paddingEnd="4dp">
 
         <LinearLayout android:id="@+id/btn_selfies"
             android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="1" android:orientation="vertical" android:gravity="center"
-            android:clickable="true" android:foreground="?attr/selectableItemBackground"
-            android:padding="6dp">
-            <TextView android:text="📸" android:layout_width="wrap_content"
-                android:layout_height="wrap_content" android:textSize="22sp" android:gravity="center"/>
-            <TextView android:text="@string/gallery" android:layout_width="wrap_content"
-                android:layout_height="wrap_content" android:textSize="9sp"
-                android:textColor="#666666" android:gravity="center"/>
+            android:clickable="true" android:focusable="true"
+            android:paddingTop="8dp" android:paddingBottom="8dp">
+            <!-- icon holder: its background pill lights up while the tab is pressed or selected -->
+            <FrameLayout android:layout_width="52dp" android:layout_height="32dp"
+                android:background="@drawable/bg_navbar_icon_pill"
+                android:duplicateParentState="true">
+                <ImageView android:layout_width="22dp" android:layout_height="22dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_navbar_gallery"
+                    android:tint="@color/navbar_item_tint"
+                    android:duplicateParentState="true"
+                    android:importantForAccessibility="no"/>
+            </FrameLayout>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="@string/gallery" android:textSize="10sp"
+                android:textColor="@color/navbar_item_tint"
+                android:duplicateParentState="true"
+                android:maxLines="1" android:gravity="center"/>
         </LinearLayout>
+
+        <View android:layout_width="1dp" android:layout_height="30dp"
+            android:background="#2D2D38"/>
 
         <LinearLayout android:id="@+id/btn_family_network"
             android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="1" android:orientation="vertical" android:gravity="center"
-            android:clickable="true" android:foreground="?attr/selectableItemBackground"
-            android:padding="6dp">
-            <TextView android:text="&#128205;" android:layout_width="wrap_content"
-                android:layout_height="wrap_content" android:textSize="22sp" android:gravity="center"/>
-            <TextView android:text="@string/network" android:layout_width="wrap_content"
-                android:layout_height="wrap_content" android:textSize="9sp"
-                android:textColor="#666666" android:gravity="center"/>
+            android:clickable="true" android:focusable="true"
+            android:paddingTop="8dp" android:paddingBottom="8dp">
+            <!-- icon holder: its background pill lights up while the tab is pressed or selected -->
+            <FrameLayout android:layout_width="52dp" android:layout_height="32dp"
+                android:background="@drawable/bg_navbar_icon_pill"
+                android:duplicateParentState="true">
+                <ImageView android:layout_width="22dp" android:layout_height="22dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_navbar_network"
+                    android:tint="@color/navbar_item_tint"
+                    android:duplicateParentState="true"
+                    android:importantForAccessibility="no"/>
+            </FrameLayout>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="@string/network" android:textSize="10sp"
+                android:textColor="@color/navbar_item_tint"
+                android:duplicateParentState="true"
+                android:maxLines="1" android:gravity="center"/>
         </LinearLayout>
+
+        <View android:layout_width="1dp" android:layout_height="30dp"
+            android:background="#2D2D38"/>
 
         <LinearLayout android:id="@+id/btn_remote_guide_icon"
             android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="1" android:orientation="vertical" android:gravity="center"
-            android:clickable="true" android:foreground="?attr/selectableItemBackground"
-            android:padding="6dp">
-            <TextView android:text="📡" android:layout_width="wrap_content"
-                android:layout_height="wrap_content" android:textSize="22sp" android:gravity="center"/>
-            <TextView android:text="@string/commands" android:layout_width="wrap_content"
-                android:layout_height="wrap_content" android:textSize="9sp"
-                android:textColor="#666666" android:gravity="center"/>
+            android:clickable="true" android:focusable="true"
+            android:paddingTop="8dp" android:paddingBottom="8dp">
+            <!-- icon holder: its background pill lights up while the tab is pressed or selected -->
+            <FrameLayout android:layout_width="52dp" android:layout_height="32dp"
+                android:background="@drawable/bg_navbar_icon_pill"
+                android:duplicateParentState="true">
+                <ImageView android:layout_width="22dp" android:layout_height="22dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_navbar_commands"
+                    android:tint="@color/navbar_item_tint"
+                    android:duplicateParentState="true"
+                    android:importantForAccessibility="no"/>
+            </FrameLayout>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="@string/commands" android:textSize="10sp"
+                android:textColor="@color/navbar_item_tint"
+                android:duplicateParentState="true"
+                android:maxLines="1" android:gravity="center"/>
         </LinearLayout>
 
-    </LinearLayout>
+        </LinearLayout>
+    </FrameLayout>
 
+    <!-- Copyright sits below the pill, in normal layout flow (never under the system bar) -->
     <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:gravity="center" android:background="#0A0A0D"
+        android:gravity="center"
         android:text="@string/copyright_text" android:textSize="8sp"
-        android:textColor="#252525" android:letterSpacing="0.1"
-        android:paddingBottom="6dp"/>
+        android:textColor="#3A3A44" android:letterSpacing="0.1"
+        android:paddingTop="4dp" android:paddingBottom="8dp"/>
 
 </LinearLayout>
 
