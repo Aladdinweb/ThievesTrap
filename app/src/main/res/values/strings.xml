@@ -230,4 +230,30 @@ Automatically sends your GPS location if you do not confirm your safety before t
     <string name="bt_open_settings">Open Bluetooth Settings</string>
     <string name="bt_perm_denied">Bluetooth permission is required for Watch Tether.</string>
     <string name="bt_pick_watch_title">Select Your Smartwatch</string>
+
+    <!-- v2.9.3 Family Network preview -->
+    <string name="network">Network</string>
+    <string name="fn_title">Family Network</string>
+    <string name="fn_subtitle">Live tracking and family security</string>
+    <string name="fn_preview_note">PREVIEW · service goes live in v3.0.0</string>
+    <string name="fn_info_desc">How Family Network works</string>
+    <string name="fn_your_code">YOUR PAIR CODE</string>
+    <string name="fn_code_hint">Share this code with a family member to pair your phones</string>
+    <string name="fn_enter_code">ENTER FAMILY CODE</string>
+    <string name="fn_code_input_hint">TRAP-0000</string>
+    <string name="fn_connect">CONNECT</string>
+    <string name="fn_status_disconnected">🔴 DISCONNECTED</string>
+    <string name="fn_map_title">LIVE MAP PREVIEW</string>
+    <string name="fn_map_caption">No device connected</string>
+    <string name="fn_start">START LIVE TRACKING</string>
+    <string name="fn_stop">STOP TRACKING MAPS</string>
+    <string name="fn_alarm">📢 TRIGGER ALARM</string>
+    <string name="fn_history">LOCATION HISTORY / ARCHIVE</string>
+    <string name="fn_history_sub">Past positions with readable addresses</string>
+    <string name="fn_soon_title">Coming Soon</string>
+    <string name="fn_soon_msg">This feature is currently under active development and will be fully operational in v3.0.0. Stay tuned!</string>
+    <string name="fn_ok">OK</string>
+    <string name="fn_info_title">How Family Network works</string>
+    <string name="fn_info_how">HOW IT WORKS\n\n1. Pair Code: every phone shows its own Pair Code (for example TRAP-8921). Enter a family member\'s code on your phone to link the two devices.\n\n2. Live tracking: while the tracked phone is ARMED, its GPS position refreshes on the family map every 2 to 5 seconds.\n\n3. Remote alarm: play the phone\'s default ringtone at maximum volume, even when it is on Silent or Do Not Disturb.\n\n4. Location history: positions are saved and turned into readable addresses locally on the device.</string>
+    <string name="fn_info_net">WHY THE INTERNET CONNECTION MATTERS\n\nLive tracking needs an internet connection. Thieves Trap uses a secure Cloudflare relay (the Cloudflare Bridge) between paired phones.\n\nBeyond live tracking, the same bridge delivers intruder selfies (SELFIE command) instantly to the family monitor app, with no third-party apps, bots or manual setup.\n\nThis screen is a preview. The live service arrives in v3.0.0.</string>
 </resources>

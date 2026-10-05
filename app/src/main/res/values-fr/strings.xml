@@ -225,4 +225,30 @@ Elle envoie une alerte automatique avec votre position GPS si vous ne confirmez 
     <string name="bt_open_settings">Ouvrir les parametres Bluetooth</string>
     <string name="bt_perm_denied">La permission Bluetooth est requise pour le Lien Montre.</string>
     <string name="bt_pick_watch_title">Selectionnez votre montre</string>
+
+    <!-- v2.9.3 Family Network preview -->
+    <string name="network">Réseau</string>
+    <string name="fn_title">Réseau familial</string>
+    <string name="fn_subtitle">Suivi en direct et sécurité de la famille</string>
+    <string name="fn_preview_note">APERÇU · service actif dans la v3.0.0</string>
+    <string name="fn_info_desc">Comment fonctionne le Réseau familial</string>
+    <string name="fn_your_code">VOTRE CODE DE JUMELAGE</string>
+    <string name="fn_code_hint">Partagez ce code avec un proche pour jumeler vos téléphones</string>
+    <string name="fn_enter_code">ENTRER LE CODE FAMILLE</string>
+    <string name="fn_code_input_hint">TRAP-0000</string>
+    <string name="fn_connect">CONNECTER</string>
+    <string name="fn_status_disconnected">🔴 DÉCONNECTÉ</string>
+    <string name="fn_map_title">APERÇU DE LA CARTE EN DIRECT</string>
+    <string name="fn_map_caption">Aucun appareil connecté</string>
+    <string name="fn_start">DÉMARRER LE SUIVI EN DIRECT</string>
+    <string name="fn_stop">ARRÊTER LE SUIVI</string>
+    <string name="fn_alarm">📢 DÉCLENCHER L\'ALARME</string>
+    <string name="fn_history">HISTORIQUE DES POSITIONS / ARCHIVES</string>
+    <string name="fn_history_sub">Positions passées avec adresses lisibles</string>
+    <string name="fn_soon_title">Bientôt disponible</string>
+    <string name="fn_soon_msg">Cette fonctionnalité est en cours de développement et sera disponible dans la v3.0.0.</string>
+    <string name="fn_ok">OK</string>
+    <string name="fn_info_title">Comment fonctionne le Réseau familial</string>
+    <string name="fn_info_how">FONCTIONNEMENT\n\n1. Code de jumelage : chaque téléphone affiche son propre code (par exemple TRAP-8921). Saisissez le code d\'un proche sur votre téléphone pour lier les deux appareils.\n\n2. Suivi en direct : tant que le téléphone suivi est ARMÉ, sa position GPS est actualisée sur la carte familiale toutes les 2 à 5 secondes.\n\n3. Alarme à distance : fait sonner la sonnerie par défaut du téléphone au volume maximum, même en mode Silencieux ou Ne pas déranger.\n\n4. Historique des positions : les positions sont enregistrées et converties en adresses lisibles localement sur l\'appareil.</string>
+    <string name="fn_info_net">POURQUOI LA CONNEXION INTERNET COMPTE\n\nLe suivi en direct nécessite une connexion internet. Thieves Trap utilise un relais Cloudflare sécurisé (le Cloudflare Bridge) entre les téléphones jumelés.\n\nAu-delà du suivi en direct, ce même relais envoie instantanément les selfies d\'intrus (commande SELFIE) à l\'application de surveillance familiale, sans application tierce, sans bot et sans configuration manuelle.\n\nCet écran est un aperçu. Le service actif arrive dans la v3.0.0.</string>
 </resources>

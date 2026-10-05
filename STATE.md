@@ -13,7 +13,7 @@
 **Repo:** `github.com/Aladdinweb/ThievesTrap` (branch: `main`)
 **Dev environment:** 100% mobile — Samsung phone, Android 13, Termux + GitHub Actions CI. No computer involved.
 **Project dir on phone:** `~/ThievesTrapV18`
-**Current version:** `v2.9.1` (versionCode 137), 2026-09-04. Built on the v2.8.6 baseline (see history below for the full chain). No Face Capture, no FACE ON/FACE OFF -- that feature was reverted at the user's explicit request 2026-08-28 and has not been reattempted.
+**Current version:** `v2.9.3` (versionCode 139), 2026-10-05. Built on the v2.8.6 baseline (see history below for the full chain). No Face Capture, no FACE ON/FACE OFF -- that feature was reverted at the user's explicit request 2026-08-28 and has not been reattempted.
 
 **Core concept:** When phone is armed and a thief tries to unlock it (or removes the SIM, disconnects a paired smartwatch, etc.), the app sends emergency SMS/Telegram alerts with GPS location, takes intruder selfies, and supports a remote SMS command system to track/control the phone from any other phone.
 
@@ -208,6 +208,8 @@ Build confirmed green after each of the above, pushed as separate commits. versi
 | v2.8.6.1 → v2.8.6.6 (2026-08-28, same day) | Incremental re-fixes on the patched v2.8.6 baseline, each version-bumped separately so the user could confirm which build they were testing: SmsCommandReceiver/SelfieService/MonitorService reliability fixes re-applied, storage-path fix for intruder photos (public `Environment.getExternalStoragePublicDirectory` → app-private `getExternalFilesDir`, broken under Scoped Storage on targetSdk 33), capture-restart debounce fix, static `PersistentAlertReceiver` added for SIM-change/ringer-mode detection surviving process kills, `SelfieService` declared `foregroundServiceType="camera"` + matching permission. |
 | v2.9.0 (2026-09-03) | Wrong-PIN threshold respected (first pass, later made stricter in v2.9.1), `SelfieService` wake lock added for remote SELFIE on a locked screen (first pass), FREE vs FULL PROTECTION screen rewritten to the real current feature set across EN/FR/AR. |
 | v2.9.1 (2026-09-04) | Premium-state-survives-update fix (plain-prefs backup + self-heal + `MY_PACKAGE_REPLACED` receiver), remote SELFIE delivery fix (delayed wake-lock release for the async Telegram upload), Watch Tether crash fixed (permission-check ordering) + switch styling regression re-fixed, wrong-PIN threshold gating tightened, `WHERE` privacy fix (no longer replies to unregistered senders), Play Store review/app-update libraries added, `android-actions/setup-android@v3` CI breakage fixed. See Known Issues for full detail on each. |
+| v2.9.2 (2026-10-05) | SELFIE now 1 photo (replies, help text, Remote Guide updated); battery-optimization exemption prompt on ARM (max 3 prompts); SMS body sanitised (zero-width chars, whitespace collapse, trim+uppercase); `PackageReplacedReceiver` also restarts `MonitorService` if `running=true`; `SmsCommandReceiver` dedup keyed on PDU content (old time-only check dropped real commands). New `.github/workflows/release.yml`: pushing a `vX.Y.Z` tag builds the signed APK, creates the Release with the APK, then updates `version.json` on `main` (keys `version_code`/`version_name`/`download_url`). |
+| v2.9.3 (2026-10-05) | Family Security Network UI PREVIEW only: new `FamilyNetworkActivity` (pair code, enter-code + CONNECT, DISCONNECTED badge, `MockMapView` canvas mock map, START/STOP/ALARM buttons, history card, header info modal), bottom-bar Network item between Gallery and Commands (copyright text moved under the bar), EN/FR/AR strings (`fn_*`, `network`). Every action button shows a Coming Soon dialog; NO network calls, no Cloudflare, no GPS. Real service planned for v3.0.0. |
 
 ---
 
@@ -221,6 +223,9 @@ Build confirmed green after each of the above, pushed as separate commits. versi
 - [ ] **No Face Capture in this codebase at all currently.** If wanted again, treat it as a fresh implementation and re-apply the four diagnosed-but-reverted runtime fixes in Known Issues one at a time, with a real device retest after each -- don't re-guess them from scratch, but also don't apply all four blind in one pass.
 - [ ] MainActivity UI-lag/coroutine optimization for instant shield-color updates on toggle (mentioned once, never delivered — original v2.7.8 request item 4)
 - [ ] Verify `AboutActivity.kt` has no hardcoded version strings (uses `BuildConfig.VERSION_NAME`, should be fine, not re-verified since v2.7.6)
+- [ ] **v2.9.3 Family Network is a UI shell.** Pair code shown is a local random placeholder (`family_pair_code_preview` pref), not registered anywhere. v3.0.0 must add: Cloudflare relay, real pairing, 2-5s live tracking while target ARMED, remote ALARM, geocoded location history, SELFIE delivery via the bridge.
+- [ ] **Release flow is now tag-driven:** bump `build.gradle`, push to `main`, then `git tag vX.Y.Z && git push origin vX.Y.Z`. Do NOT hand-edit `version.json` or run `create_release.sh` any more. The PAT used to push needs the `workflow` scope to change `.github/workflows/`.
+- [ ] Battery-optimization exemption permission may need Play Store policy review before any Play submission.
 - [ ] **Rotate GitHub PAT** — pasted in plaintext in chat multiple times (2026-08-27/28/09-02/09-04 -- it keeps getting reused across sessions). Treat every occurrence as compromised; rotate at github.com/settings/tokens. Still not done.
 
 ---

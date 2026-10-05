@@ -64,6 +64,7 @@
         <activity android:name=".PremiumActivity"       android:exported="false"/>
         <activity android:name=".SelfiesActivity"       android:exported="false"/>
         <activity android:name=".RemoteGuideActivity"   android:exported="false"/>
+        <activity android:name=".FamilyNetworkActivity" android:exported="false"/>
         <activity android:name=".AboutActivity"         android:exported="false"/>
 
         <!-- Core services -->

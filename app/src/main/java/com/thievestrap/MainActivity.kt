@@ -294,6 +294,13 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {}
 
         try {
+            findViewById<android.view.View>(R.id.btn_family_network).setOnClickListener {
+                hapticFeedback()
+                startActivity(Intent(this, FamilyNetworkActivity::class.java))
+            }
+        } catch (e: Exception) {}
+
+        try {
             findViewById<android.view.View>(R.id.btn_remote_guide_icon).setOnClickListener {
                 hapticFeedback()
                 startActivity(Intent(this, RemoteGuideActivity::class.java))

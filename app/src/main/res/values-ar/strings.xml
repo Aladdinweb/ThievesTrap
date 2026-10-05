@@ -225,4 +225,30 @@
     <string name="bt_open_settings">فتح إعدادات البلوتوث</string>
     <string name="bt_perm_denied">إذن البلوتوث مطلوب لميزة ربط الساعة.</string>
     <string name="bt_pick_watch_title">اختر ساعتك الذكية</string>
+
+    <!-- v2.9.3 Family Network preview -->
+    <string name="network">الشبكة</string>
+    <string name="fn_title">شبكة العائلة</string>
+    <string name="fn_subtitle">التتبع المباشر وأمان العائلة</string>
+    <string name="fn_preview_note">نسخة تجريبية · الخدمة تعمل في الإصدار v3.0.0</string>
+    <string name="fn_info_desc">كيف تعمل شبكة العائلة</string>
+    <string name="fn_your_code">رمز الربط الخاص بك</string>
+    <string name="fn_code_hint">شارك هذا الرمز مع أحد أفراد العائلة لربط هاتفيكما</string>
+    <string name="fn_enter_code">أدخل رمز العائلة</string>
+    <string name="fn_code_input_hint">TRAP-0000</string>
+    <string name="fn_connect">اتصال</string>
+    <string name="fn_status_disconnected">🔴 غير متصل</string>
+    <string name="fn_map_title">معاينة الخريطة المباشرة</string>
+    <string name="fn_map_caption">لا يوجد جهاز متصل</string>
+    <string name="fn_start">بدء التتبع المباشر</string>
+    <string name="fn_stop">إيقاف تتبع الخرائط</string>
+    <string name="fn_alarm">📢 تشغيل الإنذار</string>
+    <string name="fn_history">سجل المواقع / الأرشيف</string>
+    <string name="fn_history_sub">المواقع السابقة مع عناوين واضحة</string>
+    <string name="fn_soon_title">قريباً</string>
+    <string name="fn_soon_msg">هذه الميزة قيد التطوير حالياً وستكون متاحة بالكامل في الإصدار v3.0.0. انتظرونا قريباً!</string>
+    <string name="fn_ok">حسناً</string>
+    <string name="fn_info_title">كيف تعمل شبكة العائلة</string>
+    <string name="fn_info_how">طريقة العمل\n\n1. رمز الربط: يعرض كل هاتف رمزه الخاص (مثل TRAP-8921). أدخل رمز أحد أفراد العائلة في هاتفك لربط الجهازين.\n\n2. التتبع المباشر: عندما يكون الهاتف المتتبَّع في وضع التفعيل (ARMED) يتم تحديث موقعه عبر GPS على خريطة العائلة كل 2 إلى 5 ثوانٍ.\n\n3. الإنذار عن بُعد: تشغيل نغمة الهاتف الافتراضية بأعلى صوت، حتى لو كان الهاتف في الوضع الصامت أو وضع عدم الإزعاج.\n\n4. سجل المواقع: يتم حفظ المواقع وتحويلها إلى عناوين واضحة محلياً على الجهاز.</string>
+    <string name="fn_info_net">أهمية الاتصال بالإنترنت\n\nيحتاج التتبع المباشر إلى اتصال بالإنترنت. يستخدم Thieves Trap وسيطاً آمناً عبر Cloudflare (جسر Cloudflare) بين الهواتف المرتبطة.\n\nوبالإضافة إلى التتبع المباشر، يقوم هذا الجسر بإرسال صور المتسلل (أمر SELFIE) فوراً إلى تطبيق المراقبة العائلي، دون تطبيقات خارجية أو بوتات أو إعدادات يدوية.\n\nهذه الشاشة معاينة فقط. الخدمة الفعلية ستصل في الإصدار v3.0.0.</string>
 </resources>

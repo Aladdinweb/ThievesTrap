@@ -152,10 +152,17 @@
                 android:textColor="#666666" android:gravity="center"/>
         </LinearLayout>
 
-        <TextView android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="2" android:gravity="center"
-            android:text="@string/copyright_text" android:textSize="8sp"
-            android:textColor="#252525" android:letterSpacing="0.1"/>
+        <LinearLayout android:id="@+id/btn_family_network"
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:orientation="vertical" android:gravity="center"
+            android:clickable="true" android:foreground="?attr/selectableItemBackground"
+            android:padding="6dp">
+            <TextView android:text="&#128205;" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:textSize="22sp" android:gravity="center"/>
+            <TextView android:text="@string/network" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:textSize="9sp"
+                android:textColor="#666666" android:gravity="center"/>
+        </LinearLayout>
 
         <LinearLayout android:id="@+id/btn_remote_guide_icon"
             android:layout_width="0dp" android:layout_height="wrap_content"
@@ -170,6 +177,12 @@
         </LinearLayout>
 
     </LinearLayout>
+
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:gravity="center" android:background="#0A0A0D"
+        android:text="@string/copyright_text" android:textSize="8sp"
+        android:textColor="#252525" android:letterSpacing="0.1"
+        android:paddingBottom="6dp"/>
 
 </LinearLayout>
 
