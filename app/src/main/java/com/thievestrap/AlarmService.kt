@@ -21,6 +21,7 @@ class AlarmService : Service() {
     private lateinit var audioManager: AudioManager
     private var originalVolume = 0
     private var originalRingerMode = AudioManager.RINGER_MODE_NORMAL
+    @Volatile private var alarmActive = false
 
     // Volume enforcement runnable — forces alarm volume back to max if lowered
     private val volumeEnforcer = object : Runnable {
@@ -55,6 +56,12 @@ class AlarmService : Service() {
 
     private fun startAlarm() {
         startForeground(NOTIF_ID, buildNotif())
+
+        // FIX: a second ALARM while already ringing used to overwrite the saved
+        // volume/ringer state with the already-maxed values and stack a second
+        // MediaPlayer. Starting is now idempotent.
+        if (alarmActive) return
+        alarmActive = true
 
         // Save state for restoration
         originalRingerMode = audioManager.ringerMode
@@ -129,9 +136,14 @@ class AlarmService : Service() {
         try { mediaPlayer?.stop(); mediaPlayer?.release(); mediaPlayer = null } catch (e: Exception) {}
         try { vibrator?.cancel() } catch (e: Exception) {}
 
-        // Restore original ringer state
-        try { audioManager.ringerMode = originalRingerMode } catch (e: Exception) {}
-        try { audioManager.setStreamVolume(AudioManager.STREAM_ALARM, originalVolume, 0) } catch (e: Exception) {}
+        // FIX: only restore if an alarm was really running. A STOP ALARM with
+        // nothing playing used to "restore" originalVolume=0 and force the
+        // ringer to NORMAL, silently muting the alarm stream for good.
+        if (alarmActive) {
+            alarmActive = false
+            try { audioManager.ringerMode = originalRingerMode } catch (e: Exception) {}
+            try { audioManager.setStreamVolume(AudioManager.STREAM_ALARM, originalVolume, 0) } catch (e: Exception) {}
+        }
 
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()

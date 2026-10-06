@@ -317,8 +317,11 @@ class MonitorService : Service() {
                 .replace(Regex("\\s+"), " ")
                 .trim()
                 .uppercase()
+                // "Selfie." / "ALARM!" / "...lock" : keep a lone "?" (HELP alias)
+                .let { if (it == "?") it else it.trim('.', ',', '!', ';', ':', ' ') }
             if (body.isEmpty()) continue
             val senderDigits = sender.filter { it.isDigit() }
+            Log.i(TAG, "SMS cmd candidate: '$body' from $sender")
 
             val isRegisteredSender =
                 (myPhone.isNotBlank()  && senderDigits.endsWith(myPhone.takeLast(8))) ||
@@ -332,17 +335,21 @@ class MonitorService : Service() {
             if (planBMatch != null) {
                 val (planCmd, pin) = planBMatch
                 if (pin == appPin() && appPin().isNotBlank()) {
-                    if (!passesCooldown(senderDigits)) continue
+                    if (!passesCooldown(senderDigits, planCmd)) { logCmd(body, sender, "dropped: cooldown"); continue }
                     Log.i(TAG, "Plan B: valid PIN from $sender — cmd=$planCmd")
+                    logCmd(planCmd, sender, "Plan B accepted")
                     handlePlanBCommand(planCmd, sender)
                     continue
                 }
-                if (!isRegisteredSender) continue
+                if (!isRegisteredSender) { logCmd(body, sender, "dropped: wrong PIN, sender not registered"); continue }
             }
 
             val isFreeLocationCmd = body == "WHERE" || body == "LOCATION" ||
                 body == "LOC" || body == "FIND"
-            if (!isRegisteredSender && !isFreeLocationCmd) continue
+            if (!isRegisteredSender && !isFreeLocationCmd) {
+                logCmd(body, sender, "dropped: sender not registered (use 'CMD PIN' or add number as contact)")
+                continue
+            }
 
             val knownCommands = setOf(
                 "WHERE", "LOCATION", "LOC", "FIND",
@@ -356,29 +363,84 @@ class MonitorService : Service() {
                 body == it || body.startsWith("$it ") ||
                 body.startsWith("DISARM ") || body.startsWith("PING ")
             }
-            if (!isKnownCmd) continue
-            if (!passesCooldown(senderDigits)) continue
+            if (!isKnownCmd) { logCmd(body, sender, "ignored: not a command"); continue }
+            if (!passesCooldown(senderDigits, body)) { logCmd(body, sender, "dropped: same command repeated within 3s"); continue }
 
+            logCmd(body, sender, "accepted")
             handleCommand(body, sender, isRegisteredSender)
         }
     }
 
-    private fun passesCooldown(senderDigits: String): Boolean {
-        val key = "last_cmd_$senderDigits"
+    // FIX: cooldown was ONE 5s window per sender, so "ALARM" followed by
+    // "STOP ALARM" (or SELFIE then LOCK) sent a few seconds apart silently
+    // dropped the second command. Now it is per sender AND per command and
+    // only suppresses an accidental repeat of the SAME command within 3s.
+    private fun passesCooldown(senderDigits: String, cmd: String): Boolean {
+        val key = "last_cmd_${senderDigits}_${cmd.substringBefore(' ')}"
         val last = prefs().getLong(key, 0L)
-        if (System.currentTimeMillis() - last < 5000L) return false
+        if (System.currentTimeMillis() - last < 3000L) return false
         prefs().edit().putLong(key, System.currentTimeMillis()).apply()
         return true
     }
 
+    /** Last 15 remote-command outcomes, shown by the STATUS reply so a failure is never silent. */
+    private fun logCmd(cmd: String, sender: String, outcome: String) {
+        Log.i(TAG, "CMD '$cmd' from $sender -> $outcome")
+        try {
+            val t = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(java.util.Date())
+            val tail = sender.filter { it.isDigit() }.takeLast(4)
+            val line = "$t ${cmd.take(12)} (..$tail) $outcome"
+            val old = prefs().getString("cmd_log", "").orEmpty().split("\n").filter { it.isNotBlank() }
+            prefs().edit().putString("cmd_log", (old + line).takeLast(15).joinToString("\n")).apply()
+        } catch (e: Exception) { /* diagnostics must never break command handling */ }
+    }
+
+    /** Armed / Premium / Device Admin state plus the last remote-command outcomes. Only sent to a registered sender or a valid Plan B PIN. */
+    private fun buildStatusText(isRegisteredSender: Boolean): String {
+        val adminOk = try {
+            (getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager)
+                .isAdminActive(android.content.ComponentName(this, DeviceAdminReceiver::class.java))
+        } catch (e: Exception) { false }
+        val sb = StringBuilder("${s("app_name")}: Armed=${prefs().getBoolean("running", false)}" +
+            " | Premium=${LicenseManager.isPremium(this)} | Admin=$adminOk")
+        val log = prefs().getString("cmd_log", "").orEmpty()
+        if (log.isNotBlank()) sb.append("\nRecent commands:\n").append(log.split("\n").takeLast(6).joinToString("\n"))
+        return sb.toString()
+    }
+
+    /** SMS to the sender AND Telegram, so a command is acknowledged on the phone that sent it. */
+    private fun reply(sender: String, msg: String) {
+        sms(sender, msg)
+        TelegramUploader.sendMessage(this, msg)
+    }
+
+    /** lockNow() only when our device admin is really active; never throws. */
+    private fun lockDeviceSafely(): Boolean {
+        return try {
+            val dpm = getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            val admin = android.content.ComponentName(this, DeviceAdminReceiver::class.java)
+            if (!dpm.isAdminActive(admin)) {
+                Log.w(TAG, "LOCK skipped: device admin not active")
+                false
+            } else { dpm.lockNow(); true }
+        } catch (e: Exception) {
+            Log.e(TAG, "lockNow failed: ${e.message}")
+            false
+        }
+    }
+
     private fun matchPlanBCommand(body: String): Pair<String, String>? {
         val parts = body.trim().split(Regex("\\s+"))
+        // "STOP ALARM <PIN>" has three words; without this an unregistered phone
+        // could START the alarm with a PIN but never stop it.
+        if (parts.size == 3 && parts[0] == "STOP" && parts[1] == "ALARM" && parts[2].isNotBlank())
+            return "STOP ALARM" to parts[2]
         if (parts.size != 2) return null
         val cmd = parts[0]; val pin = parts[1]
         val planBCommands = setOf(
             "WHERE","LOCATION","LOC","FIND","ALARM","RING",
             "SELFIE","PHOTO","PICTURE","INFO","DEVICE",
-            "STATUS","BATTERY","BAT","SIM","IMEI","LOCK"
+            "STATUS","BATTERY","BAT","SIM","IMEI","LOCK","SILENCE"
         )
         if (cmd !in planBCommands || pin.isBlank()) return null
         return cmd to pin
@@ -406,11 +468,14 @@ class MonitorService : Service() {
             "SIM"  -> sms(sender, "${s("app_name")} - SIM\n${simBlock()}")
             "IMEI" -> sms(sender,
                 "${s("app_name")}\n${s("sms_imei")}: ${deviceImeiOrId()}\n${s("sms_android_id")}: ${androidId()}")
+            "STOP ALARM","SILENCE" -> {
+                startService(Intent(this, AlarmService::class.java).apply { action = "STOP_ALARM" })
+                sms(sender, "${s("app_name")}: ${s("sms_alarm_off")} (Plan B)")
+            }
+            "STATUS" -> sms(sender, buildStatusText(false))
             "LOCK" -> {
-                try {
-                    (getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager).lockNow()
-                    sms(sender, "${s("app_name")}: ${s("sms_locked")} (Plan B)")
-                } catch (e: Exception) { sms(sender, "Lock failed.") }
+                if (lockDeviceSafely()) sms(sender, "${s("app_name")}: ${s("sms_locked")} (Plan B)")
+                else sms(sender, "${s("app_name")}: LOCK failed - Device Admin is not active.")
             }
         }
         recordAlert("Plan B '$cmd' from $sender")
@@ -685,11 +750,7 @@ class MonitorService : Service() {
         if (cmd == "HELP" || cmd == "STATUS") {
             when (cmd) {
                 "HELP"   -> { sms(sender, s("sms_help")); return }
-                "STATUS" -> {
-                    sms(sender, "${s("app_name")}: Armed=${prefs().getBoolean("running", false)}" +
-                        " | Premium=${LicenseManager.isPremium(this)}")
-                    return
-                }
+                "STATUS" -> { sms(sender, buildStatusText(isRegisteredSender)); return }
             }
         }
 
@@ -727,40 +788,40 @@ class MonitorService : Service() {
 
         when {
             cmd == "INFO" || cmd == "DEVICE" ->
-                TelegramUploader.sendMessage(this, buildFullInfo("\uD83D\uDCF1", s("sms_info")))
+                reply(sender, buildFullInfo("\uD83D\uDCF1", s("sms_info")))
             cmd == "BATTERY" || cmd == "BAT" ->
-                TelegramUploader.sendMessage(this,
+                reply(sender,
                     "${s("app_name")}\n${s("sms_battery")}: ${bat()}%\n${chargingStr()}\n${ts()}")
             cmd == "SIM"  ->
-                TelegramUploader.sendMessage(this, "${s("app_name")} - SIM\n${simBlock()}")
+                reply(sender, "${s("app_name")} - SIM\n${simBlock()}")
             cmd == "IMEI" ->
-                TelegramUploader.sendMessage(this,
+                reply(sender,
                     "${s("app_name")}\n${s("sms_imei")}: ${deviceImeiOrId()}\n${s("sms_android_id")}: ${androidId()}")
             cmd == "HISTORY" ->
-                TelegramUploader.sendMessage(this, buildString {
+                reply(sender, buildString {
                     appendLine("${s("app_name")} - ${s("sms_history_title")}")
                     if (locationHistory.isEmpty()) appendLine(s("sms_no_history"))
                     else locationHistory.forEachIndexed { i, loc -> appendLine("${i+1}. $loc") }
                 })
             cmd == "SELFIE" || cmd == "PHOTO" || cmd == "PICTURE" -> {
                 SelfieService.takePhoto(this, 1)
-                TelegramUploader.sendMessage(this, "\uD83D\uDCF8 ${s("app_name")}: Taking 1 selfie now.")
+                reply(sender, "\uD83D\uDCF8 ${s("app_name")}: Taking 1 selfie now. The photo arrives on Telegram when ready (also saved in Gallery).")
             }
             cmd == "ALARM" || cmd == "RING" -> {
                 ContextCompat.startForegroundService(this,
                     Intent(this, AlarmService::class.java).apply { action = "START_ALARM" })
-                TelegramUploader.sendMessage(this, "\uD83D\uDEA8 ${s("app_name")}: ${s("sms_alarm_on")}")
+                reply(sender, "\uD83D\uDEA8 ${s("app_name")}: ${s("sms_alarm_on")}")
             }
             cmd == "STOP ALARM" || cmd == "SILENCE" -> {
                 startService(Intent(this, AlarmService::class.java).apply { action = "STOP_ALARM" })
-                TelegramUploader.sendMessage(this, "${s("app_name")}: ${s("sms_alarm_off")}")
+                reply(sender, "${s("app_name")}: ${s("sms_alarm_off")}")
             }
             cmd.startsWith("PING ") -> {
                 val mins = cmd.removePrefix("PING ").trim().toIntOrNull()
                 if (mins != null && mins in 1..60) {
                     restartPing(mins)
                     prefs().edit().putInt("ping_interval", mins).putBoolean("location_ping", true).apply()
-                    TelegramUploader.sendMessage(this,
+                    reply(sender,
                         "${s("app_name")}: ${String.format(s("sms_ping"), mins)}")
                 }
             }
@@ -768,24 +829,27 @@ class MonitorService : Service() {
                 prefs().edit().putBoolean("location_ping", false).apply()
                 pingRunnable?.let { handler.removeCallbacks(it) }
                 pingRunnable = null
-                TelegramUploader.sendMessage(this, "${s("app_name")}: ${s("sms_ping_stopped")}")
+                reply(sender, "${s("app_name")}: ${s("sms_ping_stopped")}")
             }
             cmd == "LOCK" -> {
-                try {
-                    (getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager).lockNow()
-                    TelegramUploader.sendMessage(this, "${s("app_name")}: ${s("sms_locked")}")
-                } catch (e: Exception) { TelegramUploader.sendMessage(this, "Lock failed.") }
+                if (lockDeviceSafely()) {
+                    reply(sender, "${s("app_name")}: ${s("sms_locked")}")
+                    logCmd(cmd, sender, "executed")
+                } else {
+                    reply(sender, "${s("app_name")}: LOCK failed - Device Admin is not active. Re-enable it in the app.")
+                    logCmd(cmd, sender, "FAILED: device admin inactive")
+                }
             }
             cmd == "HELP" || cmd == "COMMANDS" || cmd == "?" ->
-                TelegramUploader.sendMessage(this, s("sms_help"))
+                reply(sender, s("sms_help"))
             cmd.startsWith("DISARM ") -> {
                 val pin = cmd.removePrefix("DISARM ").trim()
                 if (pin == password) {
-                    TelegramUploader.sendMessage(this, "${s("app_name")}: ${s("sms_disarmed_remote")}")
+                    reply(sender, "${s("app_name")}: ${s("sms_disarmed_remote")}")
                     prefs().edit().putBoolean("running", false).putBoolean("theft_mode", false).apply()
                     stopSelf()
                 } else {
-                    TelegramUploader.sendMessage(this, "${s("app_name")}: ${s("sms_wrong_pin_remote")}")
+                    reply(sender, "${s("app_name")}: ${s("sms_wrong_pin_remote")}")
                     smsAll(buildFullInfo("\u26a0\ufe0f", "${s("sms_wrong_pin_remote")} from: $sender"))
                 }
             }
