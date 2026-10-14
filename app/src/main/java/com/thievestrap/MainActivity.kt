@@ -798,8 +798,11 @@ class MainActivity : AppCompatActivity() {
                 prefs.getInt("total_alerts", 0).toString()
         } catch (e: Exception) {}
         try {
+            val c1 = prefs.getString("phone", null)?.takeIf { it.isNotBlank() }
+            val c2 = if (LicenseManager.isPremium(this))
+                prefs.getString("phone2", null)?.takeIf { it.isNotBlank() } else null
             findViewById<TextView>(R.id.tv_contact_log).text =
-                (prefs.getString("phone", null) ?: s("not_set"))
+                listOfNotNull(c1 ?: s("not_set"), c2).joinToString("\n")
         } catch (e: Exception) {}
         try {
             val adminTv = findViewById<TextView>(R.id.tv_admin_log)
@@ -929,30 +932,46 @@ class MainActivity : AppCompatActivity() {
         val ll = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(48, 24, 48, 8)
         }
+        // v2.9.6: the two radio buttons were plain children of a LinearLayout, so
+        // both could be ticked at once (overlapping selection). A RadioGroup makes
+        // them mutually exclusive.
+        val group = RadioGroup(this).apply { orientation = RadioGroup.VERTICAL }
         val rb1 = RadioButton(this).apply {
+            id = android.view.View.generateViewId()
             text = "Default Emergency Contact  (Free)"
-            isChecked = !useCustom; setTextColor(0xFFFFFFFF.toInt())
+            setTextColor(0xFFFFFFFF.toInt())
         }
         val rb2 = RadioButton(this).apply {
+            id = android.view.View.generateViewId()
             text = "Custom Number  ⭐ Premium"
-            isChecked = useCustom && isPremium
             setTextColor(if (isPremium) 0xFFFFD700.toInt() else 0xFF555555.toInt())
         }
+        group.addView(rb1); group.addView(rb2)
+
         val etCustom = EditText(this).apply {
             inputType = android.text.InputType.TYPE_CLASS_PHONE
             hint = "+213 XXX XXX XXX"
             setText(if (isPremium) saved else "")
             isEnabled = isPremium; setPadding(16, 8, 16, 8)
-            visibility = if (useCustom && isPremium) android.view.View.VISIBLE
-            else android.view.View.GONE
+            visibility = android.view.View.GONE          // hidden until Custom is selected
         }
-        rb1.setOnClickListener { etCustom.visibility = android.view.View.GONE }
-        rb2.setOnClickListener {
-            if (!isPremium) {
-                rb2.isChecked = false; rb1.isChecked = true
-                Toast.makeText(this, "⭐ Premium required", Toast.LENGTH_SHORT).show()
-            } else { etCustom.visibility = android.view.View.VISIBLE; etCustom.requestFocus() }
+
+        group.setOnCheckedChangeListener { g, checkedId ->
+            if (checkedId == rb2.id) {
+                if (!isPremium) {
+                    Toast.makeText(this, "⭐ Premium required", Toast.LENGTH_SHORT).show()
+                    g.check(rb1.id)                       // triggers this listener again with rb1
+                } else {
+                    etCustom.visibility = android.view.View.VISIBLE
+                    etCustom.requestFocus()
+                }
+            } else {
+                etCustom.visibility = android.view.View.GONE
+            }
         }
+        // Set the initial state AFTER the listener so the field shows only if Custom is really selected
+        group.check(if (useCustom) rb2.id else rb1.id)
+
         etCustom.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
             override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
@@ -962,7 +981,7 @@ class MainActivity : AppCompatActivity() {
                         s?.toString()?.trim() ?: "").apply()
             }
         })
-        ll.addView(rb1); ll.addView(rb2); ll.addView(etCustom)
+        ll.addView(group); ll.addView(etCustom)
         AlertDialog.Builder(this).setTitle("Emergency Recipient").setView(ll)
             .setPositiveButton("Save") { _, _ ->
                 if (isPremium && rb2.isChecked)

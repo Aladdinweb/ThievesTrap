@@ -165,7 +165,7 @@ class MonitorService : Service() {
                         photoFile.length() > 0) {
                         val caption = "\uD83D\uDEA8 THIEVES TRAP \u2014 INTRUDER PHOTO #$count" +
                             "\nTime: ${ts()} | Battery: ${bat()}%\n${locStr()}"
-                        TelegramUploader.sendPhoto(this, photoFile, caption)
+                        TelegramUploader.enqueuePhoto(this, photoFile, caption)
                     }
                 }
                 return START_STICKY

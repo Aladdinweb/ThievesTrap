@@ -35,9 +35,6 @@
                     android:layout_height="wrap_content" android:text="&#8505;&#65039;"
                     android:textSize="18sp" android:textColor="#CC0000" android:padding="8dp"/>
             </LinearLayout>
-            <Button android:id="@+id/btn_save_identity" android:layout_width="match_parent"
-                android:layout_height="42dp" android:text="@string/save_btn"
-                android:backgroundTint="#1A1A1A" android:textColor="#AAAAAA" android:layout_marginTop="10dp"/>
         </LinearLayout>
 
         <!-- EMERGENCY CONTACTS -->
@@ -56,9 +53,6 @@
                 android:layout_height="wrap_content" android:hint="Contact 2"
                 android:inputType="phone" android:textColor="#FFFFFF"
                 android:textColorHint="#333333" android:layout_marginBottom="8dp"/>
-            <Button android:id="@+id/btn_save_contacts" android:layout_width="match_parent"
-                android:layout_height="42dp" android:text="@string/save_contacts"
-                android:backgroundTint="#1A1A1A" android:textColor="#AAAAAA"/>
         </LinearLayout>
 
         <!-- TELEGRAM ALERTS -->

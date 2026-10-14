@@ -69,9 +69,7 @@
     <string name="remote_sub">Send from ANY phone number — no registration needed</string>
     <string name="back_arrow">Back</string>
     <string name="how_to_use_title">HOW TO USE</string>
-    <string name="how_to_use_body">These keywords are your remote commands. Send them from any phone to trigger actions on your device.
-
-Open SMS app on any phone. Type command (e.g. WHERE). Send to your stolen phone number. The phone responds automatically.</string>
+    <string name="how_to_use_body">Open the SMS app on any phone, type a command and send it to the number of your protected phone.\n\nWHERE (free): works from ANY number. The location reply goes only to your Emergency Contacts, not back to the sender (unless the sender is one of them).\n\nPremium commands (SELFIE, ALARM, STOP ALARM, LOCK, INFO...): must be sent from an Emergency Contact number, or with your PIN added so they work from any phone, e.g. ALARM 2026.\n\nAdd your PIN to WHERE (e.g. WHERE 2026) to get the reply on the phone you are texting from.</string>
     <string name="cmd_location_section">LOCATION COMMANDS</string>
     <string name="cmd_device_section">DEVICE INFORMATION</string>
     <string name="cmd_security_section">SECURITY ACTIONS</string>

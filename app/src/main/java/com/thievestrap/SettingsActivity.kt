@@ -12,6 +12,8 @@ class SettingsActivity : AppCompatActivity() {
 
     private lateinit var prefs: SharedPreferences
     private var isPremium = false
+    // true while loadAll() fills the fields, so those setText() calls are not auto-saved back
+    private var loadingFields = false
 
     // FIX 5: Silent mode grace period countdown state
     private var silentGraceHandler: android.os.Handler? = null
@@ -71,6 +73,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun loadAll() {
+        loadingFields = true
         // ── IDENTITY ──
         findViewById<EditText>(R.id.et_imei).setText(prefs.getString("imei", ""))
 
@@ -89,6 +92,7 @@ class SettingsActivity : AppCompatActivity() {
             et2.isEnabled = false
             et2.alpha = 0.4f
         }
+        loadingFields = false
 
         // ── THEFT ALERTS ──
         val swSelfie = findViewById<Switch>(R.id.sw_selfie)
@@ -303,27 +307,28 @@ class SettingsActivity : AppCompatActivity() {
         silentGraceHandler?.postDelayed(silentGraceRunnable!!, 1000)
     }
 
+    private fun bindAutoSave(et: EditText, key: String, canSave: () -> Boolean = { true }) {
+        et.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
+            override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
+            override fun afterTextChanged(e: android.text.Editable?) {
+                if (loadingFields || !canSave()) return
+                prefs.edit().putString(key, e?.toString()?.trim().orEmpty()).apply()
+            }
+        })
+    }
+
     private fun setupListeners() {
-        // Save identity
-        findViewById<Button>(R.id.btn_save_identity).setOnClickListener {
-            prefs.edit()
-                .putString("imei", findViewById<EditText>(R.id.et_imei).text.toString().trim())
-                .apply()
-            Toast.makeText(this, s("saved"), Toast.LENGTH_SHORT).show()
-        }
+        // v2.9.6: auto-save. No SAVE buttons: every edit is written to local
+        // storage as the user types (async apply(), no toast per keystroke).
+        bindAutoSave(findViewById(R.id.et_imei), "imei")
+        bindAutoSave(findViewById(R.id.et_phone), "phone")
+        // Contact 2 is Premium: never overwrite the stored number from a locked/blank field
+        bindAutoSave(findViewById(R.id.et_phone2), "phone2") { isPremium }
+
         // IMEI hint
         findViewById<TextView>(R.id.tv_imei_hint).setOnClickListener {
             Toast.makeText(this, s("imei_hint"), Toast.LENGTH_LONG).show()
-        }
-        // Save contacts
-        findViewById<Button>(R.id.btn_save_contacts).setOnClickListener {
-            prefs.edit().putString("phone",
-                findViewById<EditText>(R.id.et_phone).text.toString().trim()).apply()
-            if (isPremium) {
-                prefs.edit().putString("phone2",
-                    findViewById<EditText>(R.id.et_phone2).text.toString().trim()).apply()
-            }
-            Toast.makeText(this, s("saved"), Toast.LENGTH_SHORT).show()
         }
         if (!isPremium) {
             findViewById<EditText>(R.id.et_phone2).setOnClickListener {

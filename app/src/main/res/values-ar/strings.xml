@@ -66,7 +66,7 @@
     <string name="remote_sub">أرسل من أي رقم هاتف — بدون تسجيل</string>
     <string name="back_arrow">رجوع</string>
     <string name="how_to_use_title">طريقة الاستخدام</string>
-    <string name="how_to_use_body">هذه الكلمات المفتاحية هي أوامر التحكم عن بُعد. أرسلها من أي هاتف.\n\nافتح تطبيق الرسائل. اكتب الأمر (مثل WHERE). أرسله إلى رقم هاتفك المسروق.</string>
+    <string name="how_to_use_body">افتح تطبيق الرسائل على أي هاتف، اكتب الأمر وأرسله إلى رقم هاتفك المحمي.\n\nWHERE (مجاني): يعمل من أي رقم. يُرسَل الموقع إلى جهات اتصال الطوارئ فقط وليس إلى المرسِل (إلا إذا كان أحدها).\n\nالأوامر المدفوعة (SELFIE وALARM وSTOP ALARM وLOCK وINFO...): يجب إرسالها من رقم جهة اتصال طوارئ، أو إضافة رمز PIN الخاص بك لتعمل من أي هاتف، مثال: ALARM 2026.\n\nأضف رمز PIN إلى WHERE (مثال: WHERE 2026) لتصلك الرد على الهاتف الذي ترسل منه.</string>
     <string name="cmd_location_section">أوامر الموقع</string>
     <string name="cmd_device_section">معلومات الجهاز</string>
     <string name="cmd_security_section">إجراءات الأمان</string>

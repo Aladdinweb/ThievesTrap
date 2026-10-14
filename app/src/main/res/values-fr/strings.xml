@@ -66,7 +66,7 @@
     <string name="remote_sub">Envoyez depuis NIMPORTE QUEL numero — sans inscription</string>
     <string name="back_arrow">Retour</string>
     <string name="how_to_use_title">COMMENT UTILISER</string>
-    <string name="how_to_use_body">Ces mots-cles sont vos commandes a distance.\n\nOuvrez SMS. Tapez la commande (ex: WHERE). Envoyez au numero de votre telephone vole.</string>
+    <string name="how_to_use_body">Ouvrez l\'app SMS sur n\'importe quel téléphone, tapez une commande et envoyez-la au numéro de votre téléphone protégé.\n\nWHERE (gratuit) : fonctionne depuis N\'IMPORTE QUEL numéro. La position est envoyée uniquement à vos Contacts d\'urgence, pas à l\'expéditeur (sauf s\'il en fait partie).\n\nCommandes Premium (SELFIE, ALARM, STOP ALARM, LOCK, INFO...) : à envoyer depuis le numéro d\'un Contact d\'urgence, ou avec votre code PIN ajouté pour qu\'elles fonctionnent depuis n\'importe quel téléphone, ex. ALARM 2026.\n\nAjoutez votre PIN à WHERE (ex. WHERE 2026) pour recevoir la réponse sur le téléphone utilisé.</string>
     <string name="cmd_location_section">COMMANDES DE LOCALISATION</string>
     <string name="cmd_device_section">INFORMATIONS APPAREIL</string>
     <string name="cmd_security_section">ACTIONS DE SECURITE</string>

@@ -49,32 +49,71 @@ object TelegramUploader {
             Log.w(TAG, "Photo not ready: ${photoFile.path}"); return
         }
         chatIds.forEach { chatId ->
-            Thread {
-                try {
-                    val boundary = "TT_${System.currentTimeMillis()}"
-                    val url = URL("$BASE/sendPhoto")
-                    val conn = url.openConnection() as HttpURLConnection
-                    conn.requestMethod = "POST"
-                    conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
-                    conn.doOutput = true
-                    conn.connectTimeout = 15_000
-                    conn.readTimeout  = 30_000
+            Thread { uploadPhotoBlocking(chatId, photoFile, caption) }.start()
+        }
+    }
 
-                    conn.outputStream.use { os ->
-                        fun part(name: String, value: String) {
-                            os.write("--$boundary\r\nContent-Disposition: form-data; name=\"$name\"\r\n\r\n$value\r\n".toByteArray())
-                        }
-                        part("chat_id", chatId)
-                        part("caption", caption)
-                        os.write("--$boundary\r\nContent-Disposition: form-data; name=\"photo\"; filename=\"intruder.jpg\"\r\nContent-Type: image/jpeg\r\n\r\n".toByteArray())
-                        photoFile.inputStream().use { it.copyTo(os) }
-                        os.write("\r\n--$boundary--\r\n".toByteArray())
-                    }
-                    val code = conn.responseCode
-                    Log.i(TAG, "sendPhoto → $chatId: HTTP $code")
-                    conn.disconnect()
-                } catch (e: Exception) { Log.e(TAG, "sendPhoto failed: ${e.message}") }
-            }.start()
+    /**
+     * v2.9.6: queue the photo upload as WorkManager jobs, one per chat id so a
+     * retry never re-sends to a chat that already got the photo. The job waits
+     * for a connected network and retries with exponential backoff, so a photo
+     * taken on a locked phone with no data still arrives once signal returns.
+     */
+    fun enqueuePhoto(context: Context, photoFile: File, caption: String) {
+        val prefs = context.getSharedPreferences("tt_prefs", Context.MODE_PRIVATE)
+        if (!prefs.getBoolean("telegram_enabled", false)) { Log.d(TAG, "Telegram disabled"); return }
+        val chatIds = getChatIds(context)
+        if (chatIds.isEmpty()) { Log.w(TAG, "No Telegram chat IDs"); return }
+        if (!photoFile.exists() || photoFile.length() == 0L) {
+            Log.w(TAG, "Photo not ready: ${photoFile.path}"); return
+        }
+        val wm = androidx.work.WorkManager.getInstance(context.applicationContext)
+        val constraints = androidx.work.Constraints.Builder()
+            .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+            .build()
+        chatIds.forEach { chatId ->
+            val req = androidx.work.OneTimeWorkRequestBuilder<TelegramPhotoWorker>()
+                .setConstraints(constraints)
+                .setBackoffCriteria(androidx.work.BackoffPolicy.EXPONENTIAL, 30, java.util.concurrent.TimeUnit.SECONDS)
+                .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_QUEUE)
+                .setInputData(androidx.work.workDataOf(
+                    TelegramPhotoWorker.KEY_PATH to photoFile.absolutePath,
+                    TelegramPhotoWorker.KEY_CHAT to chatId,
+                    TelegramPhotoWorker.KEY_CAPTION to caption))
+                .build()
+            wm.enqueueUniqueWork("tg_photo_${photoFile.name}_$chatId",
+                androidx.work.ExistingWorkPolicy.KEEP, req)
+            Log.i(TAG, "Queued photo upload for chat $chatId")
+        }
+    }
+
+    /** Blocking multipart upload. Returns the HTTP status, or -1 on a network/IO error. */
+    fun uploadPhotoBlocking(chatId: String, photoFile: File, caption: String): Int {
+        return try {
+            val boundary = "TT_${System.currentTimeMillis()}"
+            val conn = URL("$BASE/sendPhoto").openConnection() as HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
+            conn.doOutput = true
+            conn.connectTimeout = 15_000
+            conn.readTimeout  = 30_000
+            conn.outputStream.use { os ->
+                fun part(name: String, value: String) {
+                    os.write("--$boundary\r\nContent-Disposition: form-data; name=\"$name\"\r\n\r\n$value\r\n".toByteArray())
+                }
+                part("chat_id", chatId)
+                part("caption", caption)
+                os.write("--$boundary\r\nContent-Disposition: form-data; name=\"photo\"; filename=\"intruder.jpg\"\r\nContent-Type: image/jpeg\r\n\r\n".toByteArray())
+                photoFile.inputStream().use { it.copyTo(os) }
+                os.write("\r\n--$boundary--\r\n".toByteArray())
+            }
+            val code = conn.responseCode
+            Log.i(TAG, "sendPhoto → $chatId: HTTP $code")
+            conn.disconnect()
+            code
+        } catch (e: Exception) {
+            Log.e(TAG, "sendPhoto failed: ${e.message}")
+            -1
         }
     }
 

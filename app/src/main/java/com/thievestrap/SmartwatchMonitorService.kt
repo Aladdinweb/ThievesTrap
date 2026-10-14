@@ -226,8 +226,12 @@ class SmartwatchMonitorService : Service() {
 
     private fun fireEmergencySms() {
         val p      = prefs()
-        val target = p.getString("phone", "").orEmpty().trim()
-        if (target.isBlank()) { Log.w(TAG, "No emergency contact"); return }
+        // v2.9.6: Contact 1 plus Contact 2 (Premium), same rule as MonitorService.smsAll()
+        val targets = mutableListOf<String>()
+        p.getString("phone", "").orEmpty().trim().takeIf { it.isNotBlank() }?.let { targets.add(it) }
+        if (LicenseManager.isPremium(this))
+            p.getString("phone2", "").orEmpty().trim().takeIf { it.isNotBlank() }?.let { targets.add(it) }
+        if (targets.isEmpty()) { Log.w(TAG, "No emergency contact"); return }
 
         val lat  = p.getFloat("last_lat",  0f)
         val lng  = p.getFloat("last_lng",  0f)
@@ -245,8 +249,12 @@ class SmartwatchMonitorService : Service() {
                 val sm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
                     getSystemService(android.telephony.SmsManager::class.java)
                 else @Suppress("DEPRECATION") android.telephony.SmsManager.getDefault()
-                sm.sendMultipartTextMessage(target, null, sm.divideMessage(msg), null, null)
-                Log.i(TAG, "Emergency SMS sent to $target")
+                targets.forEach { target ->
+                    try {
+                        sm.sendMultipartTextMessage(target, null, sm.divideMessage(msg), null, null)
+                        Log.i(TAG, "Emergency SMS sent to $target")
+                    } catch (e: Exception) { Log.e(TAG, "SMS fail to $target: ${e.message}") }
+                }
             } catch (e: Exception) { Log.e(TAG, "SMS fail: ${e.message}") }
         }.start()
 

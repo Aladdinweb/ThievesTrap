@@ -112,9 +112,16 @@ class SurvivalTimerService : Service() {
 
     private fun sendSurvivalSMS(smsNum: Int) {
         val prefs  = getSharedPreferences("tt_prefs", MODE_PRIVATE)
-        val target = prefs.getString("survival_recipient", "").orEmpty()
-            .ifBlank { prefs.getString("phone", "").orEmpty() }.trim()
-        if (target.isBlank()) { Log.w(TAG, "No survival recipient"); return }
+        // v2.9.6: a custom recipient (Premium) is an explicit choice and goes alone;
+        // otherwise the alert goes to Contact 1 and, for Premium, Contact 2 as well.
+        val custom = prefs.getString("survival_recipient", "").orEmpty().trim()
+        val targets = mutableListOf<String>()
+        if (custom.isNotBlank()) targets.add(custom) else {
+            prefs.getString("phone", "").orEmpty().trim().takeIf { it.isNotBlank() }?.let { targets.add(it) }
+            if (LicenseManager.isPremium(this))
+                prefs.getString("phone2", "").orEmpty().trim().takeIf { it.isNotBlank() }?.let { targets.add(it) }
+        }
+        if (targets.isEmpty()) { Log.w(TAG, "No survival recipient"); return }
 
         val lat  = prefs.getFloat("last_lat", 0f)
         val lng  = prefs.getFloat("last_lng", 0f)
@@ -144,8 +151,12 @@ class SurvivalTimerService : Service() {
                 val sm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
                     getSystemService(SmsManager::class.java)
                 else @Suppress("DEPRECATION") SmsManager.getDefault()
-                sm.sendMultipartTextMessage(target, null, sm.divideMessage(msg), null, null)
-                Log.i(TAG, "Survival SMS $smsNum sent to $target")
+                targets.forEach { target ->
+                    try {
+                        sm.sendMultipartTextMessage(target, null, sm.divideMessage(msg), null, null)
+                        Log.i(TAG, "Survival SMS $smsNum sent to $target")
+                    } catch (e: Exception) { Log.e(TAG, "SMS fail to $target: ${e.message}") }
+                }
             } catch (e: Exception) { Log.e(TAG, "SMS fail: ${e.message}") }
         }.start()
     }

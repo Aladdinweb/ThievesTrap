@@ -82,13 +82,15 @@ class SelfieService : Service() {
     private fun acquireWakeLock() {
         try {
             val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+            // v2.9.6: PARTIAL_WAKE_LOCK keeps the CPU running so the Camera2
+            // session can initialise with the display OFF. It does NOT light the
+            // screen (the old FULL_WAKE_LOCK|ACQUIRE_CAUSES_WAKEUP did, which
+            // alerted a thief). 15s safety timeout; released right after capture.
             wakeLock = pm.newWakeLock(
-                PowerManager.FULL_WAKE_LOCK or
-                    PowerManager.ACQUIRE_CAUSES_WAKEUP or
-                    PowerManager.ON_AFTER_RELEASE,
+                PowerManager.PARTIAL_WAKE_LOCK,
                 "ThievesTrap:SelfieWakeLock"
             )
-            wakeLock?.acquire(30_000L)
+            wakeLock?.acquire(15_000L)
         } catch (e: Exception) {
             Log.e(TAG, "acquireWakeLock failed: ${e.message}")
         }
@@ -295,7 +297,13 @@ class SelfieService : Service() {
                 })
             }
 
-            // FIX 2026-09-04: previously called safeStop() here essentially
+            // v2.9.6: the Telegram upload is now a WorkManager job (network
+            // constraint + automatic retry), so nothing needs this service or
+            // its wake lock once the JPEG is on disk. Release the wake lock and
+            // the camera immediately, then stop after a short moment so the
+            // SELFIE_SAVED intent above is certainly handed over.
+            //
+            // (historical note) FIX 2026-09-04: previously called safeStop() here essentially
             // immediately, which released the wake lock before
             // MonitorService's async Telegram upload (a raw background
             // Thread, not tied to this service's lifecycle) had any real
@@ -306,9 +314,10 @@ class SelfieService : Service() {
             // JPEG bytes, so that's released right away; the wake lock and
             // foreground service now stay alive up to 10s longer to give
             // the upload a real window to finish.
-            Log.i(TAG, "Capture complete ($photosTaken). Releasing camera now, keeping wake lock up to 10s for upload to finish.")
+            Log.i(TAG, "Capture complete ($photosTaken). Releasing wake lock and camera; upload continues in WorkManager.")
+            releaseWakeLock()
             backgroundHandler?.post { cleanup() }
-            mainHandler.postDelayed({ if (!isStopping) safeStop() }, 10_000L)
+            mainHandler.postDelayed({ if (!isStopping) safeStop() }, 1_500L)
         } catch (e: Exception) { Log.e(TAG, "savePhoto: ${e.message}"); safeStop() }
     }
 
