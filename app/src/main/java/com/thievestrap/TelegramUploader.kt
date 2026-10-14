@@ -75,7 +75,7 @@ object TelegramUploader {
             val req = androidx.work.OneTimeWorkRequestBuilder<TelegramPhotoWorker>()
                 .setConstraints(constraints)
                 .setBackoffCriteria(androidx.work.BackoffPolicy.EXPONENTIAL, 30, java.util.concurrent.TimeUnit.SECONDS)
-                .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_QUEUE)
+                .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                 .setInputData(androidx.work.workDataOf(
                     TelegramPhotoWorker.KEY_PATH to photoFile.absolutePath,
                     TelegramPhotoWorker.KEY_CHAT to chatId,
