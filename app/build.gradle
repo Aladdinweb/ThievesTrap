@@ -9,8 +9,19 @@ android {
         applicationId "com.thievestrap"
         minSdk 26
         targetSdk 33
-        versionCode 142
-        versionName "2.9.6"
+        versionCode 143
+        versionName "2.9.7"
+
+        // v2.9.7: Telegram bot token comes from the GitHub Secret
+        // TELEGRAM_BOT_TOKEN, passed in by build.yml/release.yml as a Gradle
+        // project property (-PtelegramBotToken=...). Never read System.getenv
+        // directly here, since a local `./gradlew` run without that env var
+        // would otherwise silently embed the literal string "null".
+        buildConfigField "String", "TELEGRAM_BOT_TOKEN",
+            "\"${project.findProperty('telegramBotToken') ?: ''}\""
+    }
+    buildFeatures {
+        buildConfig true
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->

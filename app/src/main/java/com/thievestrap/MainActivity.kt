@@ -274,6 +274,13 @@ class MainActivity : AppCompatActivity() {
                     showUpgradeDialog("Theft Mode"); return@setOnClickListener
                 }
                 val on = prefs.getBoolean("theft_mode", false)
+                // v2.9.7: Full Theft Protection takes intruder selfies on a failed
+                // unlock attempt, which only means something if unlocking actually
+                // requires a PIN/pattern/biometric. Require a secure lock screen
+                // before turning it ON (not needed to turn it off).
+                if (!on && !deviceHasSecureLockScreen()) {
+                    promptSetSecureLockScreen(); return@setOnClickListener
+                }
                 if (on) prefs.edit().putBoolean("location_ping", false).apply()
                 // v2.8.1: commit new state BEFORE starting service so
                 // updateStatus() sees it immediately without a round-trip
@@ -689,6 +696,31 @@ class MainActivity : AppCompatActivity() {
      * user once per ARM (max 3 times total) to exempt the app. Never nags once
      * the exemption is granted.
      */
+    /** True if the device has a PIN, pattern, password, or biometric lock set up. */
+    private fun deviceHasSecureLockScreen(): Boolean {
+        val km = getSystemService(KEYGUARD_SERVICE) as? android.app.KeyguardManager ?: return false
+        return km.isDeviceSecure
+    }
+
+    private fun promptSetSecureLockScreen() {
+        AlertDialog.Builder(this)
+            .setTitle("Secure lock screen required")
+            .setMessage("Full Theft Protection captures a photo of whoever fails to " +
+                "unlock this phone. That only works if unlocking actually requires a " +
+                "PIN, pattern, password, or biometric.\n\nSet one up, then turn Full " +
+                "Theft Protection on again.")
+            .setPositiveButton("Open Lock Screen Settings") { _, _ ->
+                try {
+                    startActivity(Intent(android.provider.Settings.ACTION_SECURITY_SETTINGS))
+                } catch (e: Exception) {
+                    try { startActivity(Intent(android.provider.Settings.ACTION_SETTINGS)) }
+                    catch (e2: Exception) { /* no settings screen available */ }
+                }
+            }
+            .setNegativeButton("Later", null)
+            .show()
+    }
+
     private fun promptBatteryOptimizationExemption() {
         try {
             val pm = getSystemService(android.os.PowerManager::class.java) ?: return

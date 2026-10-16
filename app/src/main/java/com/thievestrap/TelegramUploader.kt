@@ -10,7 +10,10 @@ import java.net.URL
 
 object TelegramUploader {
     private const val TAG = "TT-Telegram"
-    const val BOT_TOKEN = "8582138133:AAH3YlVpUR1WARnVV08fQJYFA2-vQghWsS4"
+    // v2.9.7: token now comes from BuildConfig, injected at build time from the
+    // GitHub Secret TELEGRAM_BOT_TOKEN (see build.gradle + build.yml). Never a
+    // literal in source again; the repo is public.
+    const val BOT_TOKEN = BuildConfig.TELEGRAM_BOT_TOKEN
     private const val BASE = "https://api.telegram.org/bot$BOT_TOKEN"
 
     /** Send text message to all configured chat IDs */
