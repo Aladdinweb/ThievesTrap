@@ -251,7 +251,9 @@ class SmartwatchMonitorService : Service() {
                 else @Suppress("DEPRECATION") android.telephony.SmsManager.getDefault()
                 targets.forEach { target ->
                     try {
-                        sm.sendMultipartTextMessage(target, null, sm.divideMessage(msg), null, null)
+                        SmsWake.withWakeLock(this) {
+                            sm.sendMultipartTextMessage(target, null, sm.divideMessage(msg), null, null)
+                        }
                         Log.i(TAG, "Emergency SMS sent to $target")
                     } catch (e: Exception) { Log.e(TAG, "SMS fail to $target: ${e.message}") }
                 }

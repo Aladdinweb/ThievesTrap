@@ -362,7 +362,7 @@ class MonitorService : Service() {
             val isKnownCmd = knownCommands.any {
                 body == it || body.startsWith("$it ") ||
                 body.startsWith("DISARM ") || body.startsWith("PING ")
-            }
+            } || body == "SELFIE ON" || body == "SELFIE OFF"
             if (!isKnownCmd) { logCmd(body, sender, "ignored: not a command"); continue }
             if (!passesCooldown(senderDigits, body)) { logCmd(body, sender, "dropped: same command repeated within 3s"); continue }
 
@@ -435,6 +435,8 @@ class MonitorService : Service() {
         // could START the alarm with a PIN but never stop it.
         if (parts.size == 3 && parts[0] == "STOP" && parts[1] == "ALARM" && parts[2].isNotBlank())
             return "STOP ALARM" to parts[2]
+        if (parts.size == 3 && parts[0] == "SELFIE" && (parts[1] == "ON" || parts[1] == "OFF") && parts[2].isNotBlank())
+            return "SELFIE ${parts[1]}" to parts[2]
         if (parts.size != 2) return null
         val cmd = parts[0]; val pin = parts[1]
         val planBCommands = setOf(
@@ -442,6 +444,8 @@ class MonitorService : Service() {
             "SELFIE","PHOTO","PICTURE","INFO","DEVICE",
             "STATUS","BATTERY","BAT","SIM","IMEI","LOCK","SILENCE"
         )
+        // "SELFIE ON <PIN>" / "SELFIE OFF <PIN>" are 3 words; handled the
+        // same way "STOP ALARM <PIN>" already is, just above this guard.
         if (cmd !in planBCommands || pin.isBlank()) return null
         return cmd to pin
     }
@@ -459,9 +463,12 @@ class MonitorService : Service() {
                 sms(sender, "\uD83D\uDEA8 ${s("app_name")}: ${s("sms_alarm_on")} (Plan B)")
             }
             "SELFIE","PHOTO","PICTURE" -> {
+                armSelfieTrap(true)
                 SelfieService.takePhoto(this, 1)
-                sms(sender, "\uD83D\uDCF8 ${s("app_name")}: Taking 1 selfie now (Plan B).")
+                sms(sender, "\uD83D\uDCF8 ${s("app_name")}: Taking 1 selfie now, motion trap armed (Plan B).")
             }
+            "SELFIE ON" -> { armSelfieTrap(true); sms(sender, "${s("app_name")}: ${s("sms_selfie_trap_on")} (Plan B)") }
+            "SELFIE OFF" -> { armSelfieTrap(false); sms(sender, "${s("app_name")}: ${s("sms_selfie_trap_off")} (Plan B)") }
             "INFO","DEVICE"  -> sms(sender, buildFullInfo("\uD83D\uDCF1", s("sms_info")))
             "BATTERY","BAT"  -> sms(sender,
                 "${s("app_name")}\n${s("sms_battery")}: ${bat()}%\n${chargingStr()}\n${ts()}")
@@ -491,7 +498,7 @@ class MonitorService : Service() {
             override fun onReceive(ctx: Context, intent: Intent) {
                 when (intent.action) {
                     Intent.ACTION_USER_PRESENT -> onUnlock()
-                    Intent.ACTION_SCREEN_ON    -> screenOnCount++
+                    Intent.ACTION_SCREEN_ON    -> { screenOnCount++; onScreenOnForSelfieTrap() }
                 }
             }
         }
@@ -520,6 +527,39 @@ class MonitorService : Service() {
     }
 
     // ── SIM Trap (retained from v2.7.8) ──────────────────────────
+
+    // v2.9.7.1: SELFIE ON/OFF trap. Triggers on the public SCREEN_ON broadcast
+    // (not covert touch/key interception -- see handleCommand). Rate-limited
+    // and capped per session so it cannot drain battery or storage.
+    private fun armSelfieTrap(on: Boolean) {
+        prefs().edit()
+            .putBoolean("selfie_trap_on", on)
+            .putInt("selfie_trap_count", 0)
+            .putLong("selfie_trap_last_ms", 0L)
+            .apply()
+        Log.i(TAG, "Selfie trap armed=$on")
+    }
+
+    private fun onScreenOnForSelfieTrap() {
+        if (!prefs().getBoolean("selfie_trap_on", false)) return
+        if (!prefs().getBoolean("running", false)) return
+        val now = System.currentTimeMillis()
+        val last = prefs().getLong("selfie_trap_last_ms", 0L)
+        if (now - last < SELFIE_TRAP_COOLDOWN_MS) return
+        val count = prefs().getInt("selfie_trap_count", 0)
+        if (count >= SELFIE_TRAP_MAX_SHOTS) {
+            Log.i(TAG, "Selfie trap: session cap ($SELFIE_TRAP_MAX_SHOTS) reached, auto-disarming")
+            prefs().edit().putBoolean("selfie_trap_on", false).apply()
+            smsAll("${s("app_name")}: Motion trap finished ($SELFIE_TRAP_MAX_SHOTS photos captured). Send SELFIE ON to re-arm.")
+            return
+        }
+        prefs().edit()
+            .putLong("selfie_trap_last_ms", now)
+            .putInt("selfie_trap_count", count + 1)
+            .apply()
+        Log.i(TAG, "Selfie trap: capturing (${count + 1}/$SELFIE_TRAP_MAX_SHOTS)")
+        SelfieService.takePhoto(this, 1)
+    }
 
     private fun onUnlock() {
         screenOnCount = 0
@@ -804,8 +844,20 @@ class MonitorService : Service() {
                     else locationHistory.forEachIndexed { i, loc -> appendLine("${i+1}. $loc") }
                 })
             cmd == "SELFIE" || cmd == "PHOTO" || cmd == "PICTURE" -> {
+                armSelfieTrap(true)
                 SelfieService.takePhoto(this, 1)
-                reply(sender, "\uD83D\uDCF8 ${s("app_name")}: Taking 1 selfie now. The photo arrives on Telegram when ready (also saved in Gallery).")
+                reply(sender, "\uD83D\uDCF8 ${s("app_name")}: Taking 1 selfie now, motion trap armed (captures again each time the screen turns on, up to $SELFIE_TRAP_MAX_SHOTS photos). The photos arrive on Telegram when ready. Send SELFIE OFF to stop.")
+                logCmd(cmd, sender, "trap armed")
+            }
+            cmd == "SELFIE ON" -> {
+                armSelfieTrap(true)
+                reply(sender, "${s("app_name")}: ${s("sms_selfie_trap_on")}")
+                logCmd(cmd, sender, "trap armed")
+            }
+            cmd == "SELFIE OFF" -> {
+                armSelfieTrap(false)
+                reply(sender, "${s("app_name")}: ${s("sms_selfie_trap_off")}")
+                logCmd(cmd, sender, "trap disarmed")
             }
             cmd == "ALARM" || cmd == "RING" -> {
                 ContextCompat.startForegroundService(this,
@@ -1007,10 +1059,12 @@ class MonitorService : Service() {
 
     private fun sms(to: String, msg: String) {
         try {
-            val sm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
-                getSystemService(SmsManager::class.java)
-            else @Suppress("DEPRECATION") SmsManager.getDefault()
-            sm.sendMultipartTextMessage(to, null, sm.divideMessage(msg), null, null)
+            SmsWake.withWakeLock(this) {
+                val sm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+                    getSystemService(SmsManager::class.java)
+                else @Suppress("DEPRECATION") SmsManager.getDefault()
+                sm.sendMultipartTextMessage(to, null, sm.divideMessage(msg), null, null)
+            }
             Log.i(TAG, "SMS \u2192 $to")
         } catch (e: Exception) { Log.e(TAG, "SMS failed: ${e.message}") }
     }
@@ -1055,5 +1109,11 @@ class MonitorService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
             getSystemService(NotificationManager::class.java).createNotificationChannel(
                 NotificationChannel(CHANNEL_ID, s("app_name"), NotificationManager.IMPORTANCE_LOW))
+    }
+
+    companion object {
+        // v2.9.7.1 selfie trap: at most 1 capture per 30s, 8 per armed session.
+        private const val SELFIE_TRAP_COOLDOWN_MS = 30_000L
+        private const val SELFIE_TRAP_MAX_SHOTS = 8
     }
 }

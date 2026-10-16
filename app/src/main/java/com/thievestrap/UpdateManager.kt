@@ -45,6 +45,29 @@ object UpdateManager {
 
     // ── Manual check (sidebar button) ────────────────────────────────────────
 
+    /**
+     * v2.9.7.1: called from MainActivity.onResume(). Runs on IO, posts back to
+     * the UI thread, and shows the update dialog immediately if a newer
+     * version exists -- no progress spinner, no "up to date" toast, since this
+     * is unattended. At most once per process lifetime (see MainActivity) so
+     * navigating between screens doesn't re-check or re-prompt repeatedly.
+     */
+    fun checkForUpdateAutoPopup(context: Context) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val result = fetchVersionJson() ?: return@launch
+                val (remoteCode, remoteName, downloadUrl) = result
+                Log.i(TAG, "[AUTO] local=${BuildConfig.VERSION_CODE} remote=$remoteCode")
+                if (remoteCode > BuildConfig.VERSION_CODE) {
+                    withContext(Dispatchers.Main) {
+                        if (context is android.app.Activity && !context.isFinishing)
+                            showUpdateDialog(context, remoteName, downloadUrl)
+                    }
+                }
+            } catch (e: Exception) { Log.e(TAG, "auto check: ${e.message}") }
+        }
+    }
+
     fun checkForUpdate(context: Context) {
         val dlg = buildProgressDialog(context, context.getString(R.string.update_checking))
         dlg.show()

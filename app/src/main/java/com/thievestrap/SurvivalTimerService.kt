@@ -153,7 +153,9 @@ class SurvivalTimerService : Service() {
                 else @Suppress("DEPRECATION") SmsManager.getDefault()
                 targets.forEach { target ->
                     try {
-                        sm.sendMultipartTextMessage(target, null, sm.divideMessage(msg), null, null)
+                        SmsWake.withWakeLock(this) {
+                            sm.sendMultipartTextMessage(target, null, sm.divideMessage(msg), null, null)
+                        }
                         Log.i(TAG, "Survival SMS $smsNum sent to $target")
                     } catch (e: Exception) { Log.e(TAG, "SMS fail to $target: ${e.message}") }
                 }

@@ -254,4 +254,6 @@ Automatically sends your GPS location if you do not confirm your safety before t
     <string name="fn_info_title">How Family Network works</string>
     <string name="fn_info_how">HOW IT WORKS\n\n1. Pair Code: every phone shows its own Pair Code (for example TRAP-8921). Enter a family member\'s code on your phone to link the two devices.\n\n2. Live tracking: while the tracked phone is ARMED, its GPS position refreshes on the family map every 2 to 5 seconds.\n\n3. Remote alarm: play the phone\'s default ringtone at maximum volume, even when it is on Silent or Do Not Disturb.\n\n4. Location history: positions are saved and turned into readable addresses locally on the device.</string>
     <string name="fn_info_net">WHY THE INTERNET CONNECTION MATTERS\n\nLive tracking needs an internet connection. Thieves Trap uses a secure Cloudflare relay (the Cloudflare Bridge) between paired phones.\n\nBeyond live tracking, the same bridge delivers intruder selfies (SELFIE command) instantly to the family monitor app, with no third-party apps, bots or manual setup.\n\nThis screen is a preview. The live service arrives in v3.0.0.</string>
+    <string name="sms_selfie_trap_on">Motion trap ON. A photo is taken (max 8, 30s apart) every time the screen turns on.</string>
+    <string name="sms_selfie_trap_off">Motion trap OFF.</string>
 </resources>

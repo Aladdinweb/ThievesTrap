@@ -59,9 +59,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     private var settingsRefreshReceiver: BroadcastReceiver? = null
+    private var autoUpdateCheckDone = false
 
     override fun onResume() {
         super.onResume()
+        // v2.9.7.1: silent, automatic check -- once per process lifetime, not
+        // on every onResume (switching screens and coming back would otherwise
+        // re-prompt). UpdateManager shows the dialog itself only if newer.
+        if (!autoUpdateCheckDone) {
+            autoUpdateCheckDone = true
+            try { UpdateManager.checkForUpdateAutoPopup(this) } catch (e: Exception) {}
+        }
         try {
             val sw = findViewById<Switch>(R.id.sw_survival_timer)
             val on = prefs.getBoolean("survival_timer_on", false)
@@ -688,6 +696,58 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, s("armed"), Toast.LENGTH_SHORT).show()
         updateStatus()
         promptBatteryOptimizationExemption()
+        promptXosAutoStart()
+    }
+
+    /**
+     * v2.9.7.1: on Transsion-family OEM skins (Infinix XOS, Tecno HiOS, itel)
+     * aggressive background-kill policies are a known cause of SMS replies
+     * and alerts silently failing even with battery optimization off, because
+     * these add a separate "Auto-Start" permission on top of it. Shown once;
+     * tries a few known Settings screens for this OEM family and falls back
+     * to plain instructions + the app's own battery screen.
+     */
+    private fun promptXosAutoStart() {
+        val manufacturer = Build.MANUFACTURER.lowercase()
+        val isXos = manufacturer in setOf("infinix", "tecno", "itel", "transsion")
+        if (!isXos) return
+        if (prefs.getBoolean("xos_autostart_shown", false)) return
+        prefs.edit().putBoolean("xos_autostart_shown", true).apply()
+
+        AlertDialog.Builder(this)
+            .setTitle("One more step for this phone")
+            .setMessage("${Build.MANUFACTURER} phones have an extra \"Auto-Start\" " +
+                "permission on top of battery settings. Without it, Android can still " +
+                "kill Thieves Trap in the background and SMS commands may stop working.\n\n" +
+                "Open Settings → Apps → Thieves Trap → Auto-Start (or App Launch) and " +
+                "turn it ON, alongside \"Allow background activity\".")
+            .setPositiveButton("Open Settings") { _, _ -> openXosAutoStartSettings() }
+            .setNegativeButton("Later", null)
+            .show()
+    }
+
+    private fun openXosAutoStartSettings() {
+        // Known component names vary by firmware version and are not
+        // guaranteed; try a short list, then fall back to this app's own
+        // App Info screen so the user can navigate manually either way.
+        val candidates = listOf(
+            "com.transsion.phonemanager" to "com.transsion.phonemanager.activity.startupmanager.StartupManagerActivity",
+            "com.transsion.phonemanager" to "com.itel.autobootmanager.activity.AutoStartActivity",
+            "com.transsion.XOSLauncher" to "com.transsion.XOSLauncher.settings.AutoStartActivity"
+        )
+        for ((pkg, cls) in candidates) {
+            try {
+                startActivity(Intent().apply {
+                    component = ComponentName(pkg, cls)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                })
+                return
+            } catch (e: Exception) { /* try the next candidate */ }
+        }
+        try {
+            startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                android.net.Uri.parse("package:$packageName")))
+        } catch (e: Exception) { /* no settings screen available */ }
     }
 
     /**
