@@ -383,19 +383,20 @@ class MonitorService : Service() {
         return true
     }
 
-    /** Last 15 remote-command outcomes, shown by the STATUS reply so a failure is never silent. */
+    /**
+     * v2.9.8: logs every incoming SMS command -- accepted or dropped -- to
+     * the shared ActivityLog, so the on-screen Activity Log and the STATUS
+     * reply both see it (previously this wrote to its own "cmd_log" pref that
+     * only the STATUS reply ever read; ARM/DISARM and most command outcomes
+     * never reached the screen).
+     */
     private fun logCmd(cmd: String, sender: String, outcome: String) {
         Log.i(TAG, "CMD '$cmd' from $sender -> $outcome")
-        try {
-            val t = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(java.util.Date())
-            val tail = sender.filter { it.isDigit() }.takeLast(4)
-            val line = "$t ${cmd.take(12)} (..$tail) $outcome"
-            val old = prefs().getString("cmd_log", "").orEmpty().split("\n").filter { it.isNotBlank() }
-            prefs().edit().putString("cmd_log", (old + line).takeLast(15).joinToString("\n")).apply()
-        } catch (e: Exception) { /* diagnostics must never break command handling */ }
+        val tail = sender.filter { it.isDigit() }.takeLast(4)
+        ActivityLog.append(this, "${cmd.take(16)} (..$tail): $outcome")
     }
 
-    /** Armed / Premium / Device Admin state plus the last remote-command outcomes. Only sent to a registered sender or a valid Plan B PIN. */
+    /** Armed / Premium / Device Admin state plus the last remote-command and security-event outcomes. Only sent to a registered sender or a valid Plan B PIN. */
     private fun buildStatusText(isRegisteredSender: Boolean): String {
         val adminOk = try {
             (getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager)
@@ -403,8 +404,8 @@ class MonitorService : Service() {
         } catch (e: Exception) { false }
         val sb = StringBuilder("${s("app_name")}: Armed=${prefs().getBoolean("running", false)}" +
             " | Premium=${LicenseManager.isPremium(this)} | Admin=$adminOk")
-        val log = prefs().getString("cmd_log", "").orEmpty()
-        if (log.isNotBlank()) sb.append("\nRecent commands:\n").append(log.split("\n").takeLast(6).joinToString("\n"))
+        val log = ActivityLog.recent(this, 6)
+        if (log.isNotEmpty()) sb.append("\nRecent:\n").append(log.joinToString("\n"))
         return sb.toString()
     }
 
@@ -462,11 +463,11 @@ class MonitorService : Service() {
                     Intent(this, AlarmService::class.java).apply { action = "START_ALARM" })
                 sms(sender, "\uD83D\uDEA8 ${s("app_name")}: ${s("sms_alarm_on")} (Plan B)")
             }
-            "SELFIE","PHOTO","PICTURE" -> {
-                armSelfieTrap(true)
-                SelfieService.takePhoto(this, 1)
-                sms(sender, "\uD83D\uDCF8 ${s("app_name")}: Taking 1 selfie now, motion trap armed (Plan B).")
-            }
+            // v2.9.8: bare SELFIE/PHOTO/PICTURE no longer captures or arms
+            // anything by itself -- only an explicit SELFIE ON does. This
+            // avoids an accidental capture/arm from a mistyped command.
+            "SELFIE","PHOTO","PICTURE" ->
+                sms(sender, "${s("app_name")}: ${s("sms_selfie_howto")} (Plan B)")
             "SELFIE ON" -> { armSelfieTrap(true); sms(sender, "${s("app_name")}: ${s("sms_selfie_trap_on")} (Plan B)") }
             "SELFIE OFF" -> { armSelfieTrap(false); sms(sender, "${s("app_name")}: ${s("sms_selfie_trap_off")} (Plan B)") }
             "INFO","DEVICE"  -> sms(sender, buildFullInfo("\uD83D\uDCF1", s("sms_info")))
@@ -844,10 +845,8 @@ class MonitorService : Service() {
                     else locationHistory.forEachIndexed { i, loc -> appendLine("${i+1}. $loc") }
                 })
             cmd == "SELFIE" || cmd == "PHOTO" || cmd == "PICTURE" -> {
-                armSelfieTrap(true)
-                SelfieService.takePhoto(this, 1)
-                reply(sender, "\uD83D\uDCF8 ${s("app_name")}: Taking 1 selfie now, motion trap armed (captures again each time the screen turns on, up to $SELFIE_TRAP_MAX_SHOTS photos). The photos arrive on Telegram when ready. Send SELFIE OFF to stop.")
-                logCmd(cmd, sender, "trap armed")
+                reply(sender, "${s("app_name")}: ${s("sms_selfie_howto")}")
+                logCmd(cmd, sender, "howto shown, no action taken")
             }
             cmd == "SELFIE ON" -> {
                 armSelfieTrap(true)
@@ -1030,9 +1029,9 @@ class MonitorService : Service() {
     }
 
     private fun recordAlert(title: String) {
-        val p = prefs(); val count = p.getInt("total_alerts", 0) + 1
-        val time = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date())
-        p.edit().putInt("total_alerts", count).putString("last_alert", "$time \u2014 $title").apply()
+        val count = prefs().getInt("total_alerts", 0) + 1
+        prefs().edit().putInt("total_alerts", count).apply()
+        ActivityLog.append(this, title) // also sets last_alert, kept for compatibility
     }
 
     private fun saveSimInfo() {

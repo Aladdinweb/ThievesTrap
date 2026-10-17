@@ -296,6 +296,7 @@ class MainActivity : AppCompatActivity() {
                 startService(Intent(this, MonitorService::class.java).apply {
                     action = if (!on) "THEFT_ON" else "THEFT_OFF"
                 })
+                ActivityLog.append(this, if (!on) "Full Theft Protection turned ON" else "Full Theft Protection turned OFF")
                 updateStatus()
                 invalidateOptionsMenu()
             }
@@ -694,6 +695,7 @@ class MainActivity : AppCompatActivity() {
         ContextCompat.startForegroundService(this,
             Intent(this, MonitorService::class.java).apply { action = "START" })
         Toast.makeText(this, s("armed"), Toast.LENGTH_SHORT).show()
+        ActivityLog.append(this, "ARMED")
         updateStatus()
         promptBatteryOptimizationExemption()
         promptXosAutoStart()
@@ -814,6 +816,7 @@ class MainActivity : AppCompatActivity() {
         stopService(Intent(this, MonitorService::class.java))
         prefs.edit().putBoolean("running", false).putBoolean("theft_mode", false).apply()
         Toast.makeText(this, s("disarmed"), Toast.LENGTH_SHORT).show()
+        ActivityLog.append(this, "DISARMED")
         updateStatus()
     }
 
@@ -835,6 +838,7 @@ class MainActivity : AppCompatActivity() {
         val adminActive = dpm.isAdminActive(adminComponent)
         val armTime     = prefs.getLong("arm_time", 0)
         val lastAlert   = prefs.getString("last_alert", null)
+        val recentLog   = ActivityLog.recent(this, 4)
 
         try {
             val shieldView = findViewById<android.widget.ImageView>(R.id.iv_shield_main)
@@ -878,10 +882,13 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {}
 
         try {
+            // v2.9.8: show the last few activity-log entries (ARM/DISARM,
+            // commands, security events), not just a single last-alert line.
             findViewById<TextView>(R.id.tv_activity_log).text = when {
+                recentLog.isNotEmpty() -> recentLog.joinToString("\n")
                 !running -> "System idle — tap ARM to protect this phone"
-                theft    -> "Full protection active\n${lastAlert ?: "Monitoring all events"}"
-                else     -> "Normal mode — ${lastAlert ?: "Monitoring password attempts"}"
+                theft    -> "Full protection active\nMonitoring all events"
+                else     -> "Normal mode — Monitoring password attempts"
             }
         } catch (e: Exception) {}
 

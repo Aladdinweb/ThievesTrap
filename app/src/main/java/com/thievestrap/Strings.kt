@@ -203,6 +203,9 @@ object Strings {
         // Settings
         "settings_title" to "Settings",
         "back_btn" to "Back",
+        "sms_selfie_howto" to "SELFIE on its own does nothing now. Send SELFIE ON to arm the motion trap (a photo each time the screen turns on, max 8, 30s apart), SELFIE OFF to disarm.",
+        "sms_selfie_trap_on" to "Motion trap ON. A photo is taken (max 8, 30s apart) every time the screen turns on.",
+        "sms_selfie_trap_off" to "Motion trap OFF.",
         "save_btn" to "Save",
         "telegram_section" to "TELEGRAM ALERTS",
         "how_to_get_id" to "How to get your Chat ID:",
@@ -450,6 +453,9 @@ object Strings {
         // Settings
         "settings_title" to "Paramètres",
         "back_btn" to "Retour",
+        "sms_selfie_howto" to "SELFIE seul ne fait plus rien. Envoyez SELFIE ON pour armer le piege photo (une photo a chaque allumage de l'ecran, 8 max, 30s d'ecart), SELFIE OFF pour le desarmer.",
+        "sms_selfie_trap_on" to "Piege photo ACTIVE. Une photo est prise (8 max, 30s d'ecart) a chaque allumage de l'ecran.",
+        "sms_selfie_trap_off" to "Piege photo DESACTIVE.",
         "save_btn" to "Enregistrer",
         "telegram_section" to "ALERTES TELEGRAM",
         "how_to_get_id" to "Comment obtenir votre Chat ID :",
@@ -697,6 +703,9 @@ object Strings {
         // Settings
         "settings_title" to "الإعدادات",
         "back_btn" to "رجوع",
+        "sms_selfie_howto" to "أمر SELFIE وحده لا يفعل شيئاً الآن. أرسل SELFIE ON لتفعيل فخ الحركة (صورة عند كل تشغيل للشاشة، 8 كحد أقصى، كل 30 ثانية)، وSELFIE OFF لإيقافه.",
+        "sms_selfie_trap_on" to "تم تفعيل فخ الحركة. تُلتقط صورة (8 كحد أقصى، كل 30 ثانية) عند كل تشغيل للشاشة.",
+        "sms_selfie_trap_off" to "تم إيقاف فخ الحركة.",
         "save_btn" to "حفظ",
         "telegram_section" to "تنبيهات تيليغرام",
         "how_to_get_id" to "كيفية الحصول على Chat ID:",
