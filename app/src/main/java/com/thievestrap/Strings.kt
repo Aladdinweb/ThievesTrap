@@ -206,6 +206,21 @@ object Strings {
         "sms_selfie_howto" to "SELFIE on its own does nothing now. Send SELFIE ON to arm the motion trap (a photo each time the screen turns on, max 8, 30s apart), SELFIE OFF to disarm.",
         "sms_selfie_trap_on" to "Motion trap ON. A photo is taken (max 8, 30s apart) every time the screen turns on.",
         "sms_selfie_trap_off" to "Motion trap OFF.",
+        "oem_title" to "One more step for this phone",
+        "open_settings" to "Open Settings",
+        "later" to "Later",
+        "oem_msg_transsion" to "Infinix/Tecno/itel phones have an extra \"Auto-Start\" permission on top of battery settings. Without it, Android can still kill Thieves Trap in the background and SMS commands may stop working.
+
+Open Settings -> Apps -> Thieves Trap -> Auto-Start (or App Launch) and turn it ON, alongside \"Allow background activity\".",
+        "oem_msg_miui" to "MIUI/HyperOS phones have an extra \"Autostart\" permission, separate from battery settings. Without it, Android can still kill Thieves Trap in the background and SMS commands may stop working.
+
+Turn Autostart ON for Thieves Trap, then set its Battery Saver to \"No restrictions\" in Battery & performance.",
+        "oem_msg_coloros" to "ColorOS phones (Oppo/Realme) have a Startup Manager and a background \"deep freeze\" that can both stop Thieves Trap running. Without allowing both, SMS commands may stop working.
+
+Allow Thieves Trap in Startup Manager, then make sure it is not frozen in the background in battery settings.",
+        "oem_msg_emui" to "EMUI/MagicUI phones (Huawei/Honor) have a separate App Launch permission on top of battery settings. Without it, Android can still kill Thieves Trap in the background and SMS commands may stop working.
+
+Set App Launch for Thieves Trap to Manage manually, and turn ON Auto-launch, Secondary launch, and Run in background.",
         "save_btn" to "Save",
         "telegram_section" to "TELEGRAM ALERTS",
         "how_to_get_id" to "How to get your Chat ID:",
@@ -456,6 +471,21 @@ object Strings {
         "sms_selfie_howto" to "SELFIE seul ne fait plus rien. Envoyez SELFIE ON pour armer le piege photo (une photo a chaque allumage de l'ecran, 8 max, 30s d'ecart), SELFIE OFF pour le desarmer.",
         "sms_selfie_trap_on" to "Piege photo ACTIVE. Une photo est prise (8 max, 30s d'ecart) a chaque allumage de l'ecran.",
         "sms_selfie_trap_off" to "Piege photo DESACTIVE.",
+        "oem_title" to "Une derniere etape pour ce telephone",
+        "open_settings" to "Ouvrir les parametres",
+        "later" to "Plus tard",
+        "oem_msg_transsion" to "Les telephones Infinix/Tecno/itel ont une permission \"Demarrage auto\" en plus des parametres de batterie. Sans elle, Android peut quand meme arreter Thieves Trap en arriere-plan et les commandes SMS peuvent cesser de fonctionner.
+
+Ouvrez Parametres -> Applications -> Thieves Trap -> Demarrage auto (ou Lancement d'application) et activez-le, avec \"Autoriser l'activite en arriere-plan\".",
+        "oem_msg_miui" to "Les telephones MIUI/HyperOS ont une permission \"Demarrage automatique\" separee des parametres de batterie. Sans elle, Android peut quand meme arreter Thieves Trap en arriere-plan et les commandes SMS peuvent cesser de fonctionner.
+
+Activez le demarrage automatique pour Thieves Trap, puis reglez son economiseur de batterie sur \"Aucune restriction\".",
+        "oem_msg_coloros" to "Les telephones ColorOS (Oppo/Realme) ont un gestionnaire de demarrage et un \"gel\" en arriere-plan qui peuvent tous deux arreter Thieves Trap. Sans autoriser les deux, les commandes SMS peuvent cesser de fonctionner.
+
+Autorisez Thieves Trap dans le gestionnaire de demarrage, puis verifiez qu'il n'est pas gele en arriere-plan dans les parametres de batterie.",
+        "oem_msg_emui" to "Les telephones EMUI/MagicUI (Huawei/Honor) ont une permission de lancement d'application separee des parametres de batterie. Sans elle, Android peut quand meme arreter Thieves Trap en arriere-plan et les commandes SMS peuvent cesser de fonctionner.
+
+Reglez le lancement de Thieves Trap sur Geree manuellement, et activez Lancement auto, Lancement secondaire et Executer en arriere-plan.",
         "save_btn" to "Enregistrer",
         "telegram_section" to "ALERTES TELEGRAM",
         "how_to_get_id" to "Comment obtenir votre Chat ID :",
@@ -706,6 +736,21 @@ object Strings {
         "sms_selfie_howto" to "أمر SELFIE وحده لا يفعل شيئاً الآن. أرسل SELFIE ON لتفعيل فخ الحركة (صورة عند كل تشغيل للشاشة، 8 كحد أقصى، كل 30 ثانية)، وSELFIE OFF لإيقافه.",
         "sms_selfie_trap_on" to "تم تفعيل فخ الحركة. تُلتقط صورة (8 كحد أقصى، كل 30 ثانية) عند كل تشغيل للشاشة.",
         "sms_selfie_trap_off" to "تم إيقاف فخ الحركة.",
+        "oem_title" to "خطوة أخيرة لهذا الهاتف",
+        "open_settings" to "فتح الإعدادات",
+        "later" to "لاحقاً",
+        "oem_msg_transsion" to "هواتف Infinix/Tecno/itel لديها صلاحية \"بدء تلقائي\" إضافية بجانب إعدادات البطارية. بدونها قد يوقف النظام تطبيق Thieves Trap في الخلفية وتتوقف أوامر الرسائل عن العمل.
+
+افتح الإعدادات ← التطبيقات ← Thieves Trap ← البدء التلقائي (أو تشغيل التطبيق) وفعّله، مع \"السماح بالنشاط في الخلفية\".",
+        "oem_msg_miui" to "هواتف MIUI/HyperOS لديها صلاحية \"بدء تلقائي\" منفصلة عن إعدادات البطارية. بدونها قد يوقف النظام تطبيق Thieves Trap في الخلفية وتتوقف أوامر الرسائل عن العمل.
+
+فعّل البدء التلقائي لتطبيق Thieves Trap، ثم اضبط موفر البطارية الخاص به على \"بلا قيود\".",
+        "oem_msg_coloros" to "هواتف ColorOS (Oppo/Realme) لديها مدير بدء تشغيل وتجميد خلفي قد يوقفان تطبيق Thieves Trap. بدون السماح بكليهما قد تتوقف أوامر الرسائل عن العمل.
+
+اسمح لتطبيق Thieves Trap في مدير بدء التشغيل، وتأكد من أنه غير مجمّد في إعدادات البطارية.",
+        "oem_msg_emui" to "هواتف EMUI/MagicUI (Huawei/Honor) لديها صلاحية تشغيل تطبيق منفصلة عن إعدادات البطارية. بدونها قد يوقف النظام تطبيق Thieves Trap في الخلفية وتتوقف أوامر الرسائل عن العمل.
+
+اضبط تشغيل Thieves Trap على الإدارة اليدوية، وفعّل التشغيل التلقائي والتشغيل الثانوي والعمل في الخلفية.",
         "save_btn" to "حفظ",
         "telegram_section" to "تنبيهات تيليغرام",
         "how_to_get_id" to "كيفية الحصول على Chat ID:",

@@ -26,6 +26,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var dpm: DevicePolicyManager
     private lateinit var adminComponent: ComponentName
     private var mediaPlayer: MediaPlayer? = null
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private lateinit var drawerLayout: DrawerLayout
 
     private val permLauncher = registerForActivityResult(
@@ -702,47 +703,46 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * v2.9.7.1: on Transsion-family OEM skins (Infinix XOS, Tecno HiOS, itel)
-     * aggressive background-kill policies are a known cause of SMS replies
-     * and alerts silently failing even with battery optimization off, because
-     * these add a separate "Auto-Start" permission on top of it. Shown once;
-     * tries a few known Settings screens for this OEM family and falls back
-     * to plain instructions + the app's own battery screen.
+     * v2.9.7.1 → v2.9.9: strict OEM skins add their own background-kill layer
+     * on top of stock battery optimization, and a surprising number of
+     * reported "SMS commands stopped working" cases trace back to this, not
+     * to anything in the app. Covers Transsion (Infinix/Tecno/itel), MIUI/
+     * HyperOS (Xiaomi/POCO/Redmi), ColorOS (Oppo/Realme), and EMUI/MagicUI
+     * (Huawei/Honor). Shown at most once per device; tries that OEM's known
+     * Settings screen(s) and always falls back to the app's own App Info
+     * page if none of them resolve on this firmware.
      */
+    private data class OemGuide(
+        val brands: Set<String>,
+        val title: String,
+        val message: String,
+        val candidates: List<Pair<String, String>>,
+        val secondStep: (() -> Unit)? = null
+    )
+
     private fun promptXosAutoStart() {
         val manufacturer = Build.MANUFACTURER.lowercase()
-        val isXos = manufacturer in setOf("infinix", "tecno", "itel", "transsion")
-        if (!isXos) return
-        if (prefs.getBoolean("xos_autostart_shown", false)) return
-        prefs.edit().putBoolean("xos_autostart_shown", true).apply()
+        val guide = OEM_GUIDES.firstOrNull { manufacturer in it.brands } ?: return
+        if (prefs.getBoolean("oem_autostart_shown", false)) return
+        prefs.edit().putBoolean("oem_autostart_shown", true).apply()
 
         AlertDialog.Builder(this)
-            .setTitle("One more step for this phone")
-            .setMessage("${Build.MANUFACTURER} phones have an extra \"Auto-Start\" " +
-                "permission on top of battery settings. Without it, Android can still " +
-                "kill Thieves Trap in the background and SMS commands may stop working.\n\n" +
-                "Open Settings → Apps → Thieves Trap → Auto-Start (or App Launch) and " +
-                "turn it ON, alongside \"Allow background activity\".")
-            .setPositiveButton("Open Settings") { _, _ -> openXosAutoStartSettings() }
-            .setNegativeButton("Later", null)
+            .setTitle(guide.title)
+            .setMessage(guide.message)
+            .setPositiveButton(s("open_settings")) { _, _ -> openOemSettings(guide) }
+            .setNegativeButton(s("later"), null)
             .show()
     }
 
-    private fun openXosAutoStartSettings() {
-        // Known component names vary by firmware version and are not
-        // guaranteed; try a short list, then fall back to this app's own
-        // App Info screen so the user can navigate manually either way.
-        val candidates = listOf(
-            "com.transsion.phonemanager" to "com.transsion.phonemanager.activity.startupmanager.StartupManagerActivity",
-            "com.transsion.phonemanager" to "com.itel.autobootmanager.activity.AutoStartActivity",
-            "com.transsion.XOSLauncher" to "com.transsion.XOSLauncher.settings.AutoStartActivity"
-        )
-        for ((pkg, cls) in candidates) {
+    /** Tries each known component for this OEM in order; falls back to App Info if none resolve. */
+    private fun openOemSettings(guide: OemGuide) {
+        for ((pkg, cls) in guide.candidates) {
             try {
                 startActivity(Intent().apply {
                     component = ComponentName(pkg, cls)
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 })
+                guide.secondStep?.invoke()
                 return
             } catch (e: Exception) { /* try the next candidate */ }
         }
@@ -750,6 +750,61 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                 android.net.Uri.parse("package:$packageName")))
         } catch (e: Exception) { /* no settings screen available */ }
+    }
+
+    /** Best-effort attempt to also open the OEM's separate battery-saver screen, after a short delay so it doesn't fight the first intent. */
+    private fun tryOpenSecondOemScreen(pkg: String, cls: String) {
+        mainHandler.postDelayed({
+            try {
+                startActivity(Intent().apply {
+                    component = ComponentName(pkg, cls)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                })
+            } catch (e: Exception) { /* this phone doesn't have that screen under this name; the first screen already opened */ }
+        }, 600L)
+    }
+
+    private val OEM_GUIDES: List<OemGuide> by lazy {
+        listOf(
+            OemGuide(
+                brands = setOf("infinix", "tecno", "itel", "transsion"),
+                title = s("oem_title"),
+                message = s("oem_msg_transsion"),
+                candidates = listOf(
+                    "com.transsion.phonemanager" to "com.transsion.phonemanager.activity.startupmanager.StartupManagerActivity",
+                    "com.transsion.phonemanager" to "com.itel.autobootmanager.activity.AutoStartActivity",
+                    "com.transsion.XOSLauncher" to "com.transsion.XOSLauncher.settings.AutoStartActivity"
+                )
+            ),
+            OemGuide(
+                brands = setOf("xiaomi", "poco", "redmi"),
+                title = s("oem_title"),
+                message = s("oem_msg_miui"),
+                candidates = listOf(
+                    "com.miui.securitycenter" to "com.miui.permcenter.autostart.AutoStartManagementActivity"
+                ),
+                secondStep = { tryOpenSecondOemScreen("com.miui.powerkeeper", "com.miui.powerkeeper.ui.HiddenAppsConfigActivity") }
+            ),
+            OemGuide(
+                brands = setOf("oppo", "realme"),
+                title = s("oem_title"),
+                message = s("oem_msg_coloros"),
+                candidates = listOf(
+                    "com.coloros.safecenter" to "com.coloros.safecenter.permission.startup.StartupAppListActivity",
+                    "com.coloros.safecenter" to "com.coloros.safecenter.startupapp.StartupAppListActivity",
+                    "com.oppo.safe" to "com.oppo.safe.permission.startup.StartupAppListActivity"
+                )
+            ),
+            OemGuide(
+                brands = setOf("huawei", "honor"),
+                title = s("oem_title"),
+                message = s("oem_msg_emui"),
+                candidates = listOf(
+                    "com.huawei.systemmanager" to "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity",
+                    "com.huawei.systemmanager" to "com.huawei.systemmanager.optimize.process.ProtectActivity"
+                )
+            )
+        )
     }
 
     /**
