@@ -52,12 +52,19 @@ class SmsSentReceiver : BroadcastReceiver() {
         val canRetry = resultCode == SmsManager.RESULT_ERROR_GENERIC_FAILURE &&
             usedSubTargeting && !originalMessage.isNullOrBlank() && originalTo.isNotBlank()
 
-        if (canRetry) {
+        // Capturing into a local `val msg: String` (not `String?`) here is what
+        // actually lets the compiler treat it as non-null below -- the
+        // `canRetry` boolean already proved it, but a Boolean computed from
+        // !isNullOrBlank() doesn't smart-cast the original nullable property
+        // the way a direct `if (x != null)` would. This is the fix for the
+        // "inferred type is String? but String was expected" build error.
+        val msg: String? = if (canRetry) originalMessage else null
+        if (canRetry && msg != null) {
             // Dedupe: only the first part of this message triggers the retry.
             // A fresh dedupe key per message content means a genuinely new
             // alert with the same text a moment later still retries once.
             val prefs = context.getSharedPreferences("tt_prefs", Context.MODE_PRIVATE)
-            val key = "sms_retry_${originalTo.hashCode()}_${originalMessage.hashCode()}"
+            val key = "sms_retry_${originalTo.hashCode()}_${msg.hashCode()}"
             if (!prefs.getBoolean(key, false)) {
                 prefs.edit().putBoolean(key, true).apply()
                 Log.w(TAG, "SMS to ..$toTail: subscription-targeted send got GENERIC_FAILURE, retrying once via default SIM manager")
@@ -65,7 +72,7 @@ class SmsSentReceiver : BroadcastReceiver() {
                     ActivityLog.append(context, "SMS to ..$toTail failed ($reason), retrying via default SIM")
                 } catch (e: Exception) {}
                 try {
-                    SmsWake.send(context, originalTo, originalMessage, useSubscriptionTargeting = false)
+                    SmsWake.send(context, originalTo, msg, useSubscriptionTargeting = false)
                 } catch (e: Exception) {
                     Log.e(TAG, "Retry dispatch failed: ${e.message}")
                 }
