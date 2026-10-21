@@ -11,6 +11,12 @@ import android.util.Log
 
 object SmsWake {
     private const val TAG = "SmsWake"
+    // v2.9.9.2: a real, process-wide monotonic counter. Never repeats, so
+    // request codes can never collide across parts OR across separate calls
+    // to send() for the same number -- stronger than the previous
+    // hashCode()-based formula, which (though parts within one call already
+    // differed) reused the same codes for repeat sends to the same number.
+    private val requestCodeCounter = java.util.concurrent.atomic.AtomicInteger(0)
 
     /**
      * v2.9.7.1: wraps an outgoing SMS send in a brief PARTIAL_WAKE_LOCK. On some
@@ -55,12 +61,25 @@ object SmsWake {
      *   vanishing.
      * - Still wrapped in the v2.9.7.1 wake lock.
      */
-    fun send(context: Context, to: String, message: String) {
+    /**
+     * v2.9.9.2: [useSubscriptionTargeting] false skips createForSubscriptionId()
+     * entirely and uses the plain SmsManager. SmsSentReceiver sets this when
+     * it retries a GENERIC_FAILURE (code 32) that happened on the
+     * subscription-targeted path, since on some dual-SIM / XOS firmware the
+     * default-SMS-subscription lookup resolves to a subscription ID that is
+     * valid as a number but not actually usable for sending -- the
+     * createForSubscriptionId() call itself doesn't throw, so this only
+     * shows up later as an async GENERIC_FAILURE on every part at once,
+     * which matches what was reported. The retry is attempted once per
+     * logical message (see RETRIED extra below), never looping.
+     */
+    fun send(context: Context, to: String, message: String, useSubscriptionTargeting: Boolean = true) {
         withWakeLock(context) {
             try {
-                val subId = try {
+                val subId = if (useSubscriptionTargeting) try {
                     SubscriptionManager.getDefaultSmsSubscriptionId()
                 } catch (e: Exception) { SubscriptionManager.INVALID_SUBSCRIPTION_ID }
+                else SubscriptionManager.INVALID_SUBSCRIPTION_ID
 
                 val sm: SmsManager = try {
                     when {
@@ -75,6 +94,8 @@ object SmsWake {
                     Log.w(TAG, "Subscription-targeted SmsManager failed (${e.message}), falling back to default")
                     @Suppress("DEPRECATION") SmsManager.getDefault()
                 }
+                val usedSubscriptionTargeting = useSubscriptionTargeting &&
+                    subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID
 
                 val parts = sm.divideMessage(message)
                 val sentIntents = ArrayList<PendingIntent>(parts.size)
@@ -82,24 +103,25 @@ object SmsWake {
                     val intent = Intent(context, SmsSentReceiver::class.java).apply {
                         putExtra(SmsSentReceiver.EXTRA_TO, to)
                         putExtra(SmsSentReceiver.EXTRA_PART, i)
+                        putExtra(SmsSentReceiver.EXTRA_TOTAL_PARTS, parts.size)
+                        putExtra(SmsSentReceiver.EXTRA_USED_SUB_TARGETING, usedSubscriptionTargeting)
+                        if (usedSubscriptionTargeting) putExtra(SmsSentReceiver.EXTRA_MESSAGE, message)
                     }
                     sentIntents.add(
                         PendingIntent.getBroadcast(
                             context,
-                            requestCode(to, i),
+                            requestCodeCounter.incrementAndGet(), // process-wide unique, every call, every part
                             intent,
                             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
                         )
                     )
                 }
                 sm.sendMultipartTextMessage(to, null, parts, sentIntents, null)
-                Log.i(TAG, "SMS -> $to (${parts.size} part(s), subId=$subId)")
+                Log.i(TAG, "SMS -> $to (${parts.size} part(s), subId=$subId, subTargeting=$usedSubscriptionTargeting)")
             } catch (e: Exception) {
                 Log.e(TAG, "SMS send failed to $to: ${e.message}")
                 ActivityLog.append(context, "SMS to ..${to.filter { it.isDigit() }.takeLast(4)} failed to queue: ${e.message}")
             }
         }
     }
-
-    private fun requestCode(to: String, part: Int) = (to.hashCode() * 31 + part) and 0x7fffffff
 }
