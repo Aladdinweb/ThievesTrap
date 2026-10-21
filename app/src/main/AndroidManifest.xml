@@ -134,6 +134,10 @@
             </intent-filter>
         </receiver>
 
+        <!-- v2.9.9.1: delivery-result receiver for SmsWake.send(); targeted
+             explicitly by component, no intent-filter needed -->
+        <receiver android:name=".SmsSentReceiver" android:exported="false"/>
+
         <!-- DeviceAdmin — intruder selfie after failed unlock attempts (retained) -->
         <receiver android:name=".DeviceAdminReceiver"   android:exported="true"
             android:permission="android.permission.BIND_DEVICE_ADMIN">

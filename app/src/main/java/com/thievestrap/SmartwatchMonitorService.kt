@@ -245,19 +245,14 @@ class SmartwatchMonitorService : Service() {
             "Sent automatically by Thieves Trap Security"
 
         Thread {
-            try {
-                val sm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
-                    getSystemService(android.telephony.SmsManager::class.java)
-                else @Suppress("DEPRECATION") android.telephony.SmsManager.getDefault()
-                targets.forEach { target ->
-                    try {
-                        SmsWake.withWakeLock(this) {
-                            sm.sendMultipartTextMessage(target, null, sm.divideMessage(msg), null, null)
-                        }
-                        Log.i(TAG, "Emergency SMS sent to $target")
-                    } catch (e: Exception) { Log.e(TAG, "SMS fail to $target: ${e.message}") }
-                }
-            } catch (e: Exception) { Log.e(TAG, "SMS fail: ${e.message}") }
+            // v2.9.9.1: SmsWake.send() handles subscription targeting,
+            // multipart splitting, wake lock and delivery-result logging.
+            targets.forEach { target ->
+                try {
+                    SmsWake.send(this, target, msg)
+                    Log.i(TAG, "Emergency SMS queued to $target")
+                } catch (e: Exception) { Log.e(TAG, "SMS fail to $target: ${e.message}") }
+            }
         }.start()
 
         if (LicenseManager.isPremium(this))

@@ -1056,17 +1056,10 @@ class MonitorService : Service() {
         if (LicenseManager.isPremium(this)) phone2().takeIf { it.isNotBlank() }?.let { sms(it, msg) }
     }
 
-    private fun sms(to: String, msg: String) {
-        try {
-            SmsWake.withWakeLock(this) {
-                val sm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
-                    getSystemService(SmsManager::class.java)
-                else @Suppress("DEPRECATION") SmsManager.getDefault()
-                sm.sendMultipartTextMessage(to, null, sm.divideMessage(msg), null, null)
-            }
-            Log.i(TAG, "SMS \u2192 $to")
-        } catch (e: Exception) { Log.e(TAG, "SMS failed: ${e.message}") }
-    }
+    // v2.9.9.1: moved to SmsWake.send() -- explicit default-subscription
+    // targeting (fixes silent failures on dual-SIM phones) + per-part
+    // delivery-result logging. See SmsWake.kt for the full rationale.
+    private fun sms(to: String, msg: String) = SmsWake.send(this, to, msg)
 
     private fun buildNotif(): Notification {
         val theft   = theftMode()

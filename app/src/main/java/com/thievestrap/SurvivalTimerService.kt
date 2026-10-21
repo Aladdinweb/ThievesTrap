@@ -147,16 +147,13 @@ class SurvivalTimerService : Service() {
         }
 
         Thread {
+            // v2.9.9.1: SmsWake.send() handles subscription targeting,
+            // multipart splitting, wake lock and delivery-result logging.
             try {
-                val sm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
-                    getSystemService(SmsManager::class.java)
-                else @Suppress("DEPRECATION") SmsManager.getDefault()
                 targets.forEach { target ->
                     try {
-                        SmsWake.withWakeLock(this) {
-                            sm.sendMultipartTextMessage(target, null, sm.divideMessage(msg), null, null)
-                        }
-                        Log.i(TAG, "Survival SMS $smsNum sent to $target")
+                        SmsWake.send(this, target, msg)
+                        Log.i(TAG, "Survival SMS $smsNum queued to $target")
                     } catch (e: Exception) { Log.e(TAG, "SMS fail to $target: ${e.message}") }
                 }
             } catch (e: Exception) { Log.e(TAG, "SMS fail: ${e.message}") }
