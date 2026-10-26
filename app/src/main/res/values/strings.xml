@@ -256,4 +256,6 @@ Automatically sends your GPS location if you do not confirm your safety before t
     <string name="fn_info_net">WHY THE INTERNET CONNECTION MATTERS\n\nLive tracking needs an internet connection. Thieves Trap uses a secure Cloudflare relay (the Cloudflare Bridge) between paired phones.\n\nBeyond live tracking, the same bridge delivers intruder selfies (SELFIE command) instantly to the family monitor app, with no third-party apps, bots or manual setup.\n\nThis screen is a preview. The live service arrives in v3.0.0.</string>
     <string name="sms_selfie_trap_on">Motion trap ON. A photo is taken (max 8, 30s apart) every time the screen turns on.</string>
     <string name="sms_selfie_trap_off">Motion trap OFF.</string>
+    <string name="poweroff_selfie_label">Power-off attempt selfie</string>
+    <string name="poweroff_selfie_sub">Silent photo via Telegram on power menu attempt</string>
 </resources>

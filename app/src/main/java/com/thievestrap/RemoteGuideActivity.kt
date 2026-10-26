@@ -56,7 +56,8 @@ class RemoteGuideActivity : AppCompatActivity() {
         setCmd(R.id.cmd_alarm,      "ALARM",        "Trigger loud alarm — forces phone out of silent mode")
         setCmd(R.id.cmd_stop_alarm, "STOP ALARM",   "Stop the alarm remotely")
         setCmd(R.id.cmd_lock,       "LOCK",         "Lock the screen immediately (Premium)")
-        setCmd(R.id.cmd_selfie,     "SELFIE ON",    "Arm the motion trap: a photo each time the screen turns on (max 8, 30s apart), uploaded to Telegram. SELFIE OFF disarms it. Plain SELFIE alone does nothing. (Premium)")
+        // v2.9.9.3: SELFIE remote command retired -- selfie capture on a
+        // power-off attempt is now a toggle in Settings, not a command.
         setCmd(R.id.cmd_ping2,      "PING 2",       "Send GPS location every 2 minutes (Premium)")
         setCmd(R.id.cmd_ping5,      "PING 5",       "Send GPS location every 5 minutes (Premium)")
         setCmd(R.id.cmd_stop_ping,  "STOP PING",    "Stop periodic location updates (Premium)")

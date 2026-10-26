@@ -138,6 +138,15 @@
              explicitly by component, no intent-filter needed -->
         <receiver android:name=".SmsSentReceiver" android:exported="false"/>
 
+        <!-- v2.9.9.3: best-effort selfie + GPS alert on a real power-off
+             confirmation. See PowerOffSelfieReceiver.kt for what this can
+             and can't do. -->
+        <receiver android:name=".PowerOffSelfieReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.ACTION_SHUTDOWN"/>
+            </intent-filter>
+        </receiver>
+
         <!-- DeviceAdmin — intruder selfie after failed unlock attempts (retained) -->
         <receiver android:name=".DeviceAdminReceiver"   android:exported="true"
             android:permission="android.permission.BIND_DEVICE_ADMIN">

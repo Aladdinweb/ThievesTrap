@@ -32,6 +32,7 @@ class SelfieService : Service() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var photosTaken = 0
     private var maxPhotos = 1  // Fix 2: exactly ONE photo per failed attempt
+    private var captureReason: String = "intruder"
     private val ABSOLUTE_MAX = 1  // hard ceiling — never captures more than 1
     private var isStopping = false
     private var sensorOrientation = 90
@@ -63,6 +64,7 @@ class SelfieService : Service() {
 
         cleanup()
         maxPhotos = (intent?.getIntExtra("count", 1) ?: 1).coerceAtMost(ABSOLUTE_MAX)
+        captureReason = intent?.getStringExtra("reason") ?: "intruder" // v2.9.9.3: "intruder" or "poweroff"
         // Fix 1: Absolute timeout — stop after 30 seconds no matter what
         mainHandler.postDelayed({ if (!isStopping) { Log.w(TAG, "Timeout stop"); safeStop() } }, 30_000)
         photosTaken = 0
@@ -294,6 +296,7 @@ class SelfieService : Service() {
                     putExtra("path", file.absolutePath)
                     putExtra("timestamp", ts)
                     putExtra("count", photosTaken)
+                    putExtra("reason", captureReason)
                 })
             }
 
@@ -409,11 +412,12 @@ class SelfieService : Service() {
         // from the lock screen with zero foreground presence. Plain
         // startService() from that exact background-context scenario is
         // unreliable on Android 8+ and explains capture failing on wrong PIN.
-        fun takePhoto(context: Context, count: Int = 1) {
+        fun takePhoto(context: Context, count: Int = 1, reason: String = "intruder") {
             try {
                 ContextCompat.startForegroundService(context,
                     Intent(context, SelfieService::class.java).apply {
                         putExtra("count", count)
+                        putExtra("reason", reason) // v2.9.9.3: "intruder" or "poweroff"
                     })
             } catch (e: Exception) { Log.e("TT", "SelfieService start failed: ${e.message}") }
         }

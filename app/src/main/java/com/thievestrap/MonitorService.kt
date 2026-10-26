@@ -155,18 +155,35 @@ class MonitorService : Service() {
                 return START_STICKY
             }
             "SELFIE_SAVED" -> {
-                val path  = intent.getStringExtra("path") ?: ""
-                val count = intent.getIntExtra("count", 1)
+                val path   = intent.getStringExtra("path") ?: ""
+                val count  = intent.getIntExtra("count", 1)
+                val reason = intent.getStringExtra("reason") ?: "intruder" // v2.9.9.3
                 if (path.isNotBlank()) {
                     val photoFile = java.io.File(path)
-                    recordAlert("Intruder selfie #$count")
+                    val label = if (reason == "poweroff") "Power-off attempt selfie" else "Intruder selfie #$count"
+                    recordAlert(label)
                     prefs().edit().putString("last_selfie_path", path).apply()
                     if (LicenseManager.isPremium(this) && photoFile.exists() &&
                         photoFile.length() > 0) {
-                        val caption = "\uD83D\uDEA8 THIEVES TRAP \u2014 INTRUDER PHOTO #$count" +
-                            "\nTime: ${ts()} | Battery: ${bat()}%\n${locStr()}"
+                        val headline = if (reason == "poweroff")
+                            "\uD83D\uDD0C THIEVES TRAP \u2014 POWER-OFF ATTEMPT PHOTO"
+                        else "\uD83D\uDEA8 THIEVES TRAP \u2014 INTRUDER PHOTO #$count"
+                        val caption = "$headline\nTime: ${ts()} | Battery: ${bat()}%\n${locStr()}"
                         TelegramUploader.enqueuePhoto(this, photoFile, caption)
                     }
+                }
+                return START_STICKY
+            }
+            "POWEROFF_SELFIE" -> {
+                // v2.9.9.3: fired by PowerOffSelfieReceiver on ACTION_SHUTDOWN.
+                // Best-effort: the device is already shutting down, so capture
+                // and the SMS/Telegram sends below race the power-off itself
+                // -- same reliability class as a "last known location" ping
+                // in Find My Device-style apps, not a guarantee.
+                if (LicenseManager.isPremium(this) && prefs().getBoolean("poweroff_selfie_enabled", false)
+                    && prefs().getBoolean("running", false)) {
+                    SelfieService.takePhoto(this, 1, reason = "poweroff")
+                    smsAll("\u26A0\uFE0F ${s("app_name")}: Power-off attempt detected\n${locStr()}")
                 }
                 return START_STICKY
             }
@@ -362,7 +379,7 @@ class MonitorService : Service() {
             val isKnownCmd = knownCommands.any {
                 body == it || body.startsWith("$it ") ||
                 body.startsWith("DISARM ") || body.startsWith("PING ")
-            } || body == "SELFIE ON" || body == "SELFIE OFF"
+            }
             if (!isKnownCmd) { logCmd(body, sender, "ignored: not a command"); continue }
             if (!passesCooldown(senderDigits, body)) { logCmd(body, sender, "dropped: same command repeated within 3s"); continue }
 
@@ -436,8 +453,6 @@ class MonitorService : Service() {
         // could START the alarm with a PIN but never stop it.
         if (parts.size == 3 && parts[0] == "STOP" && parts[1] == "ALARM" && parts[2].isNotBlank())
             return "STOP ALARM" to parts[2]
-        if (parts.size == 3 && parts[0] == "SELFIE" && (parts[1] == "ON" || parts[1] == "OFF") && parts[2].isNotBlank())
-            return "SELFIE ${parts[1]}" to parts[2]
         if (parts.size != 2) return null
         val cmd = parts[0]; val pin = parts[1]
         val planBCommands = setOf(
@@ -445,8 +460,6 @@ class MonitorService : Service() {
             "SELFIE","PHOTO","PICTURE","INFO","DEVICE",
             "STATUS","BATTERY","BAT","SIM","IMEI","LOCK","SILENCE"
         )
-        // "SELFIE ON <PIN>" / "SELFIE OFF <PIN>" are 3 words; handled the
-        // same way "STOP ALARM <PIN>" already is, just above this guard.
         if (cmd !in planBCommands || pin.isBlank()) return null
         return cmd to pin
     }
@@ -463,13 +476,10 @@ class MonitorService : Service() {
                     Intent(this, AlarmService::class.java).apply { action = "START_ALARM" })
                 sms(sender, "\uD83D\uDEA8 ${s("app_name")}: ${s("sms_alarm_on")} (Plan B)")
             }
-            // v2.9.8: bare SELFIE/PHOTO/PICTURE no longer captures or arms
-            // anything by itself -- only an explicit SELFIE ON does. This
-            // avoids an accidental capture/arm from a mistyped command.
+            // v2.9.9.3: SELFIE remote command retired -- power-off attempt
+            // capture (Settings toggle) replaces it. See STATE.md.
             "SELFIE","PHOTO","PICTURE" ->
-                sms(sender, "${s("app_name")}: ${s("sms_selfie_howto")} (Plan B)")
-            "SELFIE ON" -> { armSelfieTrap(true); sms(sender, "${s("app_name")}: ${s("sms_selfie_trap_on")} (Plan B)") }
-            "SELFIE OFF" -> { armSelfieTrap(false); sms(sender, "${s("app_name")}: ${s("sms_selfie_trap_off")} (Plan B)") }
+                sms(sender, "${s("app_name")}: ${s("sms_selfie_retired")} (Plan B)")
             "INFO","DEVICE"  -> sms(sender, buildFullInfo("\uD83D\uDCF1", s("sms_info")))
             "BATTERY","BAT"  -> sms(sender,
                 "${s("app_name")}\n${s("sms_battery")}: ${bat()}%\n${chargingStr()}\n${ts()}")
@@ -499,7 +509,7 @@ class MonitorService : Service() {
             override fun onReceive(ctx: Context, intent: Intent) {
                 when (intent.action) {
                     Intent.ACTION_USER_PRESENT -> onUnlock()
-                    Intent.ACTION_SCREEN_ON    -> { screenOnCount++; onScreenOnForSelfieTrap() }
+                    Intent.ACTION_SCREEN_ON    -> { screenOnCount++ }
                 }
             }
         }
@@ -528,39 +538,6 @@ class MonitorService : Service() {
     }
 
     // ── SIM Trap (retained from v2.7.8) ──────────────────────────
-
-    // v2.9.7.1: SELFIE ON/OFF trap. Triggers on the public SCREEN_ON broadcast
-    // (not covert touch/key interception -- see handleCommand). Rate-limited
-    // and capped per session so it cannot drain battery or storage.
-    private fun armSelfieTrap(on: Boolean) {
-        prefs().edit()
-            .putBoolean("selfie_trap_on", on)
-            .putInt("selfie_trap_count", 0)
-            .putLong("selfie_trap_last_ms", 0L)
-            .apply()
-        Log.i(TAG, "Selfie trap armed=$on")
-    }
-
-    private fun onScreenOnForSelfieTrap() {
-        if (!prefs().getBoolean("selfie_trap_on", false)) return
-        if (!prefs().getBoolean("running", false)) return
-        val now = System.currentTimeMillis()
-        val last = prefs().getLong("selfie_trap_last_ms", 0L)
-        if (now - last < SELFIE_TRAP_COOLDOWN_MS) return
-        val count = prefs().getInt("selfie_trap_count", 0)
-        if (count >= SELFIE_TRAP_MAX_SHOTS) {
-            Log.i(TAG, "Selfie trap: session cap ($SELFIE_TRAP_MAX_SHOTS) reached, auto-disarming")
-            prefs().edit().putBoolean("selfie_trap_on", false).apply()
-            smsAll("${s("app_name")}: Motion trap finished ($SELFIE_TRAP_MAX_SHOTS photos captured). Send SELFIE ON to re-arm.")
-            return
-        }
-        prefs().edit()
-            .putLong("selfie_trap_last_ms", now)
-            .putInt("selfie_trap_count", count + 1)
-            .apply()
-        Log.i(TAG, "Selfie trap: capturing (${count + 1}/$SELFIE_TRAP_MAX_SHOTS)")
-        SelfieService.takePhoto(this, 1)
-    }
 
     private fun onUnlock() {
         screenOnCount = 0
@@ -845,18 +822,8 @@ class MonitorService : Service() {
                     else locationHistory.forEachIndexed { i, loc -> appendLine("${i+1}. $loc") }
                 })
             cmd == "SELFIE" || cmd == "PHOTO" || cmd == "PICTURE" -> {
-                reply(sender, "${s("app_name")}: ${s("sms_selfie_howto")}")
-                logCmd(cmd, sender, "howto shown, no action taken")
-            }
-            cmd == "SELFIE ON" -> {
-                armSelfieTrap(true)
-                reply(sender, "${s("app_name")}: ${s("sms_selfie_trap_on")}")
-                logCmd(cmd, sender, "trap armed")
-            }
-            cmd == "SELFIE OFF" -> {
-                armSelfieTrap(false)
-                reply(sender, "${s("app_name")}: ${s("sms_selfie_trap_off")}")
-                logCmd(cmd, sender, "trap disarmed")
+                reply(sender, "${s("app_name")}: ${s("sms_selfie_retired")}")
+                logCmd(cmd, sender, "retired command, no action taken")
             }
             cmd == "ALARM" || cmd == "RING" -> {
                 ContextCompat.startForegroundService(this,
@@ -1103,9 +1070,4 @@ class MonitorService : Service() {
                 NotificationChannel(CHANNEL_ID, s("app_name"), NotificationManager.IMPORTANCE_LOW))
     }
 
-    companion object {
-        // v2.9.7.1 selfie trap: at most 1 capture per 30s, 8 per armed session.
-        private const val SELFIE_TRAP_COOLDOWN_MS = 30_000L
-        private const val SELFIE_TRAP_MAX_SHOTS = 8
-    }
 }

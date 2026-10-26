@@ -107,6 +107,11 @@ class SettingsActivity : AppCompatActivity() {
         swSim.isEnabled = isPremium
         swSim.alpha = if (isPremium) 1f else 0.4f
 
+        val swPoweroffSelfie = findViewById<Switch>(R.id.sw_poweroff_selfie)
+        swPoweroffSelfie.isChecked = isPremium && prefs.getBoolean("poweroff_selfie_enabled", false)
+        swPoweroffSelfie.isEnabled = isPremium
+        swPoweroffSelfie.alpha = if (isPremium) 1f else 0.4f
+
         // ── SMART GRACE PERIOD ──
         val swGrace = findViewById<Switch>(R.id.sw_grace_enabled)
         swGrace.isChecked = prefs.getBoolean("grace_enabled", false)
@@ -359,6 +364,15 @@ class SettingsActivity : AppCompatActivity() {
         }
         swSim.setOnCheckedChangeListener { _, c ->
             if (isPremium) prefs.edit().putBoolean("alert_sim", c).apply()
+        }
+
+        // Power-off attempt selfie (v2.9.9.3)
+        val swPoweroffSelfie = findViewById<Switch>(R.id.sw_poweroff_selfie)
+        swPoweroffSelfie.setOnClickListener {
+            if (!isPremium) { showUpgradeDialog("Power-off Attempt Selfie"); swPoweroffSelfie.isChecked = false }
+        }
+        swPoweroffSelfie.setOnCheckedChangeListener { _, c ->
+            if (isPremium) prefs.edit().putBoolean("poweroff_selfie_enabled", c).apply()
         }
 
         // Grace Period Toggle
