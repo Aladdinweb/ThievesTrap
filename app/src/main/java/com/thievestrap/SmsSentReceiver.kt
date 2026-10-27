@@ -15,7 +15,7 @@ import android.util.Log
  * failure (no service, radio off, no SIM, generic failure) is now logged to
  * the Activity Log instead of disappearing silently.
  *
- * v2.9.9.2: if the failure was RESULT_ERROR_GENERIC_FAILURE (code 32) and the
+ * v2.9.9.2: if the failure was RESULT_ERROR_GENERIC_FAILURE (code 1) and the
  * part was sent with subscription targeting, retry the whole message once
  * through the plain (non-subscription-bound) SmsManager -- on some dual-SIM /
  * XOS firmware the default-SMS-subscription ID resolves to a value that
@@ -39,6 +39,18 @@ class SmsSentReceiver : BroadcastReceiver() {
             SmsManager.RESULT_ERROR_RADIO_OFF -> "radio off"
             SmsManager.RESULT_ERROR_NULL_PDU -> "null PDU"
             SmsManager.RESULT_ERROR_GENERIC_FAILURE -> "generic failure"
+            // v2.9.9.4: this was the real cause of the repeated "error code
+            // 32" seen in testing -- it's RESULT_NO_DEFAULT_SMS_APP, not
+            // generic failure (that's code 1). On some XOS/Android Go-style
+            // builds the OS has no app registered as the default SMS
+            // handler at all, and refuses to send SMS for ANY app until one
+            // is set -- that's why a manual send from the stock Messages
+            // app worked while this app's sends didn't: Messages is
+            // presumably the one registered as default. Switching which
+            // SmsManager instance we use (the v2.9.9.2 retry) can't fix
+            // this, since it's a device-wide registration issue, not a
+            // per-subscription one -- see MainActivity.promptDefaultSmsApp().
+            SmsManager.RESULT_NO_DEFAULT_SMS_APP -> "no default SMS app set on this device"
             else -> "error code $resultCode"
         }
 
