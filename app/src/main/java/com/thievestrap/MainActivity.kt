@@ -71,6 +71,7 @@ class MainActivity : AppCompatActivity() {
             autoUpdateCheckDone = true
             try { UpdateManager.checkForUpdateAutoPopup(this) } catch (e: Exception) {}
         }
+        try { showMultiSimWarningIfPending() } catch (e: Exception) {}
         try {
             val sw = findViewById<Switch>(R.id.sw_survival_timer)
             val on = prefs.getBoolean("survival_timer_on", false)
@@ -700,7 +701,6 @@ class MainActivity : AppCompatActivity() {
         updateStatus()
         promptBatteryOptimizationExemption()
         promptXosAutoStart()
-        promptDefaultSmsApp()
     }
 
     /**
@@ -722,43 +722,32 @@ class MainActivity : AppCompatActivity() {
     )
 
     /**
-     * v2.9.9.4: on some XOS/Android Go-style builds the OS has no app
-     * registered as the default SMS handler at all, and SmsManager refuses
-     * to send for ANY app (RESULT_NO_DEFAULT_SMS_APP, code 32) until one is
-     * set -- confirmed on an Infinix Smart 10 test device, where this
-     * app's SMS sends consistently failed with that exact code while the
-     * stock Messages app could send normally. This app does not try to
-     * register itself as the default SMS app (that would make it the
-     * phone's primary texting app, which is far more than this feature
-     * needs) -- it just needs SOME app to hold that role so the OS allows
-     * SmsManager sends at all. Shown once per device; sends the user to
-     * Default Apps settings to pick one themselves.
+     * v2.9.9.5: replaces the old promptDefaultSmsApp(), which popped up
+     * uninvited on every ARM and pushed the user straight into system
+     * Default Apps settings -- real-world testing on an Infinix Smart 10
+     * found that was neither necessary (a default app was already set)
+     * nor sufficient (the real cause was a dual-SIM default-subscription
+     * conflict; removing the second SIM, not changing the default SMS
+     * app, is what fixed it). This app does not try to change the
+     * device's SMS or SIM configuration at all.
+     *
+     * Instead: SmsSentReceiver sets "sms_multisim_warning_pending" only
+     * when a send actually fails for this reason (RESULT_NO_DEFAULT_SMS_APP,
+     * or an exception while resolving the default SMS subscription -- both
+     * are dual-SIM-shaped failures). This method, called from onResume(),
+     * shows a plain dismissible notice -- not a redirect anywhere -- the
+     * next time the app is opened, and only then. The flag re-arms itself
+     * on each new qualifying failure, so a recurring problem is mentioned
+     * again, but a one-off blip is not.
      */
-    private fun promptDefaultSmsApp() {
-        val hasDefault = try {
-            android.provider.Telephony.Sms.getDefaultSmsPackage(this) != null
-        } catch (e: Exception) { true } // fail open: don't nag if we can't tell
-        if (hasDefault) return
-        if (prefs.getBoolean("default_sms_prompt_shown", false)) return
-        prefs.edit().putBoolean("default_sms_prompt_shown", true).apply()
-
+    private fun showMultiSimWarningIfPending() {
+        if (!prefs.getBoolean("sms_multisim_warning_pending", false)) return
+        prefs.edit().putBoolean("sms_multisim_warning_pending", false).apply()
         AlertDialog.Builder(this)
-            .setTitle("No default SMS app set")
-            .setMessage("This phone has no default SMS app selected in Android's " +
-                "settings. Without one, the system blocks ALL apps -- including " +
-                "Thieves Trap -- from sending SMS, so remote commands and alerts " +
-                "may silently fail to reply.\n\n" +
-                "Open Default Apps and choose any SMS app (e.g. Messages). " +
-                "Thieves Trap does not need to be that app itself.")
-            .setPositiveButton("Open Settings") { _, _ ->
-                try {
-                    startActivity(Intent(android.provider.Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS))
-                } catch (e: Exception) {
-                    try { startActivity(Intent(android.provider.Settings.ACTION_SETTINGS)) }
-                    catch (e2: Exception) { /* no settings screen available */ }
-                }
-            }
-            .setNegativeButton("Later", null)
+            .setTitle("SMS alert didn't go through")
+            .setMessage("If SMS alerts fail on dual-SIM devices, please check your " +
+                "default SIM slot selection or use a single active SIM card.")
+            .setPositiveButton("OK", null)
             .show()
     }
 

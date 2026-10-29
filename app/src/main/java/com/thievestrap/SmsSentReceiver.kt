@@ -23,6 +23,16 @@ import android.util.Log
  * actually usable for sending, so every part fails identically and at once.
  * The retry is deduplicated per logical message (not per part) so a 4-part
  * message triggers exactly one retry, not four.
+ *
+ * v2.9.9.5: field-confirmed on an Infinix Smart 10 -- RESULT_NO_DEFAULT_SMS_APP
+ * (code 32) on that device was actually a dual-SIM default-subscription
+ * conflict, not a literally-missing default SMS app; removing the second SIM
+ * fixed it, changing the default SMS app did not. This app never tries to
+ * change the device's SMS or SIM configuration -- it only sets a pref flag
+ * that MainActivity checks on its next resume to show a plain, dismissible
+ * notice (see MainActivity.showMultiSimWarningIfPending()), and logs once
+ * per logical message rather than once per part (a 3-4 part alert used to
+ * write the identical line 3-4 times).
  */
 class SmsSentReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -39,18 +49,12 @@ class SmsSentReceiver : BroadcastReceiver() {
             SmsManager.RESULT_ERROR_RADIO_OFF -> "radio off"
             SmsManager.RESULT_ERROR_NULL_PDU -> "null PDU"
             SmsManager.RESULT_ERROR_GENERIC_FAILURE -> "generic failure"
-            // v2.9.9.4: this was the real cause of the repeated "error code
-            // 32" seen in testing -- it's RESULT_NO_DEFAULT_SMS_APP, not
-            // generic failure (that's code 1). On some XOS/Android Go-style
-            // builds the OS has no app registered as the default SMS
-            // handler at all, and refuses to send SMS for ANY app until one
-            // is set -- that's why a manual send from the stock Messages
-            // app worked while this app's sends didn't: Messages is
-            // presumably the one registered as default. Switching which
-            // SmsManager instance we use (the v2.9.9.2 retry) can't fix
-            // this, since it's a device-wide registration issue, not a
-            // per-subscription one -- see MainActivity.promptDefaultSmsApp().
-            SmsManager.RESULT_NO_DEFAULT_SMS_APP -> "no default SMS app set on this device"
+            // v2.9.9.4 found this code; v2.9.9.5 found what it actually means
+            // in practice: on a real dual-SIM device this was NOT a missing
+            // default SMS app (one was already set) but an ambiguous default
+            // SIM/subscription for sending -- confirmed by removing the
+            // second SIM, which fixed it outright.
+            SmsManager.RESULT_NO_DEFAULT_SMS_APP -> "dual-SIM/default SMS conflict"
             else -> "error code $resultCode"
         }
 
@@ -60,6 +64,13 @@ class SmsSentReceiver : BroadcastReceiver() {
         }
 
         Log.e(TAG, "SMS to ..$toTail part $part FAILED: $reason")
+
+        if (resultCode == SmsManager.RESULT_NO_DEFAULT_SMS_APP) {
+            try {
+                context.getSharedPreferences("tt_prefs", Context.MODE_PRIVATE)
+                    .edit().putBoolean("sms_multisim_warning_pending", true).apply()
+            } catch (e: Exception) {}
+        }
 
         val canRetry = resultCode == SmsManager.RESULT_ERROR_GENERIC_FAILURE &&
             usedSubTargeting && !originalMessage.isNullOrBlank() && originalTo.isNotBlank()
@@ -90,9 +101,19 @@ class SmsSentReceiver : BroadcastReceiver() {
                 }
                 return
             }
+            // A retry was already dispatched for part 0 of this message; the
+            // other parts all fail with the same code at the same moment and
+            // would otherwise write the identical Activity Log line 3-4
+            // times (v2.9.9.5 fix -- "spamming generic errors").
+            return
         }
 
-        try { ActivityLog.append(context, "SMS to ..$toTail failed: $reason") } catch (e: Exception) {}
+        // v2.9.9.5: log once per logical message, not once per part -- a
+        // 3-4 part alert used to fail identically on every part and wrote
+        // the same line that many times.
+        if (part == 0 || totalParts <= 1) {
+            try { ActivityLog.append(context, "SMS to ..$toTail failed: $reason") } catch (e: Exception) {}
+        }
     }
 
     companion object {
