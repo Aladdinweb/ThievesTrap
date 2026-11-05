@@ -255,4 +255,34 @@
     <string name="sms_selfie_trap_off">تم إيقاف فخ الحركة.</string>
     <string name="poweroff_selfie_label">صورة عند محاولة إيقاف التشغيل</string>
     <string name="poweroff_selfie_sub">صورة صامتة عبر تيليجرام عند محاولة إيقاف التشغيل</string>
+
+
+    <!-- v2.9.9.6 Premium screen redesign -->
+    <string name="full_protection_title">FULL PROTECTION</string>
+    <string name="thieves_trap_brand_sub">THIEVES TRAP BY ILINE TECH</string>
+    <string name="premium_active_badge">الاشتراك مُفعل (PREMIUM ACTIVE)</string>
+    <string name="free_version_badge">النسخة المجانية</string>
+    <string name="choose_plan_header">اختر خطة الاشتراك المناسبة</string>
+    <string name="instant_activation_note">تفعيل فوري محلياً</string>
+    <string name="plan_monthly">شهري</string>
+    <string name="plan_monthly_sub">مرونة كاملة</string>
+    <string name="per_month_suffix">/ شهر</string>
+    <string name="plan_3month">3 أشهر</string>
+    <string name="per_3months_suffix">/ 3 أشهر</string>
+    <string name="plan_annual">سنوي</string>
+    <string name="per_year_suffix2">/ سنة</string>
+    <string name="badge_best_value">الأفضل قيمة ⭐</string>
+    <string name="badge_save16">وفر 16%</string>
+    <string name="badge_save50">وفر 50%</string>
+    <string name="price_placeholder_note">الأسعار المعروضة مؤقتة وقابلة للتغيير</string>
+    <string name="unlocked_features_header">ميزات الحماية الكاملة المفتوحة</string>
+    <string name="feat_contact2_line">جهة اتصال طوارئ ثانية (Emergency Contact 2)</string>
+    <string name="feat_bridge_line">جسر العائلة السحابي اللحظي (Cloud Family Bridge)</string>
+    <string name="feat_selfie_line">التقاط الصور الخفية للفضوليين والتتبع المباشر</string>
+    <string name="feat_remote_line">جميع أوامر الـ SMS والتحكم عن بعد بدون قيود</string>
+    <string name="feat_timer_line">مؤقت الأمان الفردي وتنبيه فصل الساعة الذكية (Watch Tether)</string>
+    <string name="license_key_activation_header">تفعيل مفتاح الاشتراك (LICENSE KEY)</string>
+    <string name="copy_device_id_btn">نسخ Device ID</string>
+    <string name="activate_now_btn">تفعيل الاشتراك الآن</string>
+    <string name="tech_support_btn">الدعم الفني</string>
 </resources>

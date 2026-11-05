@@ -1,306 +1,290 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent" android:layout_height="match_parent"
-    android:background="#050508">
+    android:background="@drawable/bg_premium_screen">
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="vertical" android:gravity="center_horizontal"
-        android:padding="20dp">
+        android:padding="18dp">
 
-        <!-- Crown + Title -->
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="&#128081;" android:textSize="52sp"
-            android:layout_marginTop="16dp" android:layout_marginBottom="6dp"/>
-        <TextView android:text="@string/premium_full_title"
+        <!-- ===== HEADER ===== -->
+        <FrameLayout android:layout_width="64dp" android:layout_height="64dp"
+            android:background="@drawable/bg_crown_badge" android:layout_marginTop="8dp"
+            android:layout_marginBottom="10dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_gravity="center" android:text="&#128081;" android:textSize="30sp"/>
+        </FrameLayout>
+        <TextView android:text="@string/full_protection_title"
             android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:textSize="26sp" android:textStyle="bold" android:textColor="#FFD700"
-            android:letterSpacing="0.1" android:layout_marginBottom="4dp"/>
-        <TextView android:text="@string/premium_brand"
+            android:textSize="22sp" android:textStyle="bold" android:textColor="#FFD700"
+            android:letterSpacing="0.06" android:layout_marginBottom="4dp"/>
+        <TextView android:id="@+id/tv_brand_sub"
             android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:textSize="12sp" android:textColor="#333333" android:layout_marginBottom="8dp"/>
-        <TextView android:id="@+id/tv_premium_status"
+            android:text="@string/thieves_trap_brand_sub"
+            android:textSize="10sp" android:textColor="#8E8E93" android:letterSpacing="0.06"
+            android:layout_marginBottom="14dp"/>
+
+        <!-- Status badge: colored dot + bilingual text -->
+        <LinearLayout android:id="@+id/layout_premium_status"
             android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="@string/free_version" android:textSize="13sp"
-            android:textColor="#666666" android:layout_marginBottom="4dp"/>
+            android:orientation="horizontal" android:gravity="center_vertical"
+            android:background="@drawable/bg_status_free"
+            android:paddingStart="14dp" android:paddingEnd="14dp"
+            android:paddingTop="6dp" android:paddingBottom="6dp" android:layout_marginBottom="8dp">
+            <TextView android:id="@+id/tv_premium_status"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="@string/free_version_badge" android:textSize="11sp" android:textStyle="bold"
+                android:textColor="#8E8E93" android:layout_marginEnd="6dp"/>
+            <View android:id="@+id/dot_premium_status"
+                android:layout_width="7dp" android:layout_height="7dp"
+                android:background="@drawable/dot_status"/>
+        </LinearLayout>
         <TextView android:id="@+id/tv_device_id"
             android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:text="@string/device_id_label" android:textSize="10sp"
-            android:textColor="#2A2A2A" android:layout_marginBottom="20dp"/>
+            android:fontFamily="monospace" android:textColor="#5A5A5F" android:layout_marginBottom="24dp"/>
 
-        <!-- Price -->
+        <!-- ===== plan-choice header row ===== -->
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:orientation="vertical" android:gravity="center"
-            android:background="#0D0D10" android:padding="16dp" android:layout_marginBottom="16dp">
-            <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:orientation="horizontal" android:gravity="bottom">
-                <TextView android:text="$" android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" android:textSize="18sp"
-                    android:textColor="#FFD700" android:textStyle="bold" android:paddingBottom="6dp"/>
-                <TextView android:text="@string/price_premium"
-                    android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:textSize="44sp" android:textStyle="bold" android:textColor="#FFD700"/>
-                <TextView android:text="@string/price_per_year_suffix"
-                    android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:textSize="16sp" android:textColor="#FFD700" android:textStyle="bold"
-                    android:paddingBottom="8dp" android:paddingStart="2dp"/>
-            </LinearLayout>
-            <TextView android:text="@string/annual_plan"
+            android:orientation="horizontal" android:gravity="center_vertical"
+            android:layout_marginBottom="12dp">
+            <TextView android:text="@string/choose_plan_header"
+                android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                android:textSize="13sp" android:textColor="#FFFFFF" android:textStyle="bold"/>
+            <TextView android:text="@string/instant_activation_note"
                 android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:textSize="11sp" android:textColor="#444444"/>
+                android:textSize="9sp" android:textColor="#5A5A5F"/>
         </LinearLayout>
 
-        <!-- FREE vs PREMIUM -->
-        <TextView android:text="@string/free_vs_full_header"
-            android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:textSize="9sp" android:textColor="#CC0000" android:textStyle="bold"
-            android:letterSpacing="0.2" android:layout_marginBottom="8dp"/>
-
-        <!-- Free features -->
+        <!-- ===== PRICING CARDS (3 columns; Android mirrors this to RTL automatically) ===== -->
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:orientation="vertical" android:background="#0D0D10"
-            android:padding="14dp" android:layout_marginBottom="2dp">
-            <TextView android:text="@string/free_included_header"
-                android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:textSize="10sp" android:textColor="#00AA44" android:textStyle="bold"
-                android:layout_marginBottom="8dp"/>
-            <TextView android:text="@string/free_feat1"
-                android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:textSize="12sp" android:textColor="#555555" android:layout_marginBottom="4dp"/>
-            <TextView android:text="@string/free_feat2"
-                android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:textSize="12sp" android:textColor="#555555" android:layout_marginBottom="4dp"/>
-            <TextView android:text="@string/free_feat3"
-                android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:textSize="12sp" android:textColor="#555555" android:layout_marginBottom="4dp"/>
-            <TextView android:text="@string/free_feat4"
-                android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:textSize="12sp" android:textColor="#555555"/>
+            android:orientation="horizontal" android:layout_marginBottom="18dp">
+
+            <!-- Monthly — selected by default -->
+            <FrameLayout android:id="@+id/card_plan_monthly"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:layout_marginEnd="6dp"
+                android:background="@drawable/bg_plan_card_selected" android:clickable="true" android:focusable="true">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="vertical" android:gravity="center"
+                    android:padding="12dp" android:paddingTop="18dp">
+                    <TextView android:id="@+id/tv_label_monthly" android:text="@string/plan_monthly"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textColor="#FFD700" android:textSize="12sp" android:textStyle="bold"
+                        android:layout_marginBottom="8dp"/>
+                    <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:orientation="horizontal" android:gravity="bottom">
+                        <TextView android:text="$" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:textSize="13sp" android:textColor="#FFD700" android:textStyle="bold" android:paddingBottom="3dp"/>
+                        <TextView android:id="@+id/tv_price_monthly" android:text="0.99"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:textSize="24sp" android:textStyle="bold" android:textColor="#FFD700"/>
+                    </LinearLayout>
+                    <TextView android:text="@string/per_month_suffix"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textSize="9sp" android:textColor="#8E8E93" android:layout_marginTop="2dp"/>
+                    <TextView android:text="@string/plan_monthly_sub"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textSize="9sp" android:textColor="#5A5A5F" android:layout_marginTop="6dp"
+                        android:gravity="center"/>
+                </LinearLayout>
+            </FrameLayout>
+
+            <!-- 3-Month -->
+            <FrameLayout android:id="@+id/card_plan_3month"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:layout_marginEnd="6dp"
+                android:background="@drawable/bg_plan_card" android:clickable="true" android:focusable="true">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="vertical" android:gravity="center"
+                    android:padding="12dp" android:paddingTop="18dp">
+                    <TextView android:id="@+id/tv_label_3month" android:text="@string/plan_3month"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textColor="#FFFFFF" android:textSize="12sp" android:textStyle="bold"
+                        android:layout_marginBottom="8dp"/>
+                    <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:orientation="horizontal" android:gravity="bottom">
+                        <TextView android:text="$" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:textSize="12sp" android:textColor="#C0C0C8" android:paddingBottom="3dp"/>
+                        <TextView android:id="@+id/tv_price_3month" android:text="2.49"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:textSize="22sp" android:textStyle="bold" android:textColor="#FFFFFF"/>
+                    </LinearLayout>
+                    <TextView android:text="@string/per_3months_suffix"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textSize="9sp" android:textColor="#8E8E93" android:layout_marginTop="2dp"/>
+                    <TextView android:text="@string/badge_save16"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textSize="9sp" android:textStyle="bold" android:textColor="#66BB6A"
+                        android:background="@drawable/bg_badge_save"
+                        android:paddingStart="8dp" android:paddingEnd="8dp"
+                        android:paddingTop="2dp" android:paddingBottom="2dp" android:layout_marginTop="6dp"/>
+                </LinearLayout>
+            </FrameLayout>
+
+            <!-- Annual - Best Value ribbon -->
+            <FrameLayout android:id="@+id/card_plan_annual"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/bg_plan_card" android:clickable="true" android:focusable="true">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="vertical" android:gravity="center"
+                    android:padding="12dp" android:paddingTop="24dp">
+                    <TextView android:id="@+id/tv_label_annual" android:text="@string/plan_annual"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textColor="#FFFFFF" android:textSize="12sp" android:textStyle="bold"
+                        android:layout_marginBottom="8dp"/>
+                    <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:orientation="horizontal" android:gravity="bottom">
+                        <TextView android:text="$" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:textSize="12sp" android:textColor="#C0C0C8" android:paddingBottom="3dp"/>
+                        <TextView android:id="@+id/tv_price_annual" android:text="4.99"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:textSize="22sp" android:textStyle="bold" android:textColor="#FFFFFF"/>
+                    </LinearLayout>
+                    <TextView android:text="@string/per_year_suffix2"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textSize="9sp" android:textColor="#8E8E93" android:layout_marginTop="2dp"/>
+                    <TextView android:text="@string/badge_save50"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textSize="9sp" android:textStyle="bold" android:textColor="#66BB6A"
+                        android:background="@drawable/bg_badge_save"
+                        android:paddingStart="8dp" android:paddingEnd="8dp"
+                        android:paddingTop="2dp" android:paddingBottom="2dp" android:layout_marginTop="6dp"/>
+                </LinearLayout>
+                <!-- top "BEST VALUE" ribbon, stays regardless of selection state -->
+                <TextView android:text="@string/badge_best_value"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:layout_gravity="top|center_horizontal" android:layout_marginTop="-9dp"
+                    android:textSize="8sp" android:textStyle="bold" android:textColor="#0A0A0B"
+                    android:background="@drawable/bg_badge_best_value"
+                    android:paddingStart="10dp" android:paddingEnd="10dp"
+                    android:paddingTop="3dp" android:paddingBottom="3dp"/>
+            </FrameLayout>
         </LinearLayout>
 
-        <!-- Premium features -->
+        <!-- ===== UNLOCKED FEATURES (glass card) ===== -->
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:orientation="vertical" android:background="#1A1400"
-            android:padding="14dp" android:layout_marginBottom="16dp">
-            <TextView android:text="@string/premium_unlocks_header"
-                android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:textSize="10sp" android:textColor="#FFD700" android:textStyle="bold"
-                android:layout_marginBottom="10dp"/>
-
+            android:orientation="vertical" android:background="@drawable/bg_glass_card"
+            android:padding="16dp" android:layout_marginBottom="18dp">
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="8dp">
-                <TextView android:text="&#128222;" android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" android:textSize="18sp" android:layout_marginEnd="10dp"/>
-                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                    <TextView android:text="@string/prem_feat1_title"
-                        android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:textColor="#FFFFFF" android:textSize="13sp" android:textStyle="bold"/>
-                    <TextView android:text="@string/prem_feat1_sub"
-                        android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:textColor="#555555" android:textSize="11sp"/>
-                </LinearLayout>
+                android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="14dp">
+                <TextView android:text="@string/unlocked_features_header"
+                    android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                    android:textSize="12sp" android:textColor="#FFD700" android:textStyle="bold"/>
+                <TextView android:text="&#128737;" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="14sp"/>
             </LinearLayout>
 
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="8dp">
-                <TextView android:text="&#128247;" android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" android:textSize="18sp" android:layout_marginEnd="10dp"/>
-                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                    <TextView android:text="@string/prem_feat2_title"
-                        android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:textColor="#FFFFFF" android:textSize="13sp" android:textStyle="bold"/>
-                    <TextView android:text="@string/prem_feat2_sub"
-                        android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:textColor="#555555" android:textSize="11sp"/>
-                </LinearLayout>
+                android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="12dp">
+                <TextView android:text="@string/feat_contact2_line"
+                    android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                    android:textColor="#E8E8EA" android:textSize="12sp"/>
+                <TextView android:text="&#128100;&#10133;" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="15sp" android:layout_marginStart="10dp"/>
             </LinearLayout>
 
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="8dp">
-                <TextView android:text="&#128225;" android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" android:textSize="18sp" android:layout_marginEnd="10dp"/>
-                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                    <TextView android:text="@string/prem_feat3_title"
-                        android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:textColor="#FFFFFF" android:textSize="13sp" android:textStyle="bold"/>
-                    <TextView android:text="@string/prem_feat3_sub"
-                        android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:textColor="#555555" android:textSize="11sp"/>
-                </LinearLayout>
+                android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="12dp">
+                <TextView android:text="@string/feat_bridge_line"
+                    android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                    android:textColor="#E8E8EA" android:textSize="12sp"/>
+                <TextView android:text="&#127975;" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="15sp" android:layout_marginStart="10dp"/>
             </LinearLayout>
 
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="8dp">
-                <TextView android:text="&#8987;" android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" android:textSize="18sp" android:layout_marginEnd="10dp"/>
-                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                    <TextView android:text="@string/prem_feat4_title"
-                        android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:textColor="#FFFFFF" android:textSize="13sp" android:textStyle="bold"/>
-                    <TextView android:text="@string/prem_feat4_sub"
-                        android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:textColor="#555555" android:textSize="11sp"/>
-                </LinearLayout>
+                android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="12dp">
+                <TextView android:text="@string/feat_selfie_line"
+                    android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                    android:textColor="#E8E8EA" android:textSize="12sp"/>
+                <TextView android:text="&#128247;" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="15sp" android:layout_marginStart="10dp"/>
             </LinearLayout>
 
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="8dp">
-                <TextView android:text="&#8986;" android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" android:textSize="18sp" android:layout_marginEnd="10dp"/>
-                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                    <TextView android:text="@string/prem_feat5_title"
-                        android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:textColor="#FFFFFF" android:textSize="13sp" android:textStyle="bold"/>
-                    <TextView android:text="@string/prem_feat5_sub"
-                        android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:textColor="#555555" android:textSize="11sp"/>
-                </LinearLayout>
-            </LinearLayout>
-
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="8dp">
-                <TextView android:text="&#128737;" android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" android:textSize="18sp" android:layout_marginEnd="10dp"/>
-                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                    <TextView android:text="@string/prem_feat6_title"
-                        android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:textColor="#FFFFFF" android:textSize="13sp" android:textStyle="bold"/>
-                    <TextView android:text="@string/prem_feat6_sub"
-                        android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:textColor="#555555" android:textSize="11sp"/>
-                </LinearLayout>
+                android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="12dp">
+                <TextView android:text="@string/feat_remote_line"
+                    android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                    android:textColor="#E8E8EA" android:textSize="12sp"/>
+                <TextView android:text="&gt;_" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="14sp" android:textColor="#FFD700" android:fontFamily="monospace"
+                    android:textStyle="bold" android:layout_marginStart="10dp"/>
             </LinearLayout>
 
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:orientation="horizontal" android:gravity="center_vertical">
-                <TextView android:text="&#11088;" android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" android:textSize="18sp" android:layout_marginEnd="10dp"/>
-                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                    <TextView android:text="@string/prem_feat7_title"
-                        android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:textColor="#FFFFFF" android:textSize="13sp" android:textStyle="bold"/>
-                    <TextView android:text="@string/prem_feat7_sub"
-                        android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:textColor="#555555" android:textSize="11sp"/>
-                </LinearLayout>
+                <TextView android:text="@string/feat_timer_line"
+                    android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                    android:textColor="#E8E8EA" android:textSize="12sp"/>
+                <TextView android:text="&#9201;" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="15sp" android:layout_marginStart="10dp"/>
             </LinearLayout>
         </LinearLayout>
 
-        <!-- PAYMENT METHODS -->
-        <TextView android:text="@string/choose_payment_header"
-            android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:textSize="9sp" android:textColor="#CC0000" android:textStyle="bold"
-            android:letterSpacing="0.2" android:layout_marginBottom="10dp"/>
-
-        <!-- Method 1: Card (Coming Soon) -->
+        <!-- ===== LICENSE KEY ===== -->
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="horizontal" android:gravity="center_vertical"
-            android:background="#0D0D10" android:padding="14dp" android:layout_marginBottom="6dp">
-            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
-                android:layout_weight="1" android:orientation="vertical">
-                <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:orientation="horizontal" android:gravity="center_vertical">
-                    <TextView android:text="&#128179; Visa / MasterCard"
-                        android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:textSize="14sp" android:textColor="#AAAAAA" android:textStyle="bold"
-                        android:layout_marginEnd="8dp"/>
-                    <TextView android:text="@string/coming_soon_badge"
-                        android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:textSize="9sp" android:textColor="#CC0000" android:textStyle="bold"
-                        android:background="#1A0000" android:padding="3dp"/>
-                </LinearLayout>
-                <TextView android:text="@string/card_payment_sub"
-                    android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:textSize="11sp" android:textColor="#333333"/>
-            </LinearLayout>
-            <Button android:id="@+id/btn_pay_card"
-                android:layout_width="80dp" android:layout_height="36dp"
-                android:text="@string/soon_btn" android:textSize="11sp"
-                android:backgroundTint="#1A1A1A" android:textColor="#333333"
-                android:enabled="false"/>
+            android:layout_marginBottom="10dp">
+            <Button android:id="@+id/btn_copy_device_id"
+                android:layout_width="wrap_content" android:layout_height="34dp"
+                android:text="@string/copy_device_id_btn" android:textSize="10sp"
+                android:background="@drawable/bg_btn_copy_device_id" android:textColor="#C0C0C8"
+                android:paddingStart="12dp" android:paddingEnd="12dp" android:minWidth="0dp"
+                android:layout_marginEnd="10dp"/>
+            <TextView android:text="@string/license_key_activation_header"
+                android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                android:textSize="12sp" android:textColor="#FFFFFF" android:textStyle="bold"
+                android:gravity="end"/>
+            <TextView android:text="&#128273;" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textSize="14sp" android:layout_marginStart="8dp"/>
         </LinearLayout>
-
-        <!-- Method 2: Contact Support → Facebook -->
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:orientation="horizontal" android:gravity="center_vertical"
-            android:background="#0D0D10" android:padding="14dp" android:layout_marginBottom="16dp">
-            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
-                android:layout_weight="1" android:orientation="vertical">
-                <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:orientation="horizontal" android:gravity="center_vertical">
-                    <TextView android:text="&#128172; Contact Support"
-                        android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:textSize="14sp" android:textColor="#AAAAAA" android:textStyle="bold"
-                        android:layout_marginEnd="8dp"/>
-                </LinearLayout>
-                <TextView android:text="@string/contact_support_sub"
-                    android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:textSize="11sp" android:textColor="#4A90D9"/>
-            </LinearLayout>
-            <Button android:id="@+id/btn_pay_support"
-                android:layout_width="80dp" android:layout_height="36dp"
-                android:text="@string/contact_btn"
-                android:textSize="11sp"
-                android:backgroundTint="#1A3A6A" android:textColor="#FFFFFF"
-                android:enabled="true"/>
-        </LinearLayout>
-
-        <!-- LICENSE KEY -->
-        <TextView android:text="@string/license_key_header"
-            android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:textSize="9sp" android:textColor="#00AA44" android:textStyle="bold"
-            android:letterSpacing="0.2" android:layout_marginBottom="8dp"/>
 
         <LinearLayout android:id="@+id/layout_license_input"
             android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:orientation="vertical" android:background="#0D1A0D"
-            android:padding="14dp" android:layout_marginBottom="12dp">
-            <TextView android:text="@string/license_key_hint"
-                android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:textSize="10sp" android:textColor="#444444" android:layout_marginBottom="8dp"/>
+            android:orientation="vertical" android:background="@drawable/bg_license_input_box"
+            android:padding="4dp" android:layout_marginBottom="14dp">
             <EditText android:id="@+id/et_license_key"
-                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_width="match_parent" android:layout_height="48dp"
                 android:hint="@string/license_key_placeholder"
-                android:inputType="textPassword"
-                android:textColor="#FFFFFF" android:textColorHint="#333333"
-                android:fontFamily="monospace" android:textSize="14sp"/>
+                android:inputType="textCapCharacters|textVisiblePassword"
+                android:gravity="center" android:background="@android:color/transparent"
+                android:textColor="#FFFFFF" android:textColorHint="#333338"
+                android:fontFamily="monospace" android:textSize="13sp" android:letterSpacing="0.04"/>
         </LinearLayout>
 
-        <!-- Main CTA button -->
+        <!-- Main CTA -->
         <Button android:id="@+id/btn_buy"
-            android:layout_width="match_parent" android:layout_height="54dp"
-            android:text="@string/unlock_full"
-            android:textSize="15sp" android:textStyle="bold"
-            android:backgroundTint="#1A1300" android:textColor="#FFD700"
-            android:layout_marginBottom="8dp"/>
+            android:layout_width="match_parent" android:layout_height="52dp"
+            android:text="@string/activate_now_btn"
+            android:textSize="14sp" android:textStyle="bold"
+            android:background="@drawable/bg_btn_activate" android:textColor="#FFFFFF"
+            android:layout_marginBottom="4dp"/>
 
-        <Button android:id="@+id/btn_restore"
-            android:layout_width="match_parent" android:layout_height="44dp"
-            android:text="@string/get_device_id_btn"
-            android:textSize="12sp" android:backgroundTint="#111111"
-            android:textColor="#555555" android:layout_marginBottom="12dp"/>
+        <TextView android:text="@string/price_placeholder_note"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="8sp" android:textColor="#3A3A3F" android:gravity="center"
+            android:layout_marginBottom="16dp"/>
+
+        <!-- Bottom row: revoke (left) / support (right) -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginBottom="10dp">
+            <Button android:id="@+id/btn_revoke_license"
+                android:layout_width="0dp" android:layout_height="42dp" android:layout_weight="1"
+                android:layout_marginEnd="6dp"
+                android:text="@string/revoke_license_btn" android:textSize="11sp"
+                android:backgroundTint="#1A0000" android:textColor="#CC0000"/>
+            <Button android:id="@+id/btn_pay_support"
+                android:layout_width="0dp" android:layout_height="42dp" android:layout_weight="1"
+                android:text="@string/tech_support_btn" android:textSize="11sp"
+                android:backgroundTint="#14141A" android:textColor="#8E8E93"/>
+        </LinearLayout>
 
         <!-- Copyright -->
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
             android:text="@string/about_copyright"
-            android:textSize="9sp" android:textColor="#222222"
-            android:gravity="center" android:letterSpacing="0.1" android:layout_marginBottom="8dp"/>
-
-        <Button android:id="@+id/btn_back_premium"
-            android:layout_width="match_parent" android:layout_height="44dp"
-            android:text="@string/back_arrow_left" android:textSize="13sp"
-            android:backgroundTint="#1A1A1A" android:textColor="#666666"/>
-
-        <!-- REVOKE LICENSE — shown only when premium active -->
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:orientation="vertical" android:padding="20dp"
-            android:layout_marginTop="8dp">
-            <View android:layout_width="match_parent" android:layout_height="1dp"
-                android:background="#1A1A1A" android:layout_marginBottom="16dp"/>
-            <Button android:id="@+id/btn_revoke_license"
-                android:layout_width="match_parent" android:layout_height="42dp"
-                android:text="@string/revoke_license_btn"
-                android:backgroundTint="#1A0000" android:textColor="#CC0000"
-                android:textSize="12sp"/>
-        </LinearLayout>
+            android:textSize="9sp" android:textColor="#333338"
+            android:gravity="center" android:layout_marginBottom="4dp"/>
 
     </LinearLayout>
 </ScrollView>

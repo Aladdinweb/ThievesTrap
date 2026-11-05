@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:orientation="vertical" android:gravity="center_horizontal"
+    android:background="@drawable/bg_dialog_gold"
+    android:padding="26dp">
+
+    <FrameLayout android:layout_width="56dp" android:layout_height="56dp"
+        android:background="@drawable/bg_crown_badge" android:layout_marginBottom="14dp">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_gravity="center" android:text="&#9989;" android:textSize="26sp"/>
+    </FrameLayout>
+
+    <!-- Text set programmatically in PremiumActivity.kt via Strings.get(),
+         since these keys live in the app's Kotlin string map (used for
+         language switching independent of system locale), not Android
+         XML resources. -->
+    <TextView android:id="@+id/tv_success_title"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:textSize="16sp" android:textStyle="bold" android:textColor="#FFD700"
+        android:gravity="center" android:layout_marginBottom="8dp"/>
+
+    <TextView android:id="@+id/tv_success_sub"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:textSize="12sp" android:textColor="#8E8E93"
+        android:gravity="center" android:layout_marginBottom="22dp"/>
+
+    <Button android:id="@+id/btn_success_ok"
+        android:layout_width="match_parent" android:layout_height="48dp"
+        android:text="@android:string/ok" android:textSize="14sp" android:textStyle="bold"
+        android:background="@drawable/bg_btn_activate" android:textColor="#FFFFFF"/>
+
+</LinearLayout>

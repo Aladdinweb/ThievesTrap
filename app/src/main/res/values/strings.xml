@@ -258,4 +258,34 @@ Automatically sends your GPS location if you do not confirm your safety before t
     <string name="sms_selfie_trap_off">Motion trap OFF.</string>
     <string name="poweroff_selfie_label">Power-off attempt selfie</string>
     <string name="poweroff_selfie_sub">Silent photo via Telegram on power menu attempt</string>
+
+
+    <!-- v2.9.9.6 Premium screen redesign -->
+    <string name="full_protection_title">FULL PROTECTION</string>
+    <string name="thieves_trap_brand_sub">THIEVES TRAP BY ILINE TECH</string>
+    <string name="premium_active_badge">Premium Active</string>
+    <string name="free_version_badge">Free Version</string>
+    <string name="choose_plan_header">Choose the plan that fits you</string>
+    <string name="instant_activation_note">Instant local activation</string>
+    <string name="plan_monthly">Monthly</string>
+    <string name="plan_monthly_sub">Full flexibility</string>
+    <string name="per_month_suffix">/ month</string>
+    <string name="plan_3month">3 Months</string>
+    <string name="per_3months_suffix">/ 3 months</string>
+    <string name="plan_annual">Annual</string>
+    <string name="per_year_suffix2">/ year</string>
+    <string name="badge_best_value">BEST VALUE</string>
+    <string name="badge_save16">Save 16%</string>
+    <string name="badge_save50">Save 50%</string>
+    <string name="price_placeholder_note">Prices shown are temporary and subject to change</string>
+    <string name="unlocked_features_header">Full Protection Unlocks</string>
+    <string name="feat_contact2_line">Second emergency contact (Emergency Contact 2)</string>
+    <string name="feat_bridge_line">Real-time cloud family network (Cloud Family Bridge)</string>
+    <string name="feat_selfie_line">Stealth intruder photo capture and live tracking</string>
+    <string name="feat_remote_line">All SMS commands and remote control, no restrictions</string>
+    <string name="feat_timer_line">Personal safety timer and disconnect alert (Watch Tether)</string>
+    <string name="license_key_activation_header">License Key</string>
+    <string name="copy_device_id_btn">Copy Device ID</string>
+    <string name="activate_now_btn">Activate Subscription Now</string>
+    <string name="tech_support_btn">Technical Support</string>
 </resources>

@@ -255,4 +255,34 @@ Elle envoie une alerte automatique avec votre position GPS si vous ne confirmez 
     <string name="sms_selfie_trap_off">Piège photo DÉSACTIVÉ.</string>
     <string name="poweroff_selfie_label">Selfie a la tentative d\'extinction</string>
     <string name="poweroff_selfie_sub">Photo silencieuse via Telegram lors d\'une tentative d\'extinction</string>
+
+
+    <!-- v2.9.9.6 Premium screen redesign -->
+    <string name="full_protection_title">PROTECTION COMPLETE</string>
+    <string name="thieves_trap_brand_sub">THIEVES TRAP PAR ILINE TECH</string>
+    <string name="premium_active_badge">Premium actif</string>
+    <string name="free_version_badge">Version gratuite</string>
+    <string name="choose_plan_header">Choisissez l\'offre qui vous convient</string>
+    <string name="instant_activation_note">Activation locale instantanee</string>
+    <string name="plan_monthly">Mensuel</string>
+    <string name="plan_monthly_sub">Flexibilite totale</string>
+    <string name="per_month_suffix">/ mois</string>
+    <string name="plan_3month">3 Mois</string>
+    <string name="per_3months_suffix">/ 3 mois</string>
+    <string name="plan_annual">Annuel</string>
+    <string name="per_year_suffix2">/ an</string>
+    <string name="badge_best_value">MEILLEURE OFFRE</string>
+    <string name="badge_save16">-16%</string>
+    <string name="badge_save50">Economisez 50%</string>
+    <string name="price_placeholder_note">Les prix affiches sont temporaires et sujets a modification</string>
+    <string name="unlocked_features_header">La protection complete debloque</string>
+    <string name="feat_contact2_line">Deuxieme contact d\'urgence (Emergency Contact 2)</string>
+    <string name="feat_bridge_line">Reseau familial cloud en temps reel (Cloud Family Bridge)</string>
+    <string name="feat_selfie_line">Capture photo furtive de l\'intrus et suivi en direct</string>
+    <string name="feat_remote_line">Toutes les commandes SMS et le controle a distance, sans restriction</string>
+    <string name="feat_timer_line">Minuteur de securite et alerte de deconnexion (Watch Tether)</string>
+    <string name="license_key_activation_header">Cle de licence</string>
+    <string name="copy_device_id_btn">Copier l\'ID</string>
+    <string name="activate_now_btn">Activer l\'abonnement maintenant</string>
+    <string name="tech_support_btn">Support technique</string>
 </resources>
