@@ -10,16 +10,11 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 
 /**
- * v2.9.9.6: redesigned subscription/activation screen. Three selectable
- * pricing cards (visual state only -- no payment processor is wired up
- * yet, this just tracks which plan the user intends and prepares the key
- * type for whatever activation flow comes next), a glass feature list, and
- * the existing license-key activation / revoke / support flow carried over
- * unchanged functionally, just rebound to the new layout's view ids.
- *
- * Prices shown (monthly $0.99 / 3-month $2.49 / annual $4.99) are the
- * placeholders from the approved design reference -- pricing itself is
- * still to be finalized, per the original request.
+ * v2.9.9.7: pricing in EUR (5.99 / 10.99 / 24.99), cards forced LTR in the
+ * layout, and tapping a pricing card now copies a ready-made subscription
+ * request (plan, price, Device ID) to the clipboard and opens Messenger with
+ * the same text pre-filled. Activation, revoke, support and the success
+ * dialog are unchanged from v2.9.9.6.
  */
 class PremiumActivity : AppCompatActivity() {
 
@@ -27,8 +22,11 @@ class PremiumActivity : AppCompatActivity() {
     private fun s(key: String) = Strings.get(this, key)
 
     // Facebook page URL for support
-    private val FACEBOOK_PAGE_URL = "https://www.facebook.com/share/1MRdfCnNoY/"
+    private val FACEBOOK_PAGE_URL = "https://www.facebook.com/share/1D2RrP4ey2/"
     private val FACEBOOK_APP_URL = "fb://facewebmodal/f?href=$FACEBOOK_PAGE_URL"
+
+    // Messenger page username or numeric Page ID. Blank = fall back to the Facebook page.
+    private val MESSENGER_PAGE = ""
 
     private enum class Plan { MONTHLY, THREE_MONTH, ANNUAL }
     private var selectedPlan: Plan = Plan.MONTHLY
@@ -110,7 +108,29 @@ class PremiumActivity : AppCompatActivity() {
         }
     }
 
-    /** Three pricing cards: tapping one visually selects it (gold border + gold price/label) and clears the others. Monthly starts selected. */
+    /** "1 month" / "3 months" / "1 year" under each price, in the current app language. */
+    private fun durationLabel(plan: Plan): String {
+        val lang = resources.configuration.locales[0].language
+        return when (lang) {
+            "fr" -> when (plan) {
+                Plan.MONTHLY -> "1 mois"
+                Plan.THREE_MONTH -> "3 mois"
+                Plan.ANNUAL -> "1 an"
+            }
+            "ar" -> when (plan) {
+                Plan.MONTHLY -> "\u0634\u0647\u0631 \u0648\u0627\u062D\u062F"
+                Plan.THREE_MONTH -> "3 \u0623\u0634\u0647\u0631"
+                Plan.ANNUAL -> "\u0633\u0646\u0629 \u0648\u0627\u062D\u062F\u0629"
+            }
+            else -> when (plan) {
+                Plan.MONTHLY -> "1 month"
+                Plan.THREE_MONTH -> "3 months"
+                Plan.ANNUAL -> "1 year"
+            }
+        }
+    }
+
+    /** Three pricing cards: tapping one highlights it AND opens Messenger with the subscription request. */
     private fun setupPlanCards() {
         val cardMonthly = findViewById<FrameLayout>(R.id.card_plan_monthly)
         val card3Month  = findViewById<FrameLayout>(R.id.card_plan_3month)
@@ -123,6 +143,10 @@ class PremiumActivity : AppCompatActivity() {
         val priceMonthly = findViewById<TextView>(R.id.tv_price_monthly)
         val price3Month  = findViewById<TextView>(R.id.tv_price_3month)
         val priceAnnual  = findViewById<TextView>(R.id.tv_price_annual)
+
+        findViewById<TextView>(R.id.tv_sub_monthly).text = durationLabel(Plan.MONTHLY)
+        findViewById<TextView>(R.id.tv_sub_3month).text = durationLabel(Plan.THREE_MONTH)
+        findViewById<TextView>(R.id.tv_sub_annual).text = durationLabel(Plan.ANNUAL)
 
         fun applySelection() {
             val gold = 0xFFFFD700.toInt()
@@ -142,11 +166,43 @@ class PremiumActivity : AppCompatActivity() {
             priceAnnual.setTextColor(if (selectedPlan == Plan.ANNUAL) gold else silver)
         }
 
-        cardMonthly.setOnClickListener { selectedPlan = Plan.MONTHLY; applySelection() }
-        card3Month.setOnClickListener { selectedPlan = Plan.THREE_MONTH; applySelection() }
-        cardAnnual.setOnClickListener { selectedPlan = Plan.ANNUAL; applySelection() }
+        cardMonthly.setOnClickListener { selectedPlan = Plan.MONTHLY; applySelection(); contactForPlan(selectedPlan) }
+        card3Month.setOnClickListener  { selectedPlan = Plan.THREE_MONTH; applySelection(); contactForPlan(selectedPlan) }
+        cardAnnual.setOnClickListener  { selectedPlan = Plan.ANNUAL; applySelection(); contactForPlan(selectedPlan) }
 
-        applySelection() // monthly selected by default
+        applySelection() // monthly highlighted by default
+    }
+
+    private fun planMessage(plan: Plan): String {
+        val (name, price) = when (plan) {
+            Plan.MONTHLY -> "Monthly Plan" to "5.99 \u20AC"
+            Plan.THREE_MONTH -> "3 Months Plan" to "10.99 \u20AC"
+            Plan.ANNUAL -> "Annual Plan" to "24.99 \u20AC"
+        }
+        val id = LicenseManager.getAndroidId(this)
+        return "Hello, I want to subscribe to the $name ($price). My Device ID is: $id"
+    }
+
+    /**
+     * Copies the ready-made request to the clipboard, then opens Messenger with
+     * the same text pre-filled. Messenger's ?text= prefill is ignored on some
+     * versions, which is why the clipboard copy always happens first.
+     */
+    private fun contactForPlan(plan: Plan) {
+        val msg = planMessage(plan)
+        val clipboard = getSystemService(android.content.ClipboardManager::class.java)
+        clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("Subscription request", msg))
+        Toast.makeText(this, "Message copied. Paste it in Messenger if it is empty.", Toast.LENGTH_LONG).show()
+
+        if (MESSENGER_PAGE.isBlank()) {
+            openFacebook()
+            return
+        }
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://m.me/$MESSENGER_PAGE?text=" + Uri.encode(msg))))
+        } catch (e: Exception) {
+            openFacebook()
+        }
     }
 
     /**

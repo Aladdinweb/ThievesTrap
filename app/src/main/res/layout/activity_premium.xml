@@ -55,63 +55,50 @@
                 android:textSize="9sp" android:textColor="#5A5A5F"/>
         </LinearLayout>
 
-        <!-- ===== PRICING CARDS (3 columns; Android mirrors this to RTL automatically) ===== -->
+        <!-- ===== PRICING CARDS: forced LTR so the order is always Monthly, 3 Months, Annual ===== -->
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:orientation="horizontal" android:layout_marginBottom="18dp">
+            android:orientation="horizontal" android:layoutDirection="ltr"
+            android:layout_marginBottom="18dp">
 
-            <!-- Monthly — selected by default -->
+            <!-- Monthly - selected by default -->
             <FrameLayout android:id="@+id/card_plan_monthly"
-                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_width="0dp" android:layout_height="match_parent"
                 android:layout_weight="1" android:layout_marginEnd="6dp"
                 android:background="@drawable/bg_plan_card_selected" android:clickable="true" android:focusable="true">
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent"
                     android:orientation="vertical" android:gravity="center"
                     android:padding="12dp" android:paddingTop="18dp">
                     <TextView android:id="@+id/tv_label_monthly" android:text="@string/plan_monthly"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textColor="#FFD700" android:textSize="12sp" android:textStyle="bold"
                         android:layout_marginBottom="8dp"/>
-                    <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:orientation="horizontal" android:gravity="bottom">
-                        <TextView android:text="$" android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:textSize="13sp" android:textColor="#FFD700" android:textStyle="bold" android:paddingBottom="3dp"/>
-                        <TextView android:id="@+id/tv_price_monthly" android:text="0.99"
-                            android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:textSize="24sp" android:textStyle="bold" android:textColor="#FFD700"/>
-                    </LinearLayout>
-                    <TextView android:text="@string/per_month_suffix"
+                    <TextView android:id="@+id/tv_price_monthly" android:text="5.99&#160;€"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:textSize="9sp" android:textColor="#8E8E93" android:layout_marginTop="2dp"/>
-                    <TextView android:text="@string/plan_monthly_sub"
+                        android:textSize="22sp" android:textStyle="bold" android:textColor="#FFD700"/>
+                    <TextView android:id="@+id/tv_sub_monthly" android:text="@string/per_month_suffix"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:textSize="9sp" android:textColor="#5A5A5F" android:layout_marginTop="6dp"
-                        android:gravity="center"/>
+                        android:textSize="9sp" android:textColor="#8E8E93" android:layout_marginTop="4dp"/>
                 </LinearLayout>
             </FrameLayout>
 
-            <!-- 3-Month -->
+            <!-- 3 Months -->
             <FrameLayout android:id="@+id/card_plan_3month"
-                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_width="0dp" android:layout_height="match_parent"
                 android:layout_weight="1" android:layout_marginEnd="6dp"
                 android:background="@drawable/bg_plan_card" android:clickable="true" android:focusable="true">
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent"
                     android:orientation="vertical" android:gravity="center"
                     android:padding="12dp" android:paddingTop="18dp">
                     <TextView android:id="@+id/tv_label_3month" android:text="@string/plan_3month"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textColor="#FFFFFF" android:textSize="12sp" android:textStyle="bold"
                         android:layout_marginBottom="8dp"/>
-                    <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:orientation="horizontal" android:gravity="bottom">
-                        <TextView android:text="$" android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:textSize="12sp" android:textColor="#C0C0C8" android:paddingBottom="3dp"/>
-                        <TextView android:id="@+id/tv_price_3month" android:text="2.49"
-                            android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:textSize="22sp" android:textStyle="bold" android:textColor="#FFFFFF"/>
-                    </LinearLayout>
-                    <TextView android:text="@string/per_3months_suffix"
+                    <TextView android:id="@+id/tv_price_3month" android:text="10.99&#160;€"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:textSize="9sp" android:textColor="#8E8E93" android:layout_marginTop="2dp"/>
+                        android:textSize="19sp" android:textStyle="bold" android:textColor="#FFFFFF"/>
+                    <TextView android:id="@+id/tv_sub_3month" android:text="@string/per_3months_suffix"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textSize="9sp" android:textColor="#8E8E93" android:layout_marginTop="4dp"/>
                     <TextView android:text="@string/badge_save16"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textSize="9sp" android:textStyle="bold" android:textColor="#66BB6A"
@@ -121,41 +108,30 @@
                 </LinearLayout>
             </FrameLayout>
 
-            <!-- Annual - Best Value ribbon -->
+            <!-- Annual - Best Value -->
             <FrameLayout android:id="@+id/card_plan_annual"
-                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_width="0dp" android:layout_height="match_parent"
                 android:layout_weight="1"
                 android:background="@drawable/bg_plan_card" android:clickable="true" android:focusable="true">
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent"
                     android:orientation="vertical" android:gravity="center"
                     android:padding="12dp" android:paddingTop="24dp">
                     <TextView android:id="@+id/tv_label_annual" android:text="@string/plan_annual"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textColor="#FFFFFF" android:textSize="12sp" android:textStyle="bold"
                         android:layout_marginBottom="8dp"/>
-                    <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:orientation="horizontal" android:gravity="bottom">
-                        <TextView android:text="$" android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:textSize="12sp" android:textColor="#C0C0C8" android:paddingBottom="3dp"/>
-                        <TextView android:id="@+id/tv_price_annual" android:text="4.99"
-                            android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:textSize="22sp" android:textStyle="bold" android:textColor="#FFFFFF"/>
-                    </LinearLayout>
-                    <TextView android:text="@string/per_year_suffix2"
+                    <TextView android:id="@+id/tv_price_annual" android:text="24.99&#160;€"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:textSize="9sp" android:textColor="#8E8E93" android:layout_marginTop="2dp"/>
-                    <TextView android:text="@string/badge_save50"
+                        android:textSize="19sp" android:textStyle="bold" android:textColor="#FFFFFF"/>
+                    <TextView android:id="@+id/tv_sub_annual" android:text="@string/per_year_suffix2"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:textSize="9sp" android:textStyle="bold" android:textColor="#66BB6A"
-                        android:background="@drawable/bg_badge_save"
-                        android:paddingStart="8dp" android:paddingEnd="8dp"
-                        android:paddingTop="2dp" android:paddingBottom="2dp" android:layout_marginTop="6dp"/>
+                        android:textSize="9sp" android:textColor="#8E8E93" android:layout_marginTop="4dp"/>
                 </LinearLayout>
-                <!-- top "BEST VALUE" ribbon, stays regardless of selection state -->
+                <!-- BEST VALUE ribbon: solid gold background, dark text, always visible -->
                 <TextView android:text="@string/badge_best_value"
                     android:layout_width="wrap_content" android:layout_height="wrap_content"
                     android:layout_gravity="top|center_horizontal" android:layout_marginTop="-9dp"
-                    android:textSize="8sp" android:textStyle="bold" android:textColor="#0A0A0B"
+                    android:textSize="9sp" android:textStyle="bold" android:textColor="#0A0A0B"
                     android:background="@drawable/bg_badge_best_value"
                     android:paddingStart="10dp" android:paddingEnd="10dp"
                     android:paddingTop="3dp" android:paddingBottom="3dp"/>
