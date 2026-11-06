@@ -10,11 +10,9 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 
 /**
- * v2.9.9.7: pricing in EUR (5.99 / 10.99 / 24.99), cards forced LTR in the
- * layout, and tapping a pricing card now copies a ready-made subscription
- * request (plan, price, Device ID) to the clipboard and opens Messenger with
- * the same text pre-filled. Activation, revoke, support and the success
- * dialog are unchanged from v2.9.9.6.
+ * v2.9.9.9: license keys are now validated by the Cloudflare Worker (see
+ * LicenseManager). A new line under the Device ID shows the expiry date and
+ * days left, or "Lifetime" / "À vie" / "مدى الحياة", in the app language.
  */
 class PremiumActivity : AppCompatActivity() {
 
@@ -43,6 +41,7 @@ class PremiumActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.tv_device_id).text = "Device ID: $androidId"
 
         setupStatusBadge(isPremium)
+        setupExpiryLine()
         setupPlanCards()
 
         if (isPremium) {
@@ -55,24 +54,25 @@ class PremiumActivity : AppCompatActivity() {
         } else {
             val etKey = findViewById<EditText>(R.id.et_license_key)
             etKey.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-            findViewById<Button>(R.id.btn_buy).setOnClickListener {
+            val btnBuy = findViewById<Button>(R.id.btn_buy)
+            btnBuy.setOnClickListener {
                 val key = etKey.text.toString().trim()
                 if (key.isBlank()) {
-                    Toast.makeText(this, "Enter your license key", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, tr("Enter your license key", "Entrez votre cl\u00E9 de licence", "\u0623\u062F\u062E\u0644 \u0645\u0641\u062A\u0627\u062D \u0627\u0644\u062A\u0631\u062E\u064A\u0635"), Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
                 }
-                when (LicenseManager.validateKey(this, key)) {
-                    LicenseManager.ValidationResult.SUCCESS_DEVICE,
-                    LicenseManager.ValidationResult.SUCCESS_MASTER -> {
-                        showSubscriptionSuccessDialog()
+                val originalText = btnBuy.text
+                btnBuy.isEnabled = false
+                btnBuy.text = tr("Verifying...", "V\u00E9rification...", "\u062C\u0627\u0631\u064D \u0627\u0644\u062A\u062D\u0642\u0642...")
+                Thread {
+                    val result = LicenseManager.activate(applicationContext, key)
+                    runOnUiThread {
+                        if (isFinishing || isDestroyed) return@runOnUiThread
+                        btnBuy.isEnabled = true
+                        btnBuy.text = originalText
+                        handleActivationResult(result, androidId)
                     }
-                    LicenseManager.ValidationResult.INVALID ->
-                        Toast.makeText(
-                            this,
-                            "${s("license_invalid")}\nDevice ID: $androidId",
-                            Toast.LENGTH_LONG
-                        ).show()
-                }
+                }.start()
             }
         }
 
@@ -89,6 +89,63 @@ class PremiumActivity : AppCompatActivity() {
         }
 
         setupRevokeButton(isPremium)
+    }
+
+    private fun tr(en: String, fr: String, ar: String): String = when (appLang()) {
+        "fr" -> fr
+        "ar" -> ar
+        else -> en
+    }
+
+    private fun handleActivationResult(result: LicenseManager.ActivationResult, androidId: String) {
+        val msg: String = when (result) {
+            is LicenseManager.ActivationResult.Success -> { showSubscriptionSuccessDialog(); return }
+            LicenseManager.ActivationResult.InvalidKey ->
+                tr("Invalid license key.", "Cl\u00E9 de licence invalide.", "\u0645\u0641\u062A\u0627\u062D \u0627\u0644\u062A\u0631\u062E\u064A\u0635 \u063A\u064A\u0631 \u0635\u0627\u0644\u062D.")
+            LicenseManager.ActivationResult.KeyInUse ->
+                tr("This key is already used on another device.", "Cette cl\u00E9 est d\u00E9j\u00E0 utilis\u00E9e sur un autre appareil.", "\u0647\u0630\u0627 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0645\u0633\u062A\u062E\u062F\u0645 \u0639\u0644\u0649 \u062C\u0647\u0627\u0632 \u0622\u062E\u0631.")
+            LicenseManager.ActivationResult.Revoked ->
+                tr("This key has been revoked.", "Cette cl\u00E9 a \u00E9t\u00E9 r\u00E9voqu\u00E9e.", "\u062A\u0645 \u0625\u0644\u063A\u0627\u0621 \u0647\u0630\u0627 \u0627\u0644\u0645\u0641\u062A\u0627\u062D.")
+            LicenseManager.ActivationResult.Expired ->
+                tr("This key has expired.", "Cette cl\u00E9 a expir\u00E9.", "\u0627\u0646\u062A\u0647\u062A \u0635\u0644\u0627\u062D\u064A\u0629 \u0647\u0630\u0627 \u0627\u0644\u0645\u0641\u062A\u0627\u062D.")
+            LicenseManager.ActivationResult.Network ->
+                tr("No connection to the license server. Check your internet and try again.", "Pas de connexion au serveur de licences. V\u00E9rifiez votre internet.", "\u0644\u0627 \u064A\u0648\u062C\u062F \u0627\u062A\u0635\u0627\u0644 \u0628\u062E\u0627\u062F\u0645 \u0627\u0644\u062A\u0631\u0627\u062E\u064A\u0635. \u062A\u062D\u0642\u0642 \u0645\u0646 \u0627\u0644\u0625\u0646\u062A\u0631\u0646\u062A.")
+            LicenseManager.ActivationResult.ServerError ->
+                tr("License server error. Try again later.", "Erreur du serveur de licences. R\u00E9essayez plus tard.", "\u062E\u0637\u0623 \u0641\u064A \u062E\u0627\u062F\u0645 \u0627\u0644\u062A\u0631\u0627\u062E\u064A\u0635. \u062D\u0627\u0648\u0644 \u0644\u0627\u062D\u0642\u0627\u064B.")
+            LicenseManager.ActivationResult.NotConfigured ->
+                "License server not configured in this build."
+        }
+        Toast.makeText(this, "$msg\nDevice ID: $androidId", Toast.LENGTH_LONG).show()
+    }
+
+    /** Expiry date + days left, or Lifetime, right under the Device ID. */
+    private fun setupExpiryLine() {
+        val tv = findViewById<TextView>(R.id.tv_expiry)
+        val info = LicenseManager.getLicenseInfo(this)
+        if (info == null) { tv.visibility = android.view.View.GONE; return }
+        tv.visibility = android.view.View.VISIBLE
+
+        if (info.expMillis == 0L) {
+            tv.text = tr("Lifetime", "\u00C0 vie", "\u0645\u062F\u0649 \u0627\u0644\u062D\u064A\u0627\u0629")
+            tv.setTextColor(0xFFFFD700.toInt())
+            return
+        }
+        val locale = resources.configuration.locales[0]
+        val date = java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM, locale)
+            .format(java.util.Date(info.expMillis))
+        if (info.expired) {
+            tv.text = tr("Expired on $date", "Expir\u00E9 le $date", "\u0627\u0646\u062A\u0647\u0649 \u0641\u064A $date")
+            tv.setTextColor(0xFFEF5350.toInt())
+            return
+        }
+        val days = Math.ceil((info.expMillis - System.currentTimeMillis()) / 86400000.0).toInt().coerceAtLeast(1)
+        val dot = "\u00B7"
+        tv.text = when (appLang()) {
+            "fr" -> "Expire le $date $dot $days ${if (days == 1) "jour restant" else "jours restants"}"
+            "ar" -> "\u064A\u0646\u062A\u0647\u064A \u0641\u064A $date $dot \u0645\u062A\u0628\u0642\u064A $days \u064A\u0648\u0645\u064B\u0627"
+            else -> "Expires $date $dot $days ${if (days == 1) "day" else "days"} left"
+        }
+        tv.setTextColor(if (days <= 7) 0xFFFFA726.toInt() else 0xFF66BB6A.toInt())
     }
 
     private fun setupStatusBadge(isPremium: Boolean) {

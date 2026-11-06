@@ -41,7 +41,11 @@
         <TextView android:id="@+id/tv_device_id"
             android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:text="@string/device_id_label" android:textSize="10sp"
-            android:fontFamily="monospace" android:textColor="#5A5A5F" android:layout_marginBottom="24dp"/>
+            android:fontFamily="monospace" android:textColor="#5A5A5F" android:layout_marginBottom="4dp"/>
+        <TextView android:id="@+id/tv_expiry"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:visibility="gone" android:textSize="12sp" android:textStyle="bold"
+            android:textColor="#66BB6A" android:layout_marginBottom="24dp"/>
 
         <!-- ===== plan-choice header row ===== -->
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
