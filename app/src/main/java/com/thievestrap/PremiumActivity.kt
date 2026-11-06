@@ -26,7 +26,7 @@ class PremiumActivity : AppCompatActivity() {
     private val FACEBOOK_APP_URL = "fb://facewebmodal/f?href=$FACEBOOK_PAGE_URL"
 
     // Messenger page username or numeric Page ID. Blank = fall back to the Facebook page.
-    private val MESSENGER_PAGE = ""
+    private val MESSENGER_PAGE = "61576473907901"
 
     private enum class Plan { MONTHLY, THREE_MONTH, ANNUAL }
     private var selectedPlan: Plan = Plan.MONTHLY
@@ -110,8 +110,7 @@ class PremiumActivity : AppCompatActivity() {
 
     /** "1 month" / "3 months" / "1 year" under each price, in the current app language. */
     private fun durationLabel(plan: Plan): String {
-        val lang = resources.configuration.locales[0].language
-        return when (lang) {
+        return when (appLang()) {
             "fr" -> when (plan) {
                 Plan.MONTHLY -> "1 mois"
                 Plan.THREE_MONTH -> "3 mois"
@@ -173,14 +172,43 @@ class PremiumActivity : AppCompatActivity() {
         applySelection() // monthly highlighted by default
     }
 
+    private fun appLang(): String = resources.configuration.locales[0].language
+
+    /** Subscription request in the current app language (EN / FR / AR), always including plan, price and Device ID. */
     private fun planMessage(plan: Plan): String {
-        val (name, price) = when (plan) {
-            Plan.MONTHLY -> "Monthly Plan" to "5.99 \u20AC"
-            Plan.THREE_MONTH -> "3 Months Plan" to "10.99 \u20AC"
-            Plan.ANNUAL -> "Annual Plan" to "24.99 \u20AC"
+        val lang = appLang()
+        val price = when (plan) {
+            Plan.MONTHLY -> "5.99 \u20AC"
+            Plan.THREE_MONTH -> "10.99 \u20AC"
+            Plan.ANNUAL -> "24.99 \u20AC"
         }
         val id = LicenseManager.getAndroidId(this)
-        return "Hello, I want to subscribe to the $name ($price). My Device ID is: $id"
+        return when (lang) {
+            "fr" -> {
+                val name = when (plan) {
+                    Plan.MONTHLY -> "Mensuel"
+                    Plan.THREE_MONTH -> "3 Mois"
+                    Plan.ANNUAL -> "Annuel"
+                }
+                "Bonjour, je souhaite m'abonner au plan $name ($price). Mon ID d'appareil est : $id"
+            }
+            "ar" -> {
+                val name = when (plan) {
+                    Plan.MONTHLY -> "\u0627\u0644\u0628\u0627\u0642\u0629 \u0627\u0644\u0634\u0647\u0631\u064A\u0629"
+                    Plan.THREE_MONTH -> "\u0628\u0627\u0642\u0629 3 \u0623\u0634\u0647\u0631"
+                    Plan.ANNUAL -> "\u0627\u0644\u0628\u0627\u0642\u0629 \u0627\u0644\u0633\u0646\u0648\u064A\u0629"
+                }
+                "\u0645\u0631\u062D\u0628\u0627\u064B\u060C \u0623\u0631\u064A\u062F \u0627\u0644\u0627\u0634\u062A\u0631\u0627\u0643 \u0641\u064A $name ($price). \u0645\u0639\u0631\u0641 \u0627\u0644\u062C\u0647\u0627\u0632 \u0627\u0644\u062E\u0627\u0635 \u0628\u064A \u0647\u0648: $id"
+            }
+            else -> {
+                val name = when (plan) {
+                    Plan.MONTHLY -> "Monthly Plan"
+                    Plan.THREE_MONTH -> "3 Months Plan"
+                    Plan.ANNUAL -> "Annual Plan"
+                }
+                "Hello, I want to subscribe to the $name ($price). My Device ID is: $id"
+            }
+        }
     }
 
     /**

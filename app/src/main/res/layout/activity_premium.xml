@@ -115,7 +115,7 @@
                 android:background="@drawable/bg_plan_card" android:clickable="true" android:focusable="true">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent"
                     android:orientation="vertical" android:gravity="center"
-                    android:padding="12dp" android:paddingTop="24dp">
+                    android:padding="12dp" android:paddingTop="34dp">
                     <TextView android:id="@+id/tv_label_annual" android:text="@string/plan_annual"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textColor="#FFFFFF" android:textSize="12sp" android:textStyle="bold"
@@ -130,7 +130,7 @@
                 <!-- BEST VALUE ribbon: solid gold background, dark text, always visible -->
                 <TextView android:text="@string/badge_best_value"
                     android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:layout_gravity="top|center_horizontal" android:layout_marginTop="-9dp"
+                    android:layout_gravity="top|center_horizontal" android:layout_marginTop="6dp"
                     android:textSize="9sp" android:textStyle="bold" android:textColor="#0A0A0B"
                     android:background="@drawable/bg_badge_best_value"
                     android:paddingStart="10dp" android:paddingEnd="10dp"
