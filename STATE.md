@@ -3,6 +3,7 @@
 > **Purpose of this file:** Paste this entire file at the start of a new Claude
 > conversation to restore full project context instantly, without re-explaining
 > architecture or history. Update it after every version push.
+> **Rule: always update this file with every change** (see Section 1).
 > **Never put secrets in this file or paste them into chat:** no signing key, no admin token, no license keys, no PAT.
 
 ---
@@ -14,7 +15,9 @@
 **Repo:** `github.com/Aladdinweb/ThievesTrap` (branch: `main`)
 **Dev environment:** 100% mobile — Samsung phone, Android 13, Termux + GitHub Actions CI. No computer involved.
 **Project dir on phone:** `~/ThievesTrapV18`
-**Current version:** `v2.9.10.1` (versionCode 158), 2026-11-07. Built on the v2.8.6 baseline (see history below for the full chain). No Face Capture, no FACE ON/FACE OFF -- that feature was reverted at the user's explicit request 2026-08-28 and has not been reattempted.
+**Current version:** `v2.9.10.2` (versionCode 159), 2026-11-07 -- pushed and tagged; the green Actions build and the two-phone strict-lock test are still to be confirmed (Section 9). Built on the v2.8.6 baseline (see history below for the full chain). No Face Capture, no FACE ON/FACE OFF -- that feature was reverted at the user's explicit request 2026-08-28 and has not been reattempted.
+**Version numbering rule (set 2026-11-07):** continue sequentially from the production baseline `v2.9.10.2`: the next releases are `v2.9.11`, then `v2.9.12`, and so on (`versionName "2.9.11"`, `versionCode` +1 each time: next is 160). No more four-part names. Every release also gets the matching `vX.Y.Z` git tag (that is what triggers `release.yml`).
+**STATE.md rule (set 2026-11-07):** STATE.md is updated in the same step as EVERY code or feature change (version row in Section 8, Pending in Section 9, architecture notes where they apply) and pushed with it.
 **Licensing (since v2.9.9.9):** server-validated by a Cloudflare Worker + KV with a web admin dashboard -- see **Section 11**. Prices are in EUR (5.99 / 10.99 / 24.99).
 
 **Core concept:** When phone is armed and a thief tries to unlock it (or removes the SIM, disconnects a paired smartwatch, etc.), the app sends emergency SMS/Telegram alerts with GPS location, takes intruder selfies, and supports a remote SMS command system to track/control the phone from any other phone.
@@ -181,7 +184,7 @@ git tag vX.Y.Z && git push origin vX.Y.Z                  # triggers release.yml
 - **Secrets were exposed in chat screenshots (2026-11-06):** the signing key (`signing_key.b64` printed on screen) and an admin token that was overwritten with the OLD master key text `ADMIN_ILINE_2024`. Treat both as compromised until rotated (Pending). Never `cat` a secret on screen while screenshotting; never type your own admin token, generate it with `openssl rand -hex 32`. The old master key `ADMIN-ILINE-2024` and the old `ILINE2026`+DeviceID derivation are burned in every APK shipped before v2.9.9.9 and cannot be revoked there.
 - **Dashboard page uses a nonce CSP:** inline `style="..."` attributes and inline event handlers are blocked silently; use classes and `addEventListener`. Page text is built with `textContent` (never `innerHTML`) so keys/notes cannot inject markup.
 - **KV free tier:** about 1,000 writes/day. `/activate` costs 2 writes (record + replay nonce), `/check` costs 0 (read-only), admin actions 1 each, failed admin logins 1 each. List uses per-key metadata so the dashboard never reads every record.
-- **Android ID is only a label** since v2.9.10; the binding identity is the Keystore public key. An uninstall/reinstall creates a new key and counts as a device move (3 per 30 days per key; admin Unbind resets).
+- **Android ID is only a label** since v2.9.10; the binding identity is the Keystore public key. An uninstall/reinstall creates a new key, so the server sees a different device and refuses it (`key_in_use`) until the admin presses Unbind (strict lock, v2.9.10.2). `ALLOW_REINSTALL_SAME_ANDROID_ID` in `worker.js` (default false) would let the same Android ID re-bind by itself, at the cost of trusting a spoofable value.
 - **Termux files (paths only, contents are secret):** `~/.ttlicense_keys/` holds `ec.pem` (private key, BACK IT UP, losing it forces a new app build), `signing_key.b64` (-> Cloudflare secret `SIGNING_KEY`), `public_key.b64` (-> embedded in the APK by the push `sed`), `admin_token.txt` (-> Cloudflare secret `ADMIN_TOKEN`).
 
 ---
@@ -228,8 +231,9 @@ git tag vX.Y.Z && git push origin vX.Y.Z                  # triggers release.yml
 | v2.9.9.8 (2026-11-06) | Subscription request message localized EN/FR/AR (`planMessage()`), `MESSENGER_PAGE` set to Page ID `61576473907901`, BEST VALUE badge moved INSIDE the Annual card (a -9dp margin was clipped by the parent). |
 | v2.9.9.9 (2026-11-06) | **Licensing moved to a Cloudflare Worker + KV.** `LicenseManager` rewritten: key + Device ID + nonce over HTTPS, answer signed by the Worker (ECDSA P-256 / SHA-256), app embeds only the public key, signed payload stored and re-verified on every read, expiry shown under the Device ID (date + days left, or Lifetime / À vie / مدى الحياة), master key and the `ILINE2026` derivation REMOVED from the code (legacy activations grandfathered as Lifetime while `ALLOW_LEGACY` is true). Worker + admin dashboard (`/admin`: generate keys per plan, list, search/filter, copy, Unbind, Revoke/Restore) added. |
 | v2.9.9.10 (2026-11-06/07) | Precise activation failure reasons on screen: `ServerError(detail)` (e.g. `http 500 signing_failed`) and `BadResponse(reason)` (`signature`/`device`/`nonce`/`version`/`decode:...`) so a failing check is diagnosable. Worker: permanent key DELETE (per key and "Delete all revoked"), Diagnostics button showing the Worker's signing-key fingerprint, and sign-before-bind (a signing failure no longer binds the key). |
-| v2.9.10 (2026-11-07) | **Hybrid online licensing.** Worker answers carry a 72 h lease; the app re-checks via read-only `/check` every ~15 min while in use plus a WorkManager job (`tt_license_refresh`, 15 min, network required) so revoke/delete/move reach the phone within minutes; definitive `revoked`/`invalid_key`/`key_in_use` clear the license immediately, 5xx/offline never do. Automatic device migration: entering the key on a new phone moves the binding (3 moves per key per 30 days, expiry unchanged, old phone locked out at its next check, admin Unbind resets). Binding identity = non-exportable Android Keystore EC key (StrongBox first), every request signed with it (`TT2|action|key|device|ts|nonce`), timestamp window 10 min, replay nonce stored 20 min on `/activate`; Android ID demoted to a label. Dashboard shows "n device move(s)". Old clients (<= v2.9.9.10) get `update_required` on `/activate`. Tested with a 29-case simulated suite (migration, limit, replay, tamper, legacy upgrade, revoke/restore/delete, signing failure); Kotlin not compiled outside CI. |
+| v2.9.10 (2026-11-07) | **Hybrid online licensing.** Worker answers carry a 72 h lease; the app re-checks via read-only `/check` every ~15 min while in use plus a WorkManager job (`tt_license_refresh`, 15 min, network required) so revoke/delete/move reach the phone within minutes; definitive `revoked`/`invalid_key`/`key_in_use` clear the license immediately, 5xx/offline never do. Automatic device migration: entering the key on a new phone moves the binding (3 moves per key per 30 days, expiry unchanged, old phone locked out at its next check, admin Unbind resets). Binding identity = non-exportable Android Keystore EC key (StrongBox first), every request signed with it (`TT2|action|key|device|ts|nonce`), timestamp window 10 min, replay nonce stored 20 min on `/activate`; Android ID demoted to a label. Dashboard shows "n device move(s)". Old clients (<= v2.9.9.10) get `update_required` on `/activate`. Tested with a 29-case simulated suite (migration, limit, replay, tamper, legacy upgrade, revoke/restore/delete, signing failure); Kotlin not compiled outside CI. **The auto-migration part was removed again in v2.9.10.2.** |
 | v2.9.10.1 (2026-11-07) | Premium screen asks the server on open and `recreate()`s when the answer changes (it never redrew itself before, which made revocation look broken); new "Last check: dd/MM HH:mm - <result>" line under the Device ID. This line exposed that the deployed Worker was still the old one (`not_found (404)`); after deploying the v2 Worker it showed `ok`; the user then reported the revoke test successful and the key restored with `ok`. |
+| v2.9.10.2 (2026-11-07) | **Strict lock-to-device, no auto-migration.** A key binds to the first phone that activates it; any other phone gets `key_in_use` (403) on `/activate` and `/check`, and the app shows "This key is already active on another device. Please contact support." in EN/FR/AR (`ActivationResult.KeyInUse`). Removed: the 3-moves/30-days logic, `migration_limit`, `ActivationResult.MigrationLimit`, the move counter in KV metadata and the dashboard. Only the admin's "Unbind device" frees a key: it clears `device` + `dev_pub` but keeps `activated_at`/`expires_at`, so a transfer never extends a subscription; the old phone is locked out at its next check and the next phone to activate binds. `/check` now also refuses an UNBOUND key (otherwise a leaked unbound key could renew leases from any number of phones). A rejected attempt writes nothing to KV (identity check runs before the replay-nonce write). New constant `ALLOW_REINSTALL_SAME_ANDROID_ID` (default false). Worker tested with a 25-case simulated suite; Kotlin compiled only by CI. |
 
 ---
 
@@ -244,12 +248,18 @@ git tag vX.Y.Z && git push origin vX.Y.Z                  # triggers release.yml
 - [ ] Later release: set `ALLOW_LEGACY = false` in `LicenseManager.kt` once customers have moved to server keys (until then pre-server activations stay premium regardless of the server).
 
 **Licensing follow-ups:**
-- [ ] **Test device migration on a SECOND phone** (never tested): same key on phone B -> activates, dashboard shows "1 device move(s)", phone A drops to Free within ~15 min or instantly when its Premium screen is opened.
+- [ ] **Confirm the v2.9.10.2 build is green and test strict lock on TWO phones:** key bound on phone A; same key on phone B -> "already active on another device, contact support" and A stays premium; admin Unbind -> A loses premium at its next check (instantly when its Premium screen is opened); then B can activate with the same expiry.
 - [ ] Confirm the Worker deploy pipeline is really set up (GitHub secrets `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, KV id in `license_worker/wrangler.toml`, a green "Deploy license Worker" run) and that `license_worker/worker.js` in the repo equals the deployed v2 code. If not, the repo copy may be older than what is live.
 - [ ] Decide the lease length: `LEASE_SECONDS` in `worker.js` is 72 h. A thief can cut internet to a stolen phone, so a longer lease favours the victim, a shorter one favours anti-sharing. Changing it needs only a Worker deploy.
 - [ ] Hardware ATTESTATION is NOT implemented: the Keystore key proves a non-exportable key exists, not that it lives in real hardware (an emulator can make its own key; the move limit contains it). Real attestation = Play Integrity or Keystore key attestation verified on the Worker (large job).
 - [ ] Verify the "Save 16%" label: real saving at 10.99 € for 3 months is ~39% and annual ~65% versus monthly.
 - [ ] The `price_placeholder_note` text under the Activate button may still say prices are temporary; update it now that EUR prices are final.
+
+**Roadmap / feature pipeline (requested 2026-11-07, design notes in Section 12; none implemented yet):**
+- [ ] **Custom Trial Plan (flexible duration):** admin generator + Worker support short-term trial keys with custom durations (e.g. 3 days, 7 days / 1 week) for store demos and testing.
+- [ ] **Batch print / export of license tickets:** multi-select checkboxes next to keys in the dashboard + a "Print Selected Tickets" button producing a professional ticket layout (app name, license key, validity) for stores and resellers.
+- [ ] **Force Update mechanism:** mandatory, blocking update dialog when the installed build is older than the required version (previously planned).
+- Suggested order (NOT decided, confirm first): `v2.9.11` = trial plan + batch print (Worker/dashboard only, almost no app change); `v2.9.12` = force update (app + `version.json` + optional Worker gate).
 
 **Older items (still open):**
 - [x] v2.9.1 (versionCode 137): all 9 fixes applied and build-confirmed green
@@ -272,7 +282,7 @@ git tag vX.Y.Z && git push origin vX.Y.Z                  # triggers release.yml
 3. If Claude needs to see a specific file's current content (e.g. to make a precise edit), it will ask — paste via `cat path/to/file`.
 4. Claude delivers the changed files (download to `/sdcard/Download`) plus ONE Termux command that verifies the files, copies them in, patches placeholders, bumps the version, commits, pushes and tags. Run it as its own paste, on a clean prompt. Claude does not push to GitHub for you.
 5. For licensing work also tell Claude: current Worker URL, whether the Worker deploy pipeline is set up, and the exact text of the Premium screen's "Last check" line. Never paste the signing key, admin token, license keys or PAT.
-6. After the build is green, update **Section 8 (Version History)** and **Section 9 (Pending)** in this file and push it.
+6. Claude ALWAYS ships an updated STATE.md together with every code or feature change (standing rule): new row in **Section 8**, updated **Section 9**, and architecture notes in **Section 11/12** when they apply. Push it in the same commit. Next version numbers: `v2.9.11`, `v2.9.12`, ... (Section 1).
 
 ---
 
@@ -283,18 +293,18 @@ git tag vX.Y.Z && git push origin vX.Y.Z                  # triggers release.yml
 **Plans and key format:** `monthly` = 30 days, `3months` = 90, `annual` = 365, `lifetime` (also used for admin keys) = no expiry. Keys look like `TT-XXXXX-XXXXX-XXXXX-XXXXX` (20 chars from a 31-letter alphabet without 0/O/1/I/L, about 99 bits). The clock starts at FIRST activation and is kept across device moves.
 
 **Endpoints**
-- `POST /activate` -- user typed a key: first bind, or automatic move to this phone. Authenticated by a signed request (below), proof of possession of the device key.
+- `POST /activate` -- user typed a key: binds an UNBOUND key to this phone (or re-confirms the phone it is already bound to); a key bound to another phone gets `key_in_use` (403). Authenticated by a signed request (below), proof of possession of the device key.
 - `POST /check` -- read-only periodic re-validation. Can confirm or deny, NEVER changes the binding (a stale old phone cannot take the license back).
 - `GET /admin` -- dashboard page (useless without the token). `POST /admin/{ping,generate,list,info,revoke,restore,unbind,delete,pubkey}` -- Bearer `ADMIN_TOKEN`. 10 wrong tokens from one IP block it for 15 minutes.
-- Errors: `invalid_key` (404, also after Delete), `revoked`, `key_in_use` (403, moved to another phone), `expired`, `migration_limit`, `bad_time` (clock off by more than 10 min), `bad_signature`, `update_required` (old client), `replay` (409), `signing_failed` (500, nothing is persisted), `bad_request`.
+- Errors: `invalid_key` (404, also after Delete), `revoked`, `key_in_use` (403, moved to another phone), `expired`, `bad_time` (clock off by more than 10 min), `bad_signature`, `update_required` (old client), `replay` (409), `signing_failed` (500, nothing is persisted), `bad_request`.
 
 **Request (v2 client):** `{key, device (Android ID label), nonce, ts, pub (SPKI base64 of the Keystore key), sig (raw r||s base64)}`; signature over `TT2|<action>|<key>|<device>|<ts>|<nonce>` with ECDSA P-256 / SHA-256. The Worker verifies it with the supplied `pub`. `dpk` = first 16 hex chars of SHA-256(SPKI).
 
 **Signed answer:** `{payload, sig}`; payload JSON `{v:2, device, dpk, plan, exp (0 = lifetime), iat, lease, nonce}`, signed by `SIGNING_KEY`. The app verifies the signature with the embedded public key, then `device`, `dpk` (must equal its own key) and `nonce`; the license counts only while `now < exp` (or lifetime) AND `now < lease` (72 h from the last successful answer). v1 payloads from v2.9.9.x are accepted with `iat + 72 h` as the lease and upgrade themselves on the first `/check`.
 
-**Record (KV key `k:<KEY>`):** `plan, created_at, note, device, dev_pub, migrations[], activated_at, expires_at, revoked`. KV metadata holds a summary (plan, device, dates, revoked, note, migration count) for the dashboard list. `n:<nonce>` (replay guard, 20 min TTL) and `rl:<ip>` (admin brute-force counter, 15 min TTL) share the namespace.
+**Record (KV key `k:<KEY>`):** `plan, created_at, note, device, dev_pub, activated_at, expires_at, revoked`. KV metadata holds a summary (plan, device, dates, revoked, note) for the dashboard list. `n:<nonce>` (replay guard, 20 min TTL) and `rl:<ip>` (admin brute-force counter, 15 min TTL) share the namespace.
 
-**Device migration rules:** same key on a new device-key = move; allowed 3 times per 30 days, then `migration_limit` (admin Unbind clears device, device key and the counter; expiry is kept). Legacy records bound only by Android ID are accepted for the same Android ID and upgraded with the device key on first contact.
+**Device lock rules (strict, since v2.9.10.2):** a key is locked to ONE device (Keystore public key `dev_pub`, Android ID `device` as a label). No automatic migration of any kind. Another phone is refused with `key_in_use` (403) on both `/activate` and `/check`; the app tells the user to contact support. Only the admin's Unbind clears `device` + `dev_pub` (the activation date and expiry are kept, so a transfer never extends the license); after Unbind the old phone's `/check` returns `key_in_use` (it is locked out at its next check) and the first phone to activate binds. Unbound keys also fail `/check`. Legacy records bound only by Android ID are accepted for that Android ID and upgraded with the device key on first contact. `ALLOW_REINSTALL_SAME_ANDROID_ID` (default false) is the only opt-in relaxation.
 
 **App behaviour:** `isPremium()` = signed license verified AND not expired AND lease valid (legacy flag only while `ALLOW_LEGACY` and no signed license stored). It triggers a throttled background check (15 min, retry 5 min) and keeps the WorkManager job scheduled. `refresh()` outcomes are written to the "Last check" line: `ok`, `offline`, `revoked (403)`, `key_in_use (403)`, `invalid_key (404)`, `expired (403)`, `bad_signature (400)`, `bad_time (400)`, `not_found (404)` (OLD Worker), `bad reply: <reason>` (signature/key mismatch), `no device key`. Only `revoked`, `invalid_key`, `key_in_use` clear the license; network or 5xx errors never do. Local clock rollback is blunted by a "latest time seen" value that also follows the server `iat`.
 
@@ -313,3 +323,40 @@ Then paste `signing_key.b64` into Cloudflare secret `SIGNING_KEY` and `admin_tok
 **Honest limits:** nobody can stop someone who patches their own APK to skip the checks; the Keystore proof is not attestation; revocation reaches an online phone within about 15 minutes (instantly when its Premium screen is opened), an offline phone when it reconnects or when its 72 h lease ends.
 
 **Verified on the real phone (2026-11-07):** activation, `Last check ... ok`, revoke then restore in `/admin` (user-reported successful), expiry line "Expires Dec 7, 2026 - 30 days left" for the Monthly key.
+
+---
+
+## 12. Roadmap Design Notes (requested 2026-11-07 -- NOT implemented yet)
+
+Numbering: next releases are `v2.9.11`, `v2.9.12`, ... (Section 1). Everything below is a proposal to confirm before coding; items marked **[decide]** need an answer from the owner.
+
+### 12.1 Custom Trial Plan (flexible duration)
+**Goal:** short-term trial keys with a custom duration (3 days, 7 days / 1 week, ...) for store demos and testing, like SaaS trials.
+- **Worker:** add a plan `custom` (shown as "Trial"). `/admin/generate` accepts a `days` value and stores it on the record (`rec.days`). On first activation: `days = rec.days ?? PLAN_DAYS[rec.plan]`, `expires_at = now + days*86400`. `PLAN_DAYS` stays for the fixed plans. Validate the value (integer, suggested range **[decide]** 1-90 days; half-day/hours only if wanted).
+- **KV metadata** gets `days` so the dashboard list can show "Trial 7d"; no change to the signed payload format (`plan`, `exp` already carry everything the app needs).
+- **Dashboard:** plan dropdown gains "Custom trial..." with a number field and quick presets (1 / 3 / 7 / 14 days); same Count and Note fields.
+- **App:** essentially unchanged: the Premium screen already shows "Expires <date> - N days left" for any `exp`. Optional: show "Trial" next to it using `plan == "custom"`.
+- **Rules that already hold:** strict lock to one device, expiry clock starts at FIRST activation **[decide: keep]**, Unbind keeps the expiry so a demo key cannot be reset into a new trial, revoke/delete work as for any key. Extending a trial = generate a new key (or a future admin "extend" action **[decide]**).
+- **Tests to add** to the simulated Worker suite: custom days honoured, out-of-range rejected, expiry exact, `expired` after the time passes, Unbind keeps expiry.
+
+### 12.2 Multi-select + "Print Selected Tickets" (batch export)
+**Goal:** bulk printing of license keys for physical distribution to stores and resellers.
+- **Dashboard only (client-side), no Worker change needed** apart from `days` metadata from 12.1. A checkbox next to every key in the list, "Select all shown" (respects the search/status filter), a selection counter, and a **Print Selected Tickets** button (disabled with nothing selected). The selection survives filtering. A "Print these" shortcut after Generate is a natural addition.
+- **Ticket layout (A4 grid with cut guides):** app name ("THIEVES TRAP by iLine Tech"), the license key in large monospace, validity ("30 days from activation" / "90 days ..." / "1 year ..." / "7-day trial" / "Lifetime"), a short how-to ("Open the app > Premium > enter the key"), and a support line (Facebook page). Optional QR code of the key: needs an inline QR encoder because the page CSP blocks external scripts **[decide]**. Ticket language EN / FR / AR **[decide]**.
+- **Implementation notes:** build the tickets into a hidden `#printArea` and print with an `@media print` stylesheet inside the existing nonce'd `<style>`; no inline `style=` attributes or inline handlers (CSP); render text with `textContent`.
+- **Safeguards:** warn when selected keys are already Active/bound/Revoked (printing them is pointless); default selection = Unused keys only. A printed key is a bearer secret: the only recall is Revoke/Delete, and the strict device lock limits damage.
+
+### 12.3 Force Update (mandatory blocking dialog)
+**Goal:** users on an old build must update before they can use the app UI.
+- **Existing pieces:** `version.json` on `main` (`version_code`, `version_name`, `download_url`, rewritten by `release.yml` on every tag) and `UpdateManager` (`checkForUpdateAutoPopup()` once per process, DownloadManager + FileProvider install, `MIN_APK_BYTES` check). Today's dialog is dismissible.
+- **Minimum version source:** add `min_version_code` (and an optional message). Warning: `release.yml` rewrites `version.json` with only the three keys, so a `min_version_code` stored there would be wiped on the next release. Either teach `release.yml` to carry it forward, or keep it out of that file (a separate JSON, or a Worker endpoint editable from the dashboard so it can be raised without a release) **[decide]**.
+- **App behaviour:** on resume, if `BuildConfig.VERSION_CODE < min_version_code`, show a blocking `AlertDialog` (not cancelable, back disabled, only "Update now" that reuses the existing download/install flow). **Fail open:** if the check cannot be made (offline), do not block; cache the last known minimum.
+- **Do NOT block protection:** only the UI is blocked. `MonitorService`, SMS commands, Watch Tether, the SIM trap and alerts must keep running on the old build, because this is an anti-theft app.
+- **Optional server gate:** the app could send its `versionCode` in `/activate` and `/check`, and the Worker could refuse builds below a minimum (it already answers `update_required` to the old protocol) **[decide]**.
+- **Caveat:** the debug-vs-release keystore signature mismatch (Section 2) still breaks installs; force update only works between release-signed builds.
+
+### Open questions before building
+1. Trial: keep "clock starts at first activation"? Allowed range of days?
+2. Tickets: QR code? Which language(s)? Include a price/support line?
+3. Force update: where does the minimum version live, and is the Worker gate wanted?
+4. Order: is `v2.9.11` = trial + tickets and `v2.9.12` = force update acceptable?
