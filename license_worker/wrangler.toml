@@ -1,0 +1,12 @@
+# Thieves Trap license Worker. Deployed by .github/workflows/deploy-worker.yml
+# The secrets SIGNING_KEY and ADMIN_TOKEN are NOT here: they stay in Cloudflare
+# (wrangler deploy never touches existing secrets).
+name = "thievestrap-license"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+workers_dev = true
+
+# The binding MUST be listed here: a deploy removes any binding that only exists in the dashboard.
+[[kv_namespaces]]
+binding = "LICENSES"
+id = "58a121ef3ce243658d5e8623133433b5"
