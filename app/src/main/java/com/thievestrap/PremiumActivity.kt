@@ -40,7 +40,17 @@ class PremiumActivity : AppCompatActivity() {
 
         findViewById<TextView>(R.id.tv_device_id).text = "Device ID: $androidId"
 
-        LicenseManager.refreshAsync(applicationContext) // pick up a revoke / move right away
+        showDeviceIdLine(androidId)
+        // Ask the server right now (picks up a revoke / delete / move) and redraw if the answer changes anything.
+        val shownPremium = isPremium
+        LicenseManager.refreshAsync(applicationContext) {
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                val info = LicenseManager.getLicenseInfo(this)
+                val nowPremium = info != null && !info.expired && !info.leaseExpired
+                if (nowPremium != shownPremium) recreate() else showDeviceIdLine(androidId)
+            }
+        }
         setupStatusBadge(isPremium)
         setupExpiryLine()
         setupPlanCards()
@@ -90,6 +100,14 @@ class PremiumActivity : AppCompatActivity() {
         }
 
         setupRevokeButton(isPremium)
+    }
+
+    /** Device ID plus the result of the latest server check, so a failing check is visible on screen. */
+    private fun showDeviceIdLine(androidId: String) {
+        val last = LicenseManager.lastCheckSummary(this)
+        val label = tr("Last check", "Derni\u00E8re v\u00E9rification", "\u0622\u062E\u0631 \u062A\u062D\u0642\u0642")
+        findViewById<TextView>(R.id.tv_device_id).text =
+            "Device ID: $androidId" + (if (last != null) "\n$label: $last" else "")
     }
 
     private fun tr(en: String, fr: String, ar: String): String = when (appLang()) {

@@ -86,6 +86,7 @@ object LicenseManager {
     private const val K_OK_AT = "lic_refresh_ok_at"
     private const val K_TRY_AT = "lic_refresh_try_at"
     private const val K_SEEN = "lic_last_seen"
+    private const val K_LAST = "lic_last_check"   // "millis|result" of the latest server check, for the diagnostics line
 
     private const val WORK_NAME = "tt_license_refresh"
     private val refreshing = AtomicBoolean(false)
@@ -193,7 +194,8 @@ object LicenseManager {
     }
 
     /** Ask the server now (ignores the 15-minute throttle). Safe to call from the UI thread. */
-    fun refreshAsync(context: Context) = maybeRefreshAsync(context.applicationContext, force = true)
+    fun refreshAsync(context: Context, onDone: (() -> Unit)? = null) =
+        maybeRefreshAsync(context.applicationContext, force = true, onDone = onDone)
 
     /** Local reset. The key stays valid on the server and can be activated again on this device. */
     fun revokePremium(context: Context) {
@@ -242,7 +244,7 @@ object LicenseManager {
 
     // ------------------------------------------------------------------ online re-validation
 
-    private fun maybeRefreshAsync(app: Context, force: Boolean) {
+    private fun maybeRefreshAsync(app: Context, force: Boolean, onDone: (() -> Unit)? = null) {
         if (!configured()) return
         val b = backup(app)
         val key = b.getString(K_KEY, null) ?: return
@@ -256,6 +258,7 @@ object LicenseManager {
         Thread {
             try { refresh(app, key) } catch (e: Exception) { Log.w(TAG, "refresh failed", e) }
             finally { refreshing.set(false) }
+            try { onDone?.invoke() } catch (e: Exception) { Log.w(TAG, "onDone failed", e) }
         }.start()
     }
 
@@ -293,16 +296,22 @@ object LicenseManager {
     /** Read-only check against the server. It can confirm or deny; it never moves the binding. */
     private fun refresh(context: Context, key: String) {
         val nonce = newNonce()
-        val body = buildRequest(context, "check", key, nonce) ?: return
-        val reply = post("/check", body) ?: return            // offline: the lease keeps running
+        val body = buildRequest(context, "check", key, nonce)
+        if (body == null) { noteCheck(context, "no device key"); return }
+        val reply = post("/check", body)
+        if (reply == null) { noteCheck(context, "offline"); return }   // offline: the lease keeps running
 
         if (reply.code in 200..299) {
             val json = verifyAndParse(context, reply.payload, reply.sig)
             if (json != null && json.optString("nonce") == nonce) {
                 store(context, key, reply.payload, reply.sig, json.optLong("iat", 0L))
+                noteCheck(context, "ok")
+            } else {
+                noteCheck(context, "bad reply: " + (if (json == null) lastFail else "nonce"))
             }
             return
         }
+        noteCheck(context, if (reply.error.isBlank()) "http ${reply.code}" else "${reply.error} (${reply.code})")
         when (reply.error) {
             // Definitive answers from the server: drop the license NOW.
             "revoked", "invalid_key", "key_in_use" -> {
@@ -312,6 +321,20 @@ object LicenseManager {
             // expired: enforced locally from the signed payload. Anything else (5xx, bad_time): keep the lease.
             else -> Log.w(TAG, "check answered ${reply.code} ${reply.error}")
         }
+    }
+
+    private fun noteCheck(context: Context, result: String) {
+        backup(context).edit().putString(K_LAST, "${System.currentTimeMillis()}|$result").apply()
+    }
+
+    /** e.g. "14:33 - revoked (403)", or null if this phone never talked to the server. */
+    fun lastCheckSummary(context: Context): String? {
+        val raw = backup(context).getString(K_LAST, null) ?: return null
+        val i = raw.indexOf('|')
+        if (i < 0) return null
+        val ms = raw.substring(0, i).toLongOrNull() ?: return null
+        val time = java.text.SimpleDateFormat("dd/MM HH:mm", java.util.Locale.getDefault()).format(java.util.Date(ms))
+        return time + " - " + raw.substring(i + 1)
     }
 
     // ------------------------------------------------------------------ device key + signed requests
