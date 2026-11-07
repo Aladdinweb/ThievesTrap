@@ -3,7 +3,7 @@
 // Secrets required:   ADMIN_TOKEN (long random string, also the dashboard password)
 //                     SIGNING_KEY (base64 of the PKCS8 DER of the P-256 private key)
 //
-// Public:   POST /activate        (user enters a key: first bind, or automatic move to a new phone)
+// Public:   POST /activate        (user enters a key: binds it to the phone if unbound; a DIFFERENT phone gets key_in_use)
 //           POST /check           (background re-validation; NEVER changes the binding)
 // Admin:    GET  /admin           (dashboard page, useless without the token)
 //           POST /admin/generate | list | info | revoke | restore | unbind | delete | pubkey   (Bearer ADMIN_TOKEN)
@@ -12,8 +12,10 @@ const ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no 0/O/1/I/L
 const PLAN_DAYS = { monthly: 30, "3months": 90, annual: 365, lifetime: 0 };
 const LEASE_SECONDS = 72 * 3600;       // how long the app may trust a signed answer without re-checking online
 const TIME_TOLERANCE = 600;            // max clock difference (s) between app and server for a request
-const MIGRATION_LIMIT = 3;             // automatic device moves allowed per key ...
-const MIGRATION_WINDOW = 30 * 86400;   // ... within this many seconds (admin "Unbind" resets it)
+// STRICT lock-to-device: a key belongs to ONE device until the admin presses "Unbind" in the dashboard.
+// There is no automatic migration. Set to true ONLY if you want a reinstall on the SAME phone (same
+// Android ID, new Keystore key) to re-bind without admin help. Android ID is spoofable, so default is false.
+const ALLOW_REINSTALL_SAME_ANDROID_ID = false;
 const MAX_BAD_ATTEMPTS = 10;     // failed admin logins per IP ...
 const BAD_ATTEMPT_WINDOW = 900;  // ... per 15 minutes
 
@@ -60,7 +62,6 @@ const getRec = async (env, key) => {
 const meta = (r) => ({
   plan: r.plan, created_at: r.created_at, device: r.device || null, activated_at: r.activated_at || null,
   expires_at: r.expires_at || 0, revoked: !!r.revoked, note: String(r.note || "").slice(0, 120),
-  migrations: (r.migrations || []).length, last_migration_at: (r.migrations || []).slice(-1)[0] || 0,
 });
 const putRec = (env, key, rec) =>
   env.LICENSES.put("k:" + key, JSON.stringify(rec), { metadata: meta(rec) });
@@ -129,7 +130,8 @@ function isBoundDevice(rec, r) {
   return !rec.device || rec.device === r.device; // older records bound by Android ID only
 }
 
-// ACTIVATE: first bind, or automatic migration to a new phone. The old phone is locked out at its next /check.
+// ACTIVATE: binds an UNBOUND key to the calling phone. A key bound to another phone is refused with
+// key_in_use (403): only the admin can free it ("Unbind device" in /admin).
 async function activate(body, env) {
   const p = await parseRequest("activate", body);
   if (p.err) return p.err;
@@ -138,6 +140,11 @@ async function activate(body, env) {
   const rec = await getRec(env, r.key);
   if (!rec) return json({ error: "invalid_key" }, 404);
   if (rec.revoked) return json({ error: "revoked" }, 403);
+
+  const bound = !!(rec.device || rec.dev_pub);
+  const sameDevice = bound && (isBoundDevice(rec, r) ||
+    (ALLOW_REINSTALL_SAME_ANDROID_ID && rec.device === r.device));
+  if (bound && !sameDevice) return json({ error: "key_in_use" }, 403); // checked before any KV write
 
   // replay guard (only for authenticated, state-changing calls: a valid key must exist)
   if (await env.LICENSES.get("n:" + r.nonce)) return json({ error: "replay" }, 409);
@@ -152,15 +159,7 @@ async function activate(body, env) {
   }
   if (rec.expires_at && r.now >= rec.expires_at) return json({ error: "expired" }, 403);
 
-  const bound = !!(rec.device || rec.dev_pub);
-  if (!bound || isBoundDevice(rec, r)) {
-    if (rec.dev_pub !== r.pub || rec.device !== r.device) { rec.dev_pub = r.pub; rec.device = r.device; dirty = true; }
-  } else {
-    // new phone: allowed automatically, but rate limited so one key cannot be passed around
-    const recent = (rec.migrations || []).filter((t) => r.now - t < MIGRATION_WINDOW);
-    if (recent.length >= MIGRATION_LIMIT) return json({ error: "migration_limit" }, 403);
-    recent.push(r.now);
-    rec.migrations = recent;
+  if (rec.dev_pub !== r.pub || rec.device !== r.device) { // first bind, legacy upgrade, or allowed reinstall
     rec.dev_pub = r.pub; rec.device = r.device;
     dirty = true;
   }
@@ -182,7 +181,8 @@ async function check(body, env) {
   const rec = await getRec(env, r.key);
   if (!rec) return json({ error: "invalid_key" }, 404);       // deleted in the dashboard
   if (rec.revoked) return json({ error: "revoked" }, 403);
-  if (!isBoundDevice(rec, r)) return json({ error: "key_in_use" }, 403); // moved to another phone
+  // Not bound to THIS phone (bound elsewhere, or just unbound by the admin): this phone is locked out.
+  if (!(rec.device || rec.dev_pub) || !isBoundDevice(rec, r)) return json({ error: "key_in_use" }, 403);
   if (rec.expires_at && r.now >= rec.expires_at) return json({ error: "expired" }, 403);
   if (!rec.dev_pub && rec.device === r.device) {               // one-time upgrade of an older record
     rec.dev_pub = r.pub;
@@ -210,7 +210,7 @@ async function admin(path, body, env) {
       do { key = newKey(); } while (await getRec(env, key));
       await putRec(env, key, {
         plan, created_at: Math.floor(Date.now() / 1000), note: String(body.note || ""),
-        device: null, dev_pub: null, migrations: [], activated_at: null, expires_at: null, revoked: false,
+        device: null, dev_pub: null, activated_at: null, expires_at: null, revoked: false,
       });
       keys.push(key);
     }
@@ -234,7 +234,7 @@ async function admin(path, body, env) {
   if (path === "/admin/delete") { await env.LICENSES.delete("k:" + key); return json({ ok: true, key, deleted: true }); } // permanent
   if (path === "/admin/revoke") { rec.revoked = true; await putRec(env, key, rec); return json({ ok: true, key, revoked: true }); }
   if (path === "/admin/restore") { rec.revoked = false; await putRec(env, key, rec); return json({ ok: true, key, revoked: false }); }
-  if (path === "/admin/unbind") { rec.device = null; rec.dev_pub = null; rec.migrations = []; await putRec(env, key, rec); return json({ ok: true, key, device: null }); } // expiry is kept
+  if (path === "/admin/unbind") { rec.device = null; rec.dev_pub = null; await putRec(env, key, rec); return json({ ok: true, key, device: null }); } // expiry is kept
   return json({ error: "not_found" }, 404);
 }
 
@@ -465,7 +465,6 @@ button:disabled{opacity:.5}
       var parts = [PLAN[it.plan] || it.plan];
       if (it.activated_at) parts.push(it.expires_at ? "expires " + fmt(it.expires_at) : "no expiry");
       if (it.device) parts.push("device " + it.device);
-      if (it.migrations) parts.push(it.migrations + " device move(s)");
       if (it.note) parts.push(it.note);
       info.appendChild(document.createTextNode(" " + parts.join(" \\u00b7 ")));
       d.appendChild(info);
@@ -474,7 +473,7 @@ button:disabled{opacity:.5}
       if (it.device) {
         var u = document.createElement("button"); u.className = "sec"; u.textContent = "Unbind device";
         u.addEventListener("click", function () {
-          act("/admin/unbind", it, function (x) { x.device = null; }, "Unbind this key from its device? The customer can then activate it on a new device. Expiry is kept.");
+          act("/admin/unbind", it, function (x) { x.device = null; }, "Unbind this key from its device? The phone using it is locked out at its next check, and the key binds to whichever phone activates it next. Expiry is kept.");
         });
         acts.appendChild(u);
       }

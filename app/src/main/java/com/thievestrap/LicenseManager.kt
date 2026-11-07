@@ -40,14 +40,16 @@ import java.util.concurrent.atomic.AtomicBoolean
  * - Every answer is signed by the Worker (ECDSA P-256 / SHA-256); this app only holds the PUBLIC key.
  * - A signed answer carries a LEASE (default 72 h). After the lease the license stops working until the
  *   app has re-checked online. While online the app re-checks every ~15 minutes, so a revoke, a delete,
- *   or a move of the key to another phone takes effect on this phone within minutes.
+ *   or an admin "Unbind" takes effect on this phone within minutes.
  *
  * DEVICE BINDING
  * - The license is bound to a non-exportable EC key generated in the Android Keystore (hardware backed
  *   where the phone supports it, StrongBox first). Every request is signed with that key, so copying the
  *   app data to another phone or emulator does not carry the binding. The Android ID is only a label.
- * - Typing the key on a NEW phone moves the license there automatically (limited by the server); this
- *   phone is locked out at its next check. Background checks can never move the binding.
+ * - STRICT lock-to-device: a key belongs to ONE phone. Typing it on a second phone is refused by the
+ *   server (key_in_use) and the user is told to contact support. Only the admin can free a key
+ *   ("Unbind device" in the dashboard); the key then binds to the next phone that activates it, and the
+ *   old phone is locked out at its next check. Background checks can never change the binding.
  *
  * REPLAY / TAMPERING
  * - Requests carry a timestamp + random nonce and are signed with the device key; the server rejects
@@ -105,10 +107,10 @@ object LicenseManager {
     sealed class ActivationResult {
         data class Success(val info: LicenseInfo) : ActivationResult()
         object InvalidKey : ActivationResult()
+        /** The key is bound to another phone. Only the admin can unbind it, so the UI says "contact support". */
         object KeyInUse : ActivationResult()
         object Revoked : ActivationResult()
         object Expired : ActivationResult()
-        object MigrationLimit : ActivationResult()
         object BadClock : ActivationResult()
         object Network : ActivationResult()
         data class ServerError(val detail: String) : ActivationResult()
@@ -130,7 +132,7 @@ object LicenseManager {
 
     // ------------------------------------------------------------------ public API
 
-    /** Blocking network call: run it off the main thread. Moves the license to this phone if needed. */
+    /** Blocking network call: run it off the main thread. Binds an unbound key to this phone; a key bound elsewhere gives KeyInUse. */
     fun activate(context: Context, rawKey: String): ActivationResult {
         if (!configured()) return ActivationResult.NotConfigured
         val key = rawKey.trim().uppercase()
@@ -154,7 +156,6 @@ object LicenseManager {
             "key_in_use" -> ActivationResult.KeyInUse
             "revoked" -> ActivationResult.Revoked
             "expired" -> ActivationResult.Expired
-            "migration_limit" -> ActivationResult.MigrationLimit
             "bad_time" -> ActivationResult.BadClock
             else -> ActivationResult.ServerError("http ${reply.code} ${reply.error}")
         }

@@ -122,11 +122,9 @@ class PremiumActivity : AppCompatActivity() {
             LicenseManager.ActivationResult.InvalidKey ->
                 tr("Invalid license key.", "Cl\u00E9 de licence invalide.", "\u0645\u0641\u062A\u0627\u062D \u0627\u0644\u062A\u0631\u062E\u064A\u0635 \u063A\u064A\u0631 \u0635\u0627\u0644\u062D.")
             LicenseManager.ActivationResult.KeyInUse ->
-                tr("This key is already used on another device.", "Cette cl\u00E9 est d\u00E9j\u00E0 utilis\u00E9e sur un autre appareil.", "\u0647\u0630\u0627 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0645\u0633\u062A\u062E\u062F\u0645 \u0639\u0644\u0649 \u062C\u0647\u0627\u0632 \u0622\u062E\u0631.")
+                tr("This key is already active on another device. Please contact support.", "Cette cl\u00E9 est d\u00E9j\u00E0 active sur un autre appareil. Veuillez contacter le support.", "\u0647\u0630\u0627 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0646\u0634\u0637 \u0628\u0627\u0644\u0641\u0639\u0644 \u0639\u0644\u0649 \u062C\u0647\u0627\u0632 \u0622\u062E\u0631. \u064A\u0631\u062C\u0649 \u0627\u0644\u062A\u0648\u0627\u0635\u0644 \u0645\u0639 \u0627\u0644\u062F\u0639\u0645.")
             LicenseManager.ActivationResult.Revoked ->
                 tr("This key has been revoked.", "Cette cl\u00E9 a \u00E9t\u00E9 r\u00E9voqu\u00E9e.", "\u062A\u0645 \u0625\u0644\u063A\u0627\u0621 \u0647\u0630\u0627 \u0627\u0644\u0645\u0641\u062A\u0627\u062D.")
-            LicenseManager.ActivationResult.MigrationLimit ->
-                tr("Too many device changes for this key. Please contact support.", "Trop de changements d'appareil pour cette cl\u00E9. Contactez le support.", "\u062A\u0645 \u062A\u062C\u0627\u0648\u0632 \u062D\u062F \u062A\u063A\u064A\u064A\u0631 \u0627\u0644\u062C\u0647\u0627\u0632 \u0644\u0647\u0630\u0627 \u0627\u0644\u0645\u0641\u062A\u0627\u062D. \u062A\u0648\u0627\u0635\u0644 \u0645\u0639 \u0627\u0644\u062F\u0639\u0645.")
             LicenseManager.ActivationResult.BadClock ->
                 tr("Your device clock is wrong. Set date and time to automatic.", "L'horloge de l'appareil est incorrecte. Activez la date et l'heure automatiques.", "\u0633\u0627\u0639\u0629 \u0627\u0644\u062C\u0647\u0627\u0632 \u063A\u064A\u0631 \u0635\u062D\u064A\u062D\u0629. \u0641\u0639\u0651\u0644 \u0627\u0644\u062A\u0627\u0631\u064A\u062E \u0648\u0627\u0644\u0648\u0642\u062A \u0627\u0644\u062A\u0644\u0642\u0627\u0626\u064A.")
             LicenseManager.ActivationResult.Expired ->
