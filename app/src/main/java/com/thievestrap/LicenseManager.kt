@@ -61,6 +61,7 @@ object LicenseManager {
     private const val K_SEEN = "lic_last_seen"
 
     private val refreshing = AtomicBoolean(false)
+    @Volatile private var lastFail = ""
 
     data class LicenseInfo(
         val plan: String,
@@ -76,7 +77,9 @@ object LicenseManager {
         object Revoked : ActivationResult()
         object Expired : ActivationResult()
         object Network : ActivationResult()
-        object ServerError : ActivationResult()
+        data class ServerError(val detail: String) : ActivationResult()
+        /** The server answered 200 but the reply failed local verification; reason = signature/device/nonce/... */
+        data class BadResponse(val reason: String) : ActivationResult()
         object NotConfigured : ActivationResult()
     }
 
@@ -105,9 +108,10 @@ object LicenseManager {
 
         if (reply.code in 200..299) {
             val json = verifyAndParse(context, reply.payload, reply.sig)
-            if (json == null || json.optString("nonce") != nonce) return ActivationResult.ServerError
+                ?: return ActivationResult.BadResponse(lastFail)
+            if (json.optString("nonce") != nonce) return ActivationResult.BadResponse("nonce")
             store(context, key, reply.payload, reply.sig)
-            val info = getLicenseInfo(context) ?: return ActivationResult.ServerError
+            val info = getLicenseInfo(context) ?: return ActivationResult.BadResponse("stored:$lastFail")
             return ActivationResult.Success(info)
         }
         return when (reply.error) {
@@ -115,7 +119,7 @@ object LicenseManager {
             "key_in_use" -> ActivationResult.KeyInUse
             "revoked" -> ActivationResult.Revoked
             "expired" -> ActivationResult.Expired
-            else -> ActivationResult.ServerError
+            else -> ActivationResult.ServerError("http ${reply.code} ${reply.error}")
         }
     }
 
@@ -242,7 +246,7 @@ object LicenseManager {
     }
 
     private fun verifyAndParse(context: Context, payloadB64: String, sigB64: String): JSONObject? {
-        if (payloadB64.isBlank() || sigB64.isBlank() || PUBLIC_KEY_B64.startsWith("PASTE")) return null
+        if (payloadB64.isBlank() || sigB64.isBlank() || PUBLIC_KEY_B64.startsWith("PASTE")) { lastFail = "empty"; return null }
         return try {
             val payload = Base64.decode(payloadB64, Base64.NO_WRAP)
             val der = p1363ToDer(Base64.decode(sigB64, Base64.NO_WRAP))
@@ -251,13 +255,14 @@ object LicenseManager {
             val sv = Signature.getInstance("SHA256withECDSA")
             sv.initVerify(pub)
             sv.update(payload)
-            if (!sv.verify(der)) return null
+            if (!sv.verify(der)) { lastFail = "signature"; return null }
             val json = JSONObject(String(payload, Charsets.UTF_8))
-            if (json.optInt("v") != 1) return null
-            if (json.optString("device") != getAndroidId(context)) return null
+            if (json.optInt("v") != 1) { lastFail = "version"; return null }
+            if (json.optString("device") != getAndroidId(context)) { lastFail = "device"; return null }
             json
         } catch (e: Exception) {
             Log.w(TAG, "verify failed", e)
+            lastFail = "decode:" + e.javaClass.simpleName
             null
         }
     }

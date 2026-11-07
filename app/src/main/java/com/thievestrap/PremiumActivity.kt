@@ -110,8 +110,10 @@ class PremiumActivity : AppCompatActivity() {
                 tr("This key has expired.", "Cette cl\u00E9 a expir\u00E9.", "\u0627\u0646\u062A\u0647\u062A \u0635\u0644\u0627\u062D\u064A\u0629 \u0647\u0630\u0627 \u0627\u0644\u0645\u0641\u062A\u0627\u062D.")
             LicenseManager.ActivationResult.Network ->
                 tr("No connection to the license server. Check your internet and try again.", "Pas de connexion au serveur de licences. V\u00E9rifiez votre internet.", "\u0644\u0627 \u064A\u0648\u062C\u062F \u0627\u062A\u0635\u0627\u0644 \u0628\u062E\u0627\u062F\u0645 \u0627\u0644\u062A\u0631\u0627\u062E\u064A\u0635. \u062A\u062D\u0642\u0642 \u0645\u0646 \u0627\u0644\u0625\u0646\u062A\u0631\u0646\u062A.")
-            LicenseManager.ActivationResult.ServerError ->
-                tr("License server error. Try again later.", "Erreur du serveur de licences. R\u00E9essayez plus tard.", "\u062E\u0637\u0623 \u0641\u064A \u062E\u0627\u062F\u0645 \u0627\u0644\u062A\u0631\u0627\u062E\u064A\u0635. \u062D\u0627\u0648\u0644 \u0644\u0627\u062D\u0642\u0627\u064B.")
+            is LicenseManager.ActivationResult.ServerError ->
+                tr("License server error. Try again later.", "Erreur du serveur de licences. R\u00E9essayez plus tard.", "\u062E\u0637\u0623 \u0641\u064A \u062E\u0627\u062F\u0645 \u0627\u0644\u062A\u0631\u0627\u062E\u064A\u0635. \u062D\u0627\u0648\u0644 \u0644\u0627\u062D\u0642\u0627\u064B.") + " (" + result.detail + ")"
+            is LicenseManager.ActivationResult.BadResponse ->
+                tr("Security check failed. Please contact support.", "Contr\u00F4le de s\u00E9curit\u00E9 \u00E9chou\u00E9. Contactez le support.", "\u0641\u0634\u0644 \u0627\u0644\u062A\u062D\u0642\u0642 \u0627\u0644\u0623\u0645\u0646\u064A. \u062A\u0648\u0627\u0635\u0644 \u0645\u0639 \u0627\u0644\u062F\u0639\u0645.") + " [" + result.reason + "]"
             LicenseManager.ActivationResult.NotConfigured ->
                 "License server not configured in this build."
         }
