@@ -3,12 +3,17 @@
 // Secrets required:   ADMIN_TOKEN (long random string, also the dashboard password)
 //                     SIGNING_KEY (base64 of the PKCS8 DER of the P-256 private key)
 //
-// Public:   POST /activate        (called by the app)
+// Public:   POST /activate        (user enters a key: first bind, or automatic move to a new phone)
+//           POST /check           (background re-validation; NEVER changes the binding)
 // Admin:    GET  /admin           (dashboard page, useless without the token)
 //           POST /admin/generate | list | info | revoke | restore | unbind | delete | pubkey   (Bearer ADMIN_TOKEN)
 
 const ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no 0/O/1/I/L
 const PLAN_DAYS = { monthly: 30, "3months": 90, annual: 365, lifetime: 0 };
+const LEASE_SECONDS = 72 * 3600;       // how long the app may trust a signed answer without re-checking online
+const TIME_TOLERANCE = 600;            // max clock difference (s) between app and server for a request
+const MIGRATION_LIMIT = 3;             // automatic device moves allowed per key ...
+const MIGRATION_WINDOW = 30 * 86400;   // ... within this many seconds (admin "Unbind" resets it)
 const MAX_BAD_ATTEMPTS = 10;     // failed admin logins per IP ...
 const BAD_ATTEMPT_WINDOW = 900;  // ... per 15 minutes
 
@@ -55,6 +60,7 @@ const getRec = async (env, key) => {
 const meta = (r) => ({
   plan: r.plan, created_at: r.created_at, device: r.device || null, activated_at: r.activated_at || null,
   expires_at: r.expires_at || 0, revoked: !!r.revoked, note: String(r.note || "").slice(0, 120),
+  migrations: (r.migrations || []).length, last_migration_at: (r.migrations || []).slice(-1)[0] || 0,
 });
 const putRec = (env, key, rec) =>
   env.LICENSES.put("k:" + key, JSON.stringify(rec), { metadata: meta(rec) });
@@ -80,42 +86,110 @@ async function pubInfo(env) {
   return { spki_b64: toB64(spki), fingerprint: fp };
 }
 
-async function activate(body, env) {
+const b64ok = (v, min, max) => typeof v === "string" && v.length >= min && v.length <= max && /^[A-Za-z0-9+/]+=*$/.test(v);
+
+// Validates a v2 request: formats, clock window, and proof that the caller holds the private half of `pub`
+// (a non-exportable Android Keystore key). Returns { r } on success or { err: Response }.
+async function parseRequest(action, body) {
   const key = normKey(body.key);
   const device = String(body.device || "");
   const nonce = String(body.nonce || "");
+  const ts = Number(body.ts);
+  const pub = body.pub, sig = body.sig;
+  if (!body.pub || !body.sig || !body.ts) return { err: json({ error: "update_required" }, 400) };
   if (key.length < 8 || key.length > 64 ||
       !/^[A-Za-z0-9_-]{3,64}$/.test(device) ||
-      !/^[A-Za-z0-9_-]{8,64}$/.test(nonce)) return json({ error: "bad_request" }, 400);
+      !/^[A-Za-z0-9_-]{8,64}$/.test(nonce) ||
+      !Number.isInteger(ts) || !b64ok(pub, 100, 140) || !b64ok(sig, 80, 100)) return { err: json({ error: "bad_request" }, 400) };
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - ts) > TIME_TOLERANCE) return { err: json({ error: "bad_time", server_time: now }, 400) };
+  let spki;
+  try {
+    spki = fromB64(pub);
+    const pk = await crypto.subtle.importKey("spki", spki, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
+    const msg = new TextEncoder().encode(["TT2", action, key, device, ts, nonce].join("|"));
+    const ok = await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, pk, fromB64(sig), msg);
+    if (!ok) return { err: json({ error: "bad_signature" }, 400) };
+  } catch (e) { return { err: json({ error: "bad_request" }, 400) }; }
+  const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", spki));
+  const dpk = [...hash].map((x) => x.toString(16).padStart(2, "0")).join("").slice(0, 16);
+  return { r: { key, device, nonce, pub, dpk, now } };
+}
 
-  const rec = await getRec(env, key);
+async function signedAnswer(env, rec, r) {
+  return signPayload(env, {
+    v: 2, device: r.device, dpk: r.dpk, plan: rec.plan, exp: rec.expires_at || 0,
+    iat: r.now, lease: r.now + LEASE_SECONDS, nonce: r.nonce,
+  });
+}
+
+// Is the caller the device this key is currently bound to?
+function isBoundDevice(rec, r) {
+  if (rec.dev_pub) return rec.dev_pub === r.pub;
+  return !rec.device || rec.device === r.device; // older records bound by Android ID only
+}
+
+// ACTIVATE: first bind, or automatic migration to a new phone. The old phone is locked out at its next /check.
+async function activate(body, env) {
+  const p = await parseRequest("activate", body);
+  if (p.err) return p.err;
+  const r = p.r;
+
+  const rec = await getRec(env, r.key);
   if (!rec) return json({ error: "invalid_key" }, 404);
   if (rec.revoked) return json({ error: "revoked" }, 403);
-  if (rec.device && rec.device !== device) return json({ error: "key_in_use" }, 403);
 
-  const now = Math.floor(Date.now() / 1000);
+  // replay guard (only for authenticated, state-changing calls: a valid key must exist)
+  if (await env.LICENSES.get("n:" + r.nonce)) return json({ error: "replay" }, 409);
+  await env.LICENSES.put("n:" + r.nonce, "1", { expirationTtl: 2 * TIME_TOLERANCE });
+
   let dirty = false;
   if (!rec.activated_at) {
-    rec.activated_at = now;
+    rec.activated_at = r.now;
     const days = PLAN_DAYS[rec.plan] || 0;
-    rec.expires_at = days ? now + days * 86400 : 0; // 0 = lifetime
+    rec.expires_at = days ? r.now + days * 86400 : 0; // 0 = lifetime
     dirty = true;
   }
-  if (!rec.device) { rec.device = device; dirty = true; }
+  if (rec.expires_at && r.now >= rec.expires_at) return json({ error: "expired" }, 403);
 
-  if (rec.expires_at && now >= rec.expires_at) return json({ error: "expired" }, 403);
-
-  // Sign first: if signing is broken (bad SIGNING_KEY) the key must NOT get bound to the device.
-  let signed;
-  try {
-    signed = await signPayload(env, {
-      v: 1, device, plan: rec.plan, exp: rec.expires_at || 0, iat: now, nonce,
-    });
-  } catch (e) {
-    return json({ error: "signing_failed" }, 500);
+  const bound = !!(rec.device || rec.dev_pub);
+  if (!bound || isBoundDevice(rec, r)) {
+    if (rec.dev_pub !== r.pub || rec.device !== r.device) { rec.dev_pub = r.pub; rec.device = r.device; dirty = true; }
+  } else {
+    // new phone: allowed automatically, but rate limited so one key cannot be passed around
+    const recent = (rec.migrations || []).filter((t) => r.now - t < MIGRATION_WINDOW);
+    if (recent.length >= MIGRATION_LIMIT) return json({ error: "migration_limit" }, 403);
+    recent.push(r.now);
+    rec.migrations = recent;
+    rec.dev_pub = r.pub; rec.device = r.device;
+    dirty = true;
   }
-  if (dirty) await putRec(env, key, rec);
+
+  // Sign first: a broken SIGNING_KEY must never leave a key bound to a device.
+  let signed;
+  try { signed = await signedAnswer(env, rec, r); }
+  catch (e) { return json({ error: "signing_failed" }, 500); }
+  if (dirty) await putRec(env, r.key, rec);
   return json({ ok: true, ...signed });
+}
+
+// CHECK: periodic re-validation from the app. Read-only: it can only confirm or deny, never rebind.
+async function check(body, env) {
+  const p = await parseRequest("check", body);
+  if (p.err) return p.err;
+  const r = p.r;
+
+  const rec = await getRec(env, r.key);
+  if (!rec) return json({ error: "invalid_key" }, 404);       // deleted in the dashboard
+  if (rec.revoked) return json({ error: "revoked" }, 403);
+  if (!isBoundDevice(rec, r)) return json({ error: "key_in_use" }, 403); // moved to another phone
+  if (rec.expires_at && r.now >= rec.expires_at) return json({ error: "expired" }, 403);
+  if (!rec.dev_pub && rec.device === r.device) {               // one-time upgrade of an older record
+    rec.dev_pub = r.pub;
+    await putRec(env, r.key, rec);
+  }
+  try { return json({ ok: true, ...(await signedAnswer(env, rec, r)) }); }
+  catch (e) { return json({ error: "signing_failed" }, 500); }
 }
 
 async function admin(path, body, env) {
@@ -136,7 +210,7 @@ async function admin(path, body, env) {
       do { key = newKey(); } while (await getRec(env, key));
       await putRec(env, key, {
         plan, created_at: Math.floor(Date.now() / 1000), note: String(body.note || ""),
-        device: null, activated_at: null, expires_at: null, revoked: false,
+        device: null, dev_pub: null, migrations: [], activated_at: null, expires_at: null, revoked: false,
       });
       keys.push(key);
     }
@@ -160,7 +234,7 @@ async function admin(path, body, env) {
   if (path === "/admin/delete") { await env.LICENSES.delete("k:" + key); return json({ ok: true, key, deleted: true }); } // permanent
   if (path === "/admin/revoke") { rec.revoked = true; await putRec(env, key, rec); return json({ ok: true, key, revoked: true }); }
   if (path === "/admin/restore") { rec.revoked = false; await putRec(env, key, rec); return json({ ok: true, key, revoked: false }); }
-  if (path === "/admin/unbind") { rec.device = null; await putRec(env, key, rec); return json({ ok: true, key, device: null }); } // expiry is kept
+  if (path === "/admin/unbind") { rec.device = null; rec.dev_pub = null; rec.migrations = []; await putRec(env, key, rec); return json({ ok: true, key, device: null }); } // expiry is kept
   return json({ error: "not_found" }, 404);
 }
 
@@ -391,6 +465,7 @@ button:disabled{opacity:.5}
       var parts = [PLAN[it.plan] || it.plan];
       if (it.activated_at) parts.push(it.expires_at ? "expires " + fmt(it.expires_at) : "no expiry");
       if (it.device) parts.push("device " + it.device);
+      if (it.migrations) parts.push(it.migrations + " device move(s)");
       if (it.note) parts.push(it.note);
       info.appendChild(document.createTextNode(" " + parts.join(" \\u00b7 ")));
       d.appendChild(info);
@@ -478,9 +553,9 @@ export default {
     try { body = await req.json(); } catch { body = null; }
 
     try {
-      if (path === "/activate") {
+      if (path === "/activate" || path === "/check") {
         if (!body) return json({ error: "bad_request" }, 400);
-        return await activate(body, env);
+        return path === "/activate" ? await activate(body, env) : await check(body, env);
       }
       if (path.startsWith("/admin/")) {
         const auth = await checkAdmin(req, env);
