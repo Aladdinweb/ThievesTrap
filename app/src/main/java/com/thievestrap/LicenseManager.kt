@@ -2,46 +2,73 @@ package com.thievestrap
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.Build
 import android.provider.Settings
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
 import android.util.Base64
 import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKeys
+import androidx.work.Constraints
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.PeriodicWorkRequest
+import androidx.work.WorkManager
+import androidx.work.Worker
+import androidx.work.WorkerParameters
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.KeyFactory
+import java.security.KeyPair
+import java.security.KeyPairGenerator
+import java.security.KeyStore
+import java.security.MessageDigest
+import java.security.PrivateKey
 import java.security.SecureRandom
 import java.security.Signature
+import java.security.spec.ECGenParameterSpec
 import java.security.spec.X509EncodedKeySpec
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * v2.9.9.9: licenses are issued, stored and validated by a Cloudflare Worker.
+ * v2.9.10: hybrid online licensing.
  *
- * - The app sends (license key, Device ID, random nonce) over HTTPS.
- * - The Worker replies with a payload (device, plan, expiry, nonce) SIGNED with a
- *   private key that exists only on the server. The app holds only the PUBLIC key.
- * - The signed payload is stored and re-verified on every read, so editing the
- *   stored prefs (or faking a server reply) cannot produce a valid license.
- * - There is no master/admin key in the app any more. Lifetime/admin keys are just
- *   keys generated with plan "lifetime" on the server.
+ * SERVER IS THE AUTHORITY
+ * - Every answer is signed by the Worker (ECDSA P-256 / SHA-256); this app only holds the PUBLIC key.
+ * - A signed answer carries a LEASE (default 72 h). After the lease the license stops working until the
+ *   app has re-checked online. While online the app re-checks every ~15 minutes, so a revoke, a delete,
+ *   or a move of the key to another phone takes effect on this phone within minutes.
  *
- * Devices that were activated before this version (old local key scheme) are kept
- * as "legacy lifetime" while ALLOW_LEGACY is true. Set it to false in a later
- * release to end that grace period.
+ * DEVICE BINDING
+ * - The license is bound to a non-exportable EC key generated in the Android Keystore (hardware backed
+ *   where the phone supports it, StrongBox first). Every request is signed with that key, so copying the
+ *   app data to another phone or emulator does not carry the binding. The Android ID is only a label.
+ * - Typing the key on a NEW phone moves the license there automatically (limited by the server); this
+ *   phone is locked out at its next check. Background checks can never move the binding.
+ *
+ * REPLAY / TAMPERING
+ * - Requests carry a timestamp + random nonce and are signed with the device key; the server rejects
+ *   old, duplicated or altered requests. Replies echo the nonce and are bound to this device key.
+ *
+ * LIMITS (be honest): nothing here stops someone who patches their own APK to skip these checks, and
+ * the Keystore proof is not hardware ATTESTATION (that needs Play Integrity / key attestation).
  */
 object LicenseManager {
 
     private const val TAG = "LicenseManager"
 
-    // ---- set these two before building (see the setup steps) ----
+    // ---- set these two before building (the push command patches them) ----
     private const val API_URL = "https://thievestrap-license.ferakalaaeddine.workers.dev"
     private const val PUBLIC_KEY_B64 = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEkjfjWDCbfWX86mg8Op9wp/n1FTcPjiS4r86Y+sRJ9ih15vb6Hz1cezi9a3KD+5KSjGrU0erfD9dz2aRsGq322A=="
 
-    private const val ALLOW_LEGACY = true
-    private const val REFRESH_OK_INTERVAL_MS = 12L * 60 * 60 * 1000
-    private const val REFRESH_RETRY_MS = 15L * 60 * 1000
+    private const val ALLOW_LEGACY = true                         // grandfather pre-server activations
+    private const val SOFT_REFRESH_MS = 15L * 60 * 1000           // re-check this often while the app is in use
+    private const val RETRY_MS = 5L * 60 * 1000                   // after a failed attempt
+    private const val V1_LEASE_MS = 72L * 3600 * 1000             // for licenses stored by v2.9.9.x
+    private const val KS_ALIAS = "tt_license_dev_v1"
 
     // legacy (pre-server) storage, kept only for grandfathered devices
     private const val PREFS_FILE = "tt_secure"
@@ -60,14 +87,18 @@ object LicenseManager {
     private const val K_TRY_AT = "lic_refresh_try_at"
     private const val K_SEEN = "lic_last_seen"
 
+    private const val WORK_NAME = "tt_license_refresh"
     private val refreshing = AtomicBoolean(false)
+    private val workerScheduled = AtomicBoolean(false)
     @Volatile private var lastFail = ""
+    @Volatile private var cachedDpk: String? = null
 
     data class LicenseInfo(
         val plan: String,
-        val expMillis: Long,      // 0 = lifetime
+        val expMillis: Long,          // 0 = lifetime
         val legacy: Boolean,
-        val expired: Boolean
+        val expired: Boolean,
+        val leaseExpired: Boolean = false   // true = must be re-checked online before it counts again
     )
 
     sealed class ActivationResult {
@@ -76,9 +107,11 @@ object LicenseManager {
         object KeyInUse : ActivationResult()
         object Revoked : ActivationResult()
         object Expired : ActivationResult()
+        object MigrationLimit : ActivationResult()
+        object BadClock : ActivationResult()
         object Network : ActivationResult()
         data class ServerError(val detail: String) : ActivationResult()
-        /** The server answered 200 but the reply failed local verification; reason = signature/device/nonce/... */
+        /** The server answered 200 but the reply failed local verification; reason = signature/device/dpk/nonce/... */
         data class BadResponse(val reason: String) : ActivationResult()
         object NotConfigured : ActivationResult()
     }
@@ -91,26 +124,27 @@ object LicenseManager {
     fun getAndroidId(context: Context): String =
         Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: "unknown"
 
+    private fun configured(): Boolean =
+        API_URL.startsWith("https://") && !API_URL.contains("YOUR-WORKER") && !PUBLIC_KEY_B64.startsWith("PASTE")
+
     // ------------------------------------------------------------------ public API
 
-    /** Blocking network call: run it off the main thread. */
+    /** Blocking network call: run it off the main thread. Moves the license to this phone if needed. */
     fun activate(context: Context, rawKey: String): ActivationResult {
-        if (!API_URL.startsWith("https://") || API_URL.contains("YOUR-WORKER") ||
-            PUBLIC_KEY_B64.startsWith("PASTE")) return ActivationResult.NotConfigured
+        if (!configured()) return ActivationResult.NotConfigured
         val key = rawKey.trim().uppercase()
         if (key.length < 8 || key.length > 64) return ActivationResult.InvalidKey
 
         val nonce = newNonce()
-        val reply = post("/activate", JSONObject()
-            .put("key", key)
-            .put("device", getAndroidId(context))
-            .put("nonce", nonce)) ?: return ActivationResult.Network
+        val body = buildRequest(context, "activate", key, nonce)
+            ?: return ActivationResult.ServerError("keystore")
+        val reply = post("/activate", body) ?: return ActivationResult.Network
 
         if (reply.code in 200..299) {
             val json = verifyAndParse(context, reply.payload, reply.sig)
                 ?: return ActivationResult.BadResponse(lastFail)
             if (json.optString("nonce") != nonce) return ActivationResult.BadResponse("nonce")
-            store(context, key, reply.payload, reply.sig)
+            store(context, key, reply.payload, reply.sig, json.optLong("iat", 0L))
             val info = getLicenseInfo(context) ?: return ActivationResult.BadResponse("stored:$lastFail")
             return ActivationResult.Success(info)
         }
@@ -119,14 +153,19 @@ object LicenseManager {
             "key_in_use" -> ActivationResult.KeyInUse
             "revoked" -> ActivationResult.Revoked
             "expired" -> ActivationResult.Expired
+            "migration_limit" -> ActivationResult.MigrationLimit
+            "bad_time" -> ActivationResult.BadClock
             else -> ActivationResult.ServerError("http ${reply.code} ${reply.error}")
         }
     }
 
     fun isPremium(context: Context): Boolean {
         val info = getLicenseInfo(context) ?: return false
-        if (!info.legacy) maybeRefreshAsync(context.applicationContext)
-        return !info.expired
+        if (!info.legacy) {
+            ensureBackgroundCheck(context.applicationContext)
+            maybeRefreshAsync(context.applicationContext, force = false)
+        }
+        return !info.expired && !info.leaseExpired
     }
 
     /** Verified license details for the UI, or null when there is none. */
@@ -138,12 +177,23 @@ object LicenseManager {
             // A stored license that fails verification is tampered: no premium, no legacy fallback.
             val json = verifyAndParse(context, payload, sig ?: "") ?: return null
             val expMs = json.optLong("exp", 0L) * 1000L
+            val leaseMs = if (json.optInt("v") >= 2) json.optLong("lease", 0L) * 1000L
+                          else json.optLong("iat", 0L) * 1000L + V1_LEASE_MS
             val now = effectiveNow(b)
-            return LicenseInfo(json.optString("plan", ""), expMs, false, expMs != 0L && now >= expMs)
+            return LicenseInfo(
+                plan = json.optString("plan", ""),
+                expMillis = expMs,
+                legacy = false,
+                expired = expMs != 0L && now >= expMs,
+                leaseExpired = now >= leaseMs
+            )
         }
-        if (ALLOW_LEGACY && legacyPremium(context)) return LicenseInfo("legacy", 0L, true, false)
+        if (ALLOW_LEGACY && legacyPremium(context)) return LicenseInfo("legacy", 0L, true, false, false)
         return null
     }
+
+    /** Ask the server now (ignores the 15-minute throttle). Safe to call from the UI thread. */
+    fun refreshAsync(context: Context) = maybeRefreshAsync(context.applicationContext, force = true)
 
     /** Local reset. The key stays valid on the server and can be activated again on this device. */
     fun revokePremium(context: Context) {
@@ -154,6 +204,8 @@ object LicenseManager {
             .putBoolean(KEY_BACKUP_PREMIUM, false).putString(KEY_BACKUP_LICENSE, "")
             .remove(K_PAYLOAD).remove(K_SIG).remove(K_KEY).remove(K_OK_AT).remove(K_TRY_AT)
             .apply()
+        try { WorkManager.getInstance(context.applicationContext).cancelUniqueWork(WORK_NAME) } catch (e: Exception) {}
+        workerScheduled.set(false)
     }
 
     /** Kept for compatibility with existing callers; only meaningful for the legacy path. */
@@ -188,14 +240,17 @@ object LicenseManager {
         } catch (e: Exception) { Log.e(TAG, "reconcileAfterUpdate failed", e) }
     }
 
-    // ------------------------------------------------------------------ server refresh
+    // ------------------------------------------------------------------ online re-validation
 
-    private fun maybeRefreshAsync(app: Context) {
+    private fun maybeRefreshAsync(app: Context, force: Boolean) {
+        if (!configured()) return
         val b = backup(app)
         val key = b.getString(K_KEY, null) ?: return
         val now = System.currentTimeMillis()
-        if (now - b.getLong(K_OK_AT, 0L) < REFRESH_OK_INTERVAL_MS) return
-        if (now - b.getLong(K_TRY_AT, 0L) < REFRESH_RETRY_MS) return
+        if (!force) {
+            if (now - b.getLong(K_OK_AT, 0L) < SOFT_REFRESH_MS) return
+            if (now - b.getLong(K_TRY_AT, 0L) < RETRY_MS) return
+        }
         if (!refreshing.compareAndSet(false, true)) return
         b.edit().putLong(K_TRY_AT, now).apply()
         Thread {
@@ -204,30 +259,137 @@ object LicenseManager {
         }.start()
     }
 
+    /**
+     * Background check every ~15 minutes while the phone has internet, even if the app is never opened.
+     * This is what makes a revoke / delete / move reach THIS phone within minutes.
+     */
+    private fun ensureBackgroundCheck(app: Context) {
+        if (!configured() || !workerScheduled.compareAndSet(false, true)) return
+        try {
+            val req = PeriodicWorkRequest.Builder(RefreshWorker::class.java, 15, TimeUnit.MINUTES)
+                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+                .build()
+            WorkManager.getInstance(app).enqueueUniquePeriodicWork(WORK_NAME, ExistingPeriodicWorkPolicy.KEEP, req)
+        } catch (e: Exception) {
+            workerScheduled.set(false)
+            Log.w(TAG, "could not schedule background check", e)
+        }
+    }
+
+    internal fun backgroundCheck(context: Context) {
+        if (!configured()) return
+        val key = backup(context).getString(K_KEY, null) ?: return
+        refresh(context, key)
+    }
+
+    class RefreshWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, params) {
+        override fun doWork(): Result {
+            try { LicenseManager.backgroundCheck(applicationContext) }
+            catch (e: Exception) { Log.w(LicenseManager.TAG, "background check failed", e) }
+            return Result.success()
+        }
+    }
+
+    /** Read-only check against the server. It can confirm or deny; it never moves the binding. */
     private fun refresh(context: Context, key: String) {
-        if (!API_URL.startsWith("https://") || API_URL.contains("YOUR-WORKER")) return
         val nonce = newNonce()
-        val reply = post("/activate", JSONObject()
-            .put("key", key).put("device", getAndroidId(context)).put("nonce", nonce)) ?: return  // offline: keep going
+        val body = buildRequest(context, "check", key, nonce) ?: return
+        val reply = post("/check", body) ?: return            // offline: the lease keeps running
+
         if (reply.code in 200..299) {
             val json = verifyAndParse(context, reply.payload, reply.sig)
             if (json != null && json.optString("nonce") == nonce) {
-                store(context, key, reply.payload, reply.sig)
-                backup(context).edit().putLong(K_OK_AT, System.currentTimeMillis()).apply()
+                store(context, key, reply.payload, reply.sig, json.optLong("iat", 0L))
             }
-        } else if (reply.error == "revoked" || reply.error == "invalid_key") {
-            Log.w(TAG, "license ${reply.error} on server, clearing")
-            revokePremium(context)
+            return
         }
-        // "expired" and "key_in_use" need no action: expiry is enforced locally from the signed payload
+        when (reply.error) {
+            // Definitive answers from the server: drop the license NOW.
+            "revoked", "invalid_key", "key_in_use" -> {
+                Log.w(TAG, "server says ${reply.error}: clearing local license")
+                revokePremium(context)
+            }
+            // expired: enforced locally from the signed payload. Anything else (5xx, bad_time): keep the lease.
+            else -> Log.w(TAG, "check answered ${reply.code} ${reply.error}")
+        }
+    }
+
+    // ------------------------------------------------------------------ device key + signed requests
+
+    private fun generateDeviceKey() {
+        for (strongBox in listOf(true, false)) {
+            try {
+                val b = KeyGenParameterSpec.Builder(KS_ALIAS, KeyProperties.PURPOSE_SIGN)
+                    .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
+                    .setDigests(KeyProperties.DIGEST_SHA256)
+                if (strongBox && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) b.setIsStrongBoxBacked(true)
+                val kpg = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_EC, "AndroidKeyStore")
+                kpg.initialize(b.build())
+                kpg.generateKeyPair()
+                return
+            } catch (e: Exception) {
+                Log.w(TAG, "device key generation (strongBox=$strongBox) failed: ${e.javaClass.simpleName}")
+            }
+        }
+        throw IllegalStateException("device key generation failed")
+    }
+
+    private fun deviceKeyPair(): KeyPair? = try {
+        val ks = KeyStore.getInstance("AndroidKeyStore")
+        ks.load(null)
+        if (!ks.containsAlias(KS_ALIAS)) generateDeviceKey()
+        val priv = ks.getKey(KS_ALIAS, null) as PrivateKey
+        val pub = ks.getCertificate(KS_ALIAS).publicKey
+        KeyPair(pub, priv)
+    } catch (e: Exception) {
+        Log.e(TAG, "Keystore unavailable", e)
+        null
+    }
+
+    private fun sha256Hex(bytes: ByteArray): String =
+        MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+
+    /** Short fingerprint of this phone's device key; the server puts it in every signed answer. */
+    private fun localDpk(): String? {
+        cachedDpk?.let { return it }
+        val kp = deviceKeyPair() ?: return null
+        val d = sha256Hex(kp.public.encoded).substring(0, 16)
+        cachedDpk = d
+        return d
+    }
+
+    private fun buildRequest(context: Context, action: String, key: String, nonce: String): JSONObject? {
+        val kp = deviceKeyPair() ?: return null
+        return try {
+            val device = getAndroidId(context)
+            val ts = System.currentTimeMillis() / 1000
+            val msg = listOf("TT2", action, key, device, ts, nonce).joinToString("|")
+            val sv = Signature.getInstance("SHA256withECDSA")
+            sv.initSign(kp.private)
+            sv.update(msg.toByteArray(Charsets.UTF_8))
+            val raw = derToP1363(sv.sign())
+            JSONObject()
+                .put("key", key)
+                .put("device", device)
+                .put("nonce", nonce)
+                .put("ts", ts)
+                .put("pub", Base64.encodeToString(kp.public.encoded, Base64.NO_WRAP))
+                .put("sig", Base64.encodeToString(raw, Base64.NO_WRAP))
+        } catch (e: Exception) {
+            Log.e(TAG, "signing request failed", e)
+            null
+        }
     }
 
     // ------------------------------------------------------------------ internals
 
-    private fun store(context: Context, key: String, payload: String, sig: String) {
-        backup(context).edit()
+    private fun store(context: Context, key: String, payload: String, sig: String, serverIat: Long) {
+        val b = backup(context)
+        val seen = maxOf(b.getLong(K_SEEN, 0L), serverIat * 1000L)   // never let the clock go behind the server
+        b.edit()
             .putString(K_PAYLOAD, payload).putString(K_SIG, sig).putString(K_KEY, key)
             .putLong(K_OK_AT, System.currentTimeMillis())
+            .putLong(K_SEEN, seen)
             .apply()
     }
 
@@ -257,8 +419,14 @@ object LicenseManager {
             sv.update(payload)
             if (!sv.verify(der)) { lastFail = "signature"; return null }
             val json = JSONObject(String(payload, Charsets.UTF_8))
-            if (json.optInt("v") != 1) { lastFail = "version"; return null }
+            val v = json.optInt("v")
+            if (v != 1 && v != 2) { lastFail = "version"; return null }
             if (json.optString("device") != getAndroidId(context)) { lastFail = "device"; return null }
+            if (v >= 2) {
+                val mine = localDpk()
+                if (mine == null) { lastFail = "keystore"; return null }
+                if (json.optString("dpk") != mine) { lastFail = "dpk"; return null }
+            }
             json
         } catch (e: Exception) {
             Log.w(TAG, "verify failed", e)
@@ -282,6 +450,25 @@ object LicenseManager {
         val len = 2 + r.size + 2 + s.size
         return byteArrayOf(0x30, len.toByte(), 0x02, r.size.toByte()) + r +
                byteArrayOf(0x02, s.size.toByte()) + s
+    }
+
+    // Java signs ECDSA as DER; WebCrypto on the server wants raw r||s (32 + 32 bytes).
+    private fun derToP1363(der: ByteArray): ByteArray {
+        var i = 2
+        if ((der[1].toInt() and 0x80) != 0) i = 2 + (der[1].toInt() and 0x7f)
+        if (der[i] != 0x02.toByte()) throw IllegalArgumentException("bad DER (r)")
+        val rl = der[i + 1].toInt() and 0xff
+        val r = der.copyOfRange(i + 2, i + 2 + rl)
+        i += 2 + rl
+        if (der[i] != 0x02.toByte()) throw IllegalArgumentException("bad DER (s)")
+        val sl = der[i + 1].toInt() and 0xff
+        val s = der.copyOfRange(i + 2, i + 2 + sl)
+        fun fix(b: ByteArray): ByteArray {
+            var v = b
+            while (v.size > 32 && v[0] == 0.toByte()) v = v.copyOfRange(1, v.size)
+            return ByteArray(32 - v.size) + v
+        }
+        return fix(r) + fix(s)
     }
 
     private fun post(path: String, body: JSONObject): Reply? {
