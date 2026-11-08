@@ -8,9 +8,9 @@ import android.text.InputType
 import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.gms.code_scanner.GmsBarcodeScannerOptions
-import com.google.android.gms.code_scanner.GmsBarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
+import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 
 /**
  * v2.9.9.9: license keys are now validated by the Cloudflare Worker (see
