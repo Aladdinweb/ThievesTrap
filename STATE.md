@@ -15,7 +15,7 @@
 **Repo:** `github.com/Aladdinweb/ThievesTrap` (branch: `main`)
 **Dev environment:** 100% mobile — Samsung phone, Android 13, Termux + GitHub Actions CI. No computer involved.
 **Project dir on phone:** `~/ThievesTrapV18`
-**Current version:** `v2.9.10.2` (versionCode 159), 2026-11-07 -- pushed and tagged; the green Actions build and the two-phone strict-lock test are still to be confirmed (Section 9). Built on the v2.8.6 baseline (see history below for the full chain). No Face Capture, no FACE ON/FACE OFF -- that feature was reverted at the user's explicit request 2026-08-28 and has not been reattempted.
+**Current version:** `v2.9.11` (versionCode 160), 2026-11-08 -- delivered as files; push, green Actions build and field tests are still to be confirmed (Section 9). Previous baseline `v2.9.10.2` (159) = strict lock-to-device. Built on the v2.8.6 baseline (see history below for the full chain). No Face Capture, no FACE ON/FACE OFF -- that feature was reverted at the user's explicit request 2026-08-28 and has not been reattempted.
 **Version numbering rule (set 2026-11-07):** continue sequentially from the production baseline `v2.9.10.2`: the next releases are `v2.9.11`, then `v2.9.12`, and so on (`versionName "2.9.11"`, `versionCode` +1 each time: next is 160). No more four-part names. Every release also gets the matching `vX.Y.Z` git tag (that is what triggers `release.yml`).
 **STATE.md rule (set 2026-11-07):** STATE.md is updated in the same step as EVERY code or feature change (version row in Section 8, Pending in Section 9, architecture notes where they apply) and pushed with it.
 **Licensing (since v2.9.9.9):** server-validated by a Cloudflare Worker + KV with a web admin dashboard -- see **Section 11**. Prices are in EUR (5.99 / 10.99 / 24.99).
@@ -61,7 +61,7 @@ git tag vX.Y.Z && git push origin vX.Y.Z                  # triggers release.yml
 | `RemoteGuideActivity.kt` | "Remote Control Guide" screen — lists all SMS commands using `item_command.xml` rows. Each row's real IDs are `tv_cmd_text` / `tv_cmd_desc` / `btn_copy_cmd` (NOT `tv_command_name`/`tv_command_desc` — that was a v2.7.9b bug, fixed in v2.8.0). Has ℹ️ badge (`btn_plan_b_info`) explaining the Plan B dynamic-PIN mechanism. |
 | `UpdateManager.kt` | OTA update logic (see Section 2 for the real mechanism: `version.json` on `main`). Validates downloaded file size (`MIN_APK_BYTES`) to catch corrupt/wrapper downloads before attempting install. `checkForUpdateAutoPopup()` runs once per process from `MainActivity.onResume()`. |
 | `SettingsActivity.kt` | Settings screen (IMEI, emergency contacts auto-save, Telegram bot setup, theft alert toggles, SMS test). Airplane Mode row fully removed (v2.7.6). |
-| `PremiumActivity.kt` | **Rewritten v2.9.9.6 → v2.9.10.1.** Dark/gold FULL PROTECTION screen. Three plan cards in a container forced `layoutDirection="ltr"` (Monthly 5.99 € / 3 Months 10.99 € "Save 16%" / Annual 24.99 € with solid gold `#D4AF37` BEST VALUE badge, dark text `#0A0A0B`, badge sits INSIDE the card because a negative margin got clipped). Tapping a card copies a localized (EN/FR/AR) subscription request (plan, price, Device ID) to the clipboard and opens `https://m.me/61576473907901?text=...` (Messenger prefill is ignored on some versions, hence the clipboard copy); falls back to the Facebook page `https://www.facebook.com/share/1D2RrP4ey2/`. Duration labels ("1 month/3 months/1 year") set from code per language. License key entry runs `LicenseManager.activate()` on a background thread with localized error toasts including a bracketed diagnostic reason (e.g. `[signature]`, `(http 500 signing_failed)`). Line under the Device ID: expiry date + days left, or **Lifetime / À vie / مدى الحياة**, or "Online check required" when the lease ran out; orange in the last 7 days, red when expired. Second line under Device ID: `Last check: dd/MM HH:mm - <result>` (see Section 11). On open it forces a server check and `recreate()`s if premium state changed. Copy Device ID, Revoke License (local reset only), Technical Support (Facebook) kept. Success dialog `dialog_subscription_success.xml` (not cancelable, OK -> MainActivity with cleared stack). |
+| `PremiumActivity.kt` | **Rewritten v2.9.9.6 → v2.9.10.1.** Dark/gold FULL PROTECTION screen. Three plan cards in a container forced `layoutDirection="ltr"` (Monthly 5.99 € / 3 Months 10.99 € "Save 16%" / Annual 24.99 € with solid gold `#D4AF37` BEST VALUE badge, dark text `#0A0A0B`, badge sits INSIDE the card because a negative margin got clipped). Tapping a card copies a localized (EN/FR/AR) subscription request (plan, price, Device ID) to the clipboard and opens `https://m.me/61576473907901?text=...` (Messenger prefill is ignored on some versions, hence the clipboard copy); falls back to the Facebook page `https://www.facebook.com/share/1D2RrP4ey2/`. Duration labels ("1 month/3 months/1 year") set from code per language. License key entry runs `LicenseManager.activate()` on a background thread with localized error toasts including a bracketed diagnostic reason (e.g. `[signature]`, `(http 500 signing_failed)`). Line under the Device ID: expiry date + days left, or **Lifetime / À vie / مدى الحياة**, or "Online check required" when the lease ran out; orange in the last 7 days, red when expired. Second line under Device ID: `Last check: dd/MM HH:mm - <result>` (see Section 11). On open it forces a server check and `recreate()`s if premium state changed. Copy Device ID, Revoke License (local reset only), Technical Support (Facebook) kept. Success dialog `dialog_subscription_success.xml` (not cancelable, OK -> MainActivity with cleared stack). **v2.9.11:** gold-outlined QR button `btn_scan_qr` next to the key field opens Google's code scanner (`play-services-code-scanner`, no camera permission, needs Google Play services + internet the first time), extracts a `TT-XXXXX-XXXXX-XXXXX-XXXXX` key with a regex, fills the field and taps Activate automatically; non-ticket QR codes and a missing scanner show localized EN/FR/AR messages; the button is hidden once premium. |
 | `AboutActivity.kt` | About screen. All rows (Rate, Share, Terms, Privacy) and info sections (Privacy Commitment, Modern Efficiency, Our Mission) use `@string/` refs — fully localized EN/FR/AR. |
 | `SelfieService.kt` / `SelfiesActivity.kt` | Intruder selfie capture (Device Admin triggered, on failed unlock) + gallery viewer. |
 | `SurvivalTimerService.kt` | "I'm still safe" dead-man's-switch timer — sends emergency SMS if not cancelled in time. |
@@ -81,18 +81,18 @@ git tag vX.Y.Z && git push origin vX.Y.Z                  # triggers release.yml
 | `activity_settings.xml` | DEVICE STATUS ALERTS section — Airplane Mode row permanently deleted. |
 | `activity_remote_guide.xml` | Header has `btn_plan_b_info` ℹ️ badge next to title. Body is a list of `<include layout="@layout/item_command">` rows with unique `android:id`s. |
 | `activity_about.xml` | All text via `@string/` refs. Fully localized. |
-| `activity_premium.xml` | Plan cards container has `android:layoutDirection="ltr"`; price TextViews `tv_price_monthly/3month/annual` contain the EUR text ("5.99 €" with a no-break space); sub-labels `tv_sub_monthly/3month/annual`; BEST VALUE ribbon inside the Annual `FrameLayout`; `tv_device_id` then `tv_expiry` (gone unless a license exists); feature glass card; license box `et_license_key`; CTA `btn_buy`; `btn_copy_device_id`, `btn_revoke_license`, `btn_pay_support`. Cards use `layout_height="match_parent"` so they have equal height. **Inline `style=` attributes do not exist in layouts; XML comments must never contain `--`.** |
+| `activity_premium.xml` | Plan cards container has `android:layoutDirection="ltr"`; price TextViews `tv_price_monthly/3month/annual` contain the EUR text ("5.99 €" with a no-break space); sub-labels `tv_sub_monthly/3month/annual`; BEST VALUE ribbon inside the Annual `FrameLayout`; `tv_device_id` then `tv_expiry` (gone unless a license exists); feature glass card; license row = box `layout_license_input` with `et_license_key` + QR button `btn_scan_qr` (`ic_qr_scan`, `bg_btn_scan`); CTA `btn_buy`; `btn_copy_device_id`, `btn_revoke_license`, `btn_pay_support`. Cards use `layout_height="match_parent"` so they have equal height. **Inline `style=` attributes do not exist in layouts; XML comments must never contain `--`.** |
 | `item_command.xml` | **Real IDs**: `tv_cmd_text`, `tv_cmd_desc`, `btn_copy_cmd`. Default placeholder must be overwritten per-row in `RemoteGuideActivity.setupCommandRows()`. |
 | `file_paths.xml` | FileProvider paths — `pictures`, `external_pictures`, `external_dcim`, `downloads`. |
 
 ### Drawables of note
-`bg_badge_best_value.xml` (solid `#D4AF37`, 8dp corners), `bg_plan_card.xml`, `bg_plan_card_selected.xml`, `bg_glass_card.xml`, `bg_status_active.xml`/`bg_status_free.xml`, `bg_btn_activate.xml`, `bg_license_input_box.xml`.
+`bg_badge_best_value.xml` (solid `#D4AF37`, 8dp corners), `bg_plan_card.xml`, `bg_plan_card_selected.xml`, `bg_glass_card.xml`, `bg_status_active.xml`/`bg_status_free.xml`, `bg_btn_activate.xml`, `bg_license_input_box.xml`, `bg_btn_scan.xml` (selector, gold stroke, 14dp), `ic_qr_scan.xml` (Material qr_code_scanner vector, tinted gold).
 
 ### License Worker (`license_worker/`, not part of the APK)
 
 | File | Purpose |
 |---|---|
-| `worker.js` | Cloudflare Worker: `/activate`, `/check`, admin API and the `/admin` dashboard page. See Section 11. |
+| `worker.js` | Cloudflare Worker: `/activate`, `/check`, admin API and the `/admin` dashboard page (generate incl. Trial, list, checkboxes, ticket printing with QR). Embeds the MIT-licensed `qrcode-generator` 2.0.4 (minified, inline, because the page CSP blocks external scripts). See Section 11. |
 | `wrangler.toml` | Worker name `thievestrap-license`, `main = "worker.js"`, KV binding `LICENSES` (the binding MUST stay listed here, a deploy removes dashboard-only bindings). Secrets are NOT here. |
 
 ### Manifest & Build
@@ -100,7 +100,7 @@ git tag vX.Y.Z && git push origin vX.Y.Z                  # triggers release.yml
 | File | Key points |
 |---|---|
 | `AndroidManifest.xml` | `SmsCommandReceiver` static receiver, `priority="999"`. `REQUEST_INSTALL_PACKAGES` permission (OTA). Bluetooth permissions (Watch Tether). `INTERNET` (needed by licensing, Telegram, OTA). FileProvider authority `${applicationId}.fileprovider`. |
-| `app/build.gradle` | `versionCode 158`, `versionName "2.9.10.1"`. `outputFileName` block names APK by version. Release `minifyEnabled true`. Dependencies include `androidx.work:work-runtime-ktx:2.8.1` and the (still inert) Play review/app-update libraries. |
+| `app/build.gradle` | `versionCode 160`, `versionName "2.9.11"`. `outputFileName` block names APK by version. Release `minifyEnabled true`. Dependencies include `androidx.work:work-runtime-ktx:2.8.1`, `com.google.android.gms:play-services-code-scanner:16.1.0` (QR scan, v2.9.11) and the (still inert) Play review/app-update libraries. |
 | `.github/workflows/build.yml` | `assembleRelease` with signing via GitHub Secrets. Dynamic APK discovery (no hardcoded filename). |
 | `.github/workflows/release.yml` | Tag-driven release (see Section 2). |
 | `.github/workflows/deploy-worker.yml` | Deploys `license_worker/` with `npx wrangler@4 deploy` on push to `main` touching that folder (and manual dispatch). |
@@ -186,6 +186,9 @@ git tag vX.Y.Z && git push origin vX.Y.Z                  # triggers release.yml
 - **KV free tier:** about 1,000 writes/day. `/activate` costs 2 writes (record + replay nonce), `/check` costs 0 (read-only), admin actions 1 each, failed admin logins 1 each. List uses per-key metadata so the dashboard never reads every record.
 - **Android ID is only a label** since v2.9.10; the binding identity is the Keystore public key. An uninstall/reinstall creates a new key, so the server sees a different device and refuses it (`key_in_use`) until the admin presses Unbind (strict lock, v2.9.10.2). `ALLOW_REINSTALL_SAME_ANDROID_ID` in `worker.js` (default false) would let the same Android ID re-bind by itself, at the cost of trusting a spoofable value.
 - **Termux files (paths only, contents are secret):** `~/.ttlicense_keys/` holds `ec.pem` (private key, BACK IT UP, losing it forces a new app build), `signing_key.b64` (-> Cloudflare secret `SIGNING_KEY`), `public_key.b64` (-> embedded in the APK by the push `sed`), `admin_token.txt` (-> Cloudflare secret `ADMIN_TOKEN`).
+- **Dashboard page is one big JS template literal:** any backslash in text inserted into `PAGE` must be doubled (`\\n`, `\\u00b7`), and the text must never contain a backtick, `${` or `</script`. The embedded QR library was checked for all of these; re-check when updating it.
+- **Printing tickets:** `window.print()` is used on the hidden `#printArea` with an `@media print` stylesheet (A4, 2 columns x 5 rows of 94x50 mm tickets, cut guides). The dark ticket header needs "Background graphics" enabled in the print dialog (the CSS requests `print-color-adjust: exact`). Printed keys are bearer secrets: the only recall is Revoke/Delete.
+- **QR scanner depends on Google Play services** (Google code scanner, module downloaded on first use). Phones without GMS (e.g. Huawei) get a "type the key instead" message. Alternative if that matters: CameraX + ZXing core inside a dialog (no Google dependency, no manifest change).
 
 ---
 
@@ -234,6 +237,7 @@ git tag vX.Y.Z && git push origin vX.Y.Z                  # triggers release.yml
 | v2.9.10 (2026-11-07) | **Hybrid online licensing.** Worker answers carry a 72 h lease; the app re-checks via read-only `/check` every ~15 min while in use plus a WorkManager job (`tt_license_refresh`, 15 min, network required) so revoke/delete/move reach the phone within minutes; definitive `revoked`/`invalid_key`/`key_in_use` clear the license immediately, 5xx/offline never do. Automatic device migration: entering the key on a new phone moves the binding (3 moves per key per 30 days, expiry unchanged, old phone locked out at its next check, admin Unbind resets). Binding identity = non-exportable Android Keystore EC key (StrongBox first), every request signed with it (`TT2|action|key|device|ts|nonce`), timestamp window 10 min, replay nonce stored 20 min on `/activate`; Android ID demoted to a label. Dashboard shows "n device move(s)". Old clients (<= v2.9.9.10) get `update_required` on `/activate`. Tested with a 29-case simulated suite (migration, limit, replay, tamper, legacy upgrade, revoke/restore/delete, signing failure); Kotlin not compiled outside CI. **The auto-migration part was removed again in v2.9.10.2.** |
 | v2.9.10.1 (2026-11-07) | Premium screen asks the server on open and `recreate()`s when the answer changes (it never redrew itself before, which made revocation look broken); new "Last check: dd/MM HH:mm - <result>" line under the Device ID. This line exposed that the deployed Worker was still the old one (`not_found (404)`); after deploying the v2 Worker it showed `ok`; the user then reported the revoke test successful and the key restored with `ok`. |
 | v2.9.10.2 (2026-11-07) | **Strict lock-to-device, no auto-migration.** A key binds to the first phone that activates it; any other phone gets `key_in_use` (403) on `/activate` and `/check`, and the app shows "This key is already active on another device. Please contact support." in EN/FR/AR (`ActivationResult.KeyInUse`). Removed: the 3-moves/30-days logic, `migration_limit`, `ActivationResult.MigrationLimit`, the move counter in KV metadata and the dashboard. Only the admin's "Unbind device" frees a key: it clears `device` + `dev_pub` but keeps `activated_at`/`expires_at`, so a transfer never extends a subscription; the old phone is locked out at its next check and the next phone to activate binds. `/check` now also refuses an UNBOUND key (otherwise a leaked unbound key could renew leases from any number of phones). A rejected attempt writes nothing to KV (identity check runs before the replay-nonce write). New constant `ALLOW_REINSTALL_SAME_ANDROID_ID` (default false). Worker tested with a 25-case simulated suite; Kotlin compiled only by CI. |
+| v2.9.11 (2026-11-08) | **Trial plan + ticket printing + in-app QR scanner.** Worker: plan `trial` with admin-chosen days (1..14, `bad_days` otherwise, integers only), stored as `rec.days` and in KV metadata; expiry = first activation + days (kept across Unbind); fixed plans unchanged. Dashboard: "Trial (custom days, max 14)" option with day presets (1/3/5/7/14); a checkbox on every key, "Select all shown" (follows the search/status filter, selection survives filtering), live "N selected" counter, **Print Selected Tickets** (warns if selected keys are not Unused) and **Print these tickets** right after generating. Ticket (English, 94x50 mm, 10 per A4): THIEVES TRAP by iLine Tech, license key, validity text, QR code of the key (inline `qrcode-generator`, ECC M), how-to line and footer "Your phone is safe with us" / "One device per key". App: QR scan button next to the key field (Google code scanner) that fills the key and activates; scan failures and non-license QR codes show localized messages. Tested: Worker 25 strict-lock cases + 32 trial/dashboard cases (jsdom drives the real page: generate, presets, select all, print), and every printed QR decoded back to its own key with OpenCV; Kotlin/XML compiled only by CI. |
 
 ---
 
@@ -255,11 +259,14 @@ git tag vX.Y.Z && git push origin vX.Y.Z                  # triggers release.yml
 - [ ] Verify the "Save 16%" label: real saving at 10.99 € for 3 months is ~39% and annual ~65% versus monthly.
 - [ ] The `price_placeholder_note` text under the Activate button may still say prices are temporary; update it now that EUR prices are final.
 
-**Roadmap / feature pipeline (requested 2026-11-07, design notes in Section 12; none implemented yet):**
-- [ ] **Custom Trial Plan (flexible duration):** admin generator + Worker support short-term trial keys with custom durations (e.g. 3 days, 7 days / 1 week) for store demos and testing.
-- [ ] **Batch print / export of license tickets:** multi-select checkboxes next to keys in the dashboard + a "Print Selected Tickets" button producing a professional ticket layout (app name, license key, validity) for stores and resellers.
-- [ ] **Force Update mechanism:** mandatory, blocking update dialog when the installed build is older than the required version (previously planned).
-- Suggested order (NOT decided, confirm first): `v2.9.11` = trial plan + batch print (Worker/dashboard only, almost no app change); `v2.9.12` = force update (app + `version.json` + optional Worker gate).
+**v2.9.11 (delivered 2026-11-08) -- to confirm in the field:**
+- [ ] Deploy the new `worker.js` FIRST (repo `license_worker/` + Cloudflare), then push the app. Check `/admin` shows the Trial option.
+- [ ] Generate a 3-day trial key, activate it on a phone: the Premium screen must show about "Expires <date> - 3 days left".
+- [ ] Select several keys, tap Print Selected Tickets, check the print preview (A4, two columns, QR, dark header needs background graphics ON); scan a printed QR with the app's new QR button -> key auto-fills and activates. Tune the ticket CSS if the real print looks off.
+- [ ] Confirm the build is green with the new `play-services-code-scanner` dependency, and test the scanner on a phone with and without Google Play services.
+
+**Next release `v2.9.12` = Force Update mechanism (Section 12.3, design not finalized):**
+- [ ] Mandatory, blocking update dialog (UI only, never the protection services); minimum version stored outside the file `release.yml` rewrites; fail open when offline; optional Worker gate. Open questions are listed in 12.3.
 
 **Older items (still open):**
 - [x] v2.9.1 (versionCode 137): all 9 fixes applied and build-confirmed green
@@ -290,7 +297,7 @@ git tag vX.Y.Z && git push origin vX.Y.Z                  # triggers release.yml
 
 **Worker:** `thievestrap-license`, URL `https://thievestrap-license.ferakalaaeddine.workers.dev`. Source `license_worker/worker.js`. KV namespace bound as `LICENSES`. Secrets (set in Cloudflare, never in the repo): `SIGNING_KEY` (base64 PKCS8 DER of a P-256 private key), `ADMIN_TOKEN` (also the `/admin` password).
 
-**Plans and key format:** `monthly` = 30 days, `3months` = 90, `annual` = 365, `lifetime` (also used for admin keys) = no expiry. Keys look like `TT-XXXXX-XXXXX-XXXXX-XXXXX` (20 chars from a 31-letter alphabet without 0/O/1/I/L, about 99 bits). The clock starts at FIRST activation and is kept across device moves.
+**Plans and key format:** `monthly` = 30 days, `3months` = 90, `annual` = 365, `lifetime` (also used for admin keys) = no expiry, `trial` = 1..14 days chosen at generation (`days` stored on the record, clamped to 1..14 again at activation; `bad_days` on invalid input). Keys look like `TT-XXXXX-XXXXX-XXXXX-XXXXX` (20 chars from a 31-letter alphabet without 0/O/1/I/L, about 99 bits). The clock starts at FIRST activation and is kept across device moves.
 
 **Endpoints**
 - `POST /activate` -- user typed a key: binds an UNBOUND key to this phone (or re-confirms the phone it is already bound to); a key bound to another phone gets `key_in_use` (403). Authenticated by a signed request (below), proof of possession of the device key.
@@ -308,7 +315,7 @@ git tag vX.Y.Z && git push origin vX.Y.Z                  # triggers release.yml
 
 **App behaviour:** `isPremium()` = signed license verified AND not expired AND lease valid (legacy flag only while `ALLOW_LEGACY` and no signed license stored). It triggers a throttled background check (15 min, retry 5 min) and keeps the WorkManager job scheduled. `refresh()` outcomes are written to the "Last check" line: `ok`, `offline`, `revoked (403)`, `key_in_use (403)`, `invalid_key (404)`, `expired (403)`, `bad_signature (400)`, `bad_time (400)`, `not_found (404)` (OLD Worker), `bad reply: <reason>` (signature/key mismatch), `no device key`. Only `revoked`, `invalid_key`, `key_in_use` clear the license; network or 5xx errors never do. Local clock rollback is blunted by a "latest time seen" value that also follows the server `iat`.
 
-**Admin dashboard:** generate (plan, count 1-50, note) with Copy / Copy all, license list with search + status filter (Unused/Active/Expired/Revoked), per key Copy, Unbind device, Revoke / Restore, Delete (permanent; warns on Active keys), "Delete all revoked", Diagnostics (Worker signing-key fingerprint), Sign out. Token kept in `sessionStorage` only.
+**Admin dashboard:** generate (plan incl. Trial with 1/3/5/7/14-day presets, count 1-50, note) with Copy / Copy all and **Print these tickets**; license list with search + status filter (Unused/Active/Expired/Revoked), a checkbox per key, **Select all shown**, "N selected" counter and **Print Selected Tickets** (A4 sheet of 94x50 mm tickets: app name, key, validity, QR of the key, how-to, footer tagline; warns when selected keys are not Unused); per key Copy, Unbind device, Revoke / Restore, Delete (permanent; warns on Active keys); "Delete all revoked"; Diagnostics (Worker signing-key fingerprint); Sign out. Token kept in `sessionStorage` only. QR codes are drawn client-side as inline SVG (no external script, CSP-safe).
 
 **Key pair setup / rotation (Termux, contents secret):**
 ```bash
@@ -326,9 +333,9 @@ Then paste `signing_key.b64` into Cloudflare secret `SIGNING_KEY` and `admin_tok
 
 ---
 
-## 12. Roadmap Design Notes (requested 2026-11-07 -- NOT implemented yet)
+## 12. Roadmap Design Notes (requested 2026-11-07; 12.1, 12.2 and 12.4 delivered in v2.9.11, 12.3 pending for v2.9.12)
 
-Numbering: next releases are `v2.9.11`, `v2.9.12`, ... (Section 1). Everything below is a proposal to confirm before coding; items marked **[decide]** need an answer from the owner.
+Numbering: next releases are `v2.9.11`, `v2.9.12`, ... (Section 1). 12.1, 12.2 and 12.4 below were built in v2.9.11 using the owner's answers (see Decisions at the end); 12.3 is still a proposal and its **[decide]** items need an answer.
 
 ### 12.1 Custom Trial Plan (flexible duration)
 **Goal:** short-term trial keys with a custom duration (3 days, 7 days / 1 week, ...) for store demos and testing, like SaaS trials.
@@ -355,8 +362,11 @@ Numbering: next releases are `v2.9.11`, `v2.9.12`, ... (Section 1). Everything b
 - **Optional server gate:** the app could send its `versionCode` in `/activate` and `/check`, and the Worker could refuse builds below a minimum (it already answers `update_required` to the old protocol) **[decide]**.
 - **Caveat:** the debug-vs-release keystore signature mismatch (Section 2) still breaks installs; force update only works between release-signed builds.
 
-### Open questions before building
-1. Trial: keep "clock starts at first activation"? Allowed range of days?
-2. Tickets: QR code? Which language(s)? Include a price/support line?
-3. Force update: where does the minimum version live, and is the Worker gate wanted?
-4. Order: is `v2.9.11` = trial + tickets and `v2.9.12` = force update acceptable?
+### 12.4 In-app QR scanner for activation (delivered in v2.9.11)
+QR button next to the license field in `PremiumActivity` using Google's code scanner (`GmsBarcodeScanning`, QR only). The ticket QR encodes just the key; the app accepts any text containing a `TT-XXXXX-XXXXX-XXXXX-XXXXX` key, fills the field and triggers Activate. No camera permission, no manifest change; needs Google Play services (first use downloads the module). Alternative without Google: CameraX + ZXing core in a dialog.
+
+### Decisions (answered by the owner, 2026-11-08)
+1. Trial clock starts exclusively at the FIRST activation on a device (like regular plans); maximum 14 days, shorter custom values (3, 5, 7, ...) allowed at generation.
+2. Tickets: every ticket has a QR code; text in English; app name, validity and a footer tagline ("Your phone is safe with us").
+3. Order: `v2.9.11` = trial plan + multi-ticket printing + QR (done), `v2.9.12` = force update.
+4. Still open for 12.3 (force update): where the minimum version lives (it must survive `release.yml`), and whether the Worker also gates old builds.

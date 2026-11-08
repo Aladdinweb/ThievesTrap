@@ -220,17 +220,29 @@
                 android:textSize="14sp" android:layout_marginStart="8dp"/>
         </LinearLayout>
 
-        <LinearLayout android:id="@+id/layout_license_input"
-            android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:orientation="vertical" android:background="@drawable/bg_license_input_box"
-            android:padding="4dp" android:layout_marginBottom="14dp">
-            <EditText android:id="@+id/et_license_key"
-                android:layout_width="match_parent" android:layout_height="48dp"
-                android:hint="@string/license_key_placeholder"
-                android:inputType="textCapCharacters|textVisiblePassword"
-                android:gravity="center" android:background="@android:color/transparent"
-                android:textColor="#FFFFFF" android:textColorHint="#333338"
-                android:fontFamily="monospace" android:textSize="13sp" android:letterSpacing="0.04"/>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical"
+            android:layout_marginBottom="14dp">
+            <LinearLayout android:id="@+id/layout_license_input"
+                android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                android:orientation="vertical" android:background="@drawable/bg_license_input_box"
+                android:padding="4dp">
+                <EditText android:id="@+id/et_license_key"
+                    android:layout_width="match_parent" android:layout_height="48dp"
+                    android:hint="@string/license_key_placeholder"
+                    android:inputType="textCapCharacters|textVisiblePassword"
+                    android:gravity="center" android:background="@android:color/transparent"
+                    android:textColor="#FFFFFF" android:textColorHint="#333338"
+                    android:fontFamily="monospace" android:textSize="13sp" android:letterSpacing="0.04"/>
+            </LinearLayout>
+            <ImageButton android:id="@+id/btn_scan_qr"
+                android:layout_width="56dp" android:layout_height="56dp"
+                android:layout_marginStart="10dp"
+                android:background="@drawable/bg_btn_scan"
+                android:src="@drawable/ic_qr_scan"
+                android:tint="#FFD700"
+                android:scaleType="centerInside" android:padding="14dp"
+                android:contentDescription="Scan QR code"/>
         </LinearLayout>
 
         <!-- Main CTA -->

@@ -8,6 +8,9 @@ import android.text.InputType
 import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.gms.code_scanner.GmsBarcodeScannerOptions
+import com.google.android.gms.code_scanner.GmsBarcodeScanning
+import com.google.mlkit.vision.barcode.common.Barcode
 
 /**
  * v2.9.9.9: license keys are now validated by the Cloudflare Worker (see
@@ -56,6 +59,7 @@ class PremiumActivity : AppCompatActivity() {
         setupPlanCards()
 
         if (isPremium) {
+            findViewById<android.view.View>(R.id.btn_scan_qr).visibility = android.view.View.GONE
             findViewById<Button>(R.id.btn_buy).apply {
                 text = "${s("license_activated")} \u2705"
                 backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF003300.toInt())
@@ -66,6 +70,13 @@ class PremiumActivity : AppCompatActivity() {
             val etKey = findViewById<EditText>(R.id.et_license_key)
             etKey.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
             val btnBuy = findViewById<Button>(R.id.btn_buy)
+            findViewById<android.view.View>(R.id.btn_scan_qr).setOnClickListener {
+                startQrScan { scanned ->
+                    etKey.setText(scanned)
+                    etKey.setSelection(etKey.text.length)
+                    btnBuy.performClick() // auto-fill and activate in one go
+                }
+            }
             btnBuy.setOnClickListener {
                 val key = etKey.text.toString().trim()
                 if (key.isBlank()) {
@@ -108,6 +119,46 @@ class PremiumActivity : AppCompatActivity() {
         val label = tr("Last check", "Derni\u00E8re v\u00E9rification", "\u0622\u062E\u0631 \u062A\u062D\u0642\u0642")
         findViewById<TextView>(R.id.tv_device_id).text =
             "Device ID: $androidId" + (if (last != null) "\n$label: $last" else "")
+    }
+
+    /**
+     * Opens Google's code scanner (no camera permission needed, runs inside Google Play services) and hands back
+     * the license key found in the QR code. Tickets printed by the admin dashboard encode just the key, but any
+     * text that contains a key in the TT-XXXXX-XXXXX-XXXXX-XXXXX format is accepted.
+     */
+    private fun startQrScan(onKey: (String) -> Unit) {
+        try {
+            val options = GmsBarcodeScannerOptions.Builder()
+                .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+                .build()
+            GmsBarcodeScanning.getClient(this, options).startScan()
+                .addOnSuccessListener { barcode ->
+                    val key = extractKey(barcode.rawValue)
+                    if (key != null) onKey(key)
+                    else Toast.makeText(this,
+                        tr("This QR code is not a Thieves Trap license ticket.",
+                           "Ce code QR n'est pas un ticket de licence Thieves Trap.",
+                           "\u0631\u0645\u0632 QR \u0647\u0630\u0627 \u0644\u064A\u0633 \u062A\u0630\u0643\u0631\u0629 \u062A\u0631\u062E\u064A\u0635 Thieves Trap."),
+                        Toast.LENGTH_LONG).show()
+                }
+                .addOnFailureListener { scannerUnavailable() }
+        } catch (e: Exception) {
+            scannerUnavailable()
+        }
+    }
+
+    private fun scannerUnavailable() {
+        Toast.makeText(this,
+            tr("The QR scanner needs Google Play services and an internet connection the first time. You can type the key instead.",
+               "Le scanner QR n'est pas disponible (Google Play services et internet requis la premi\u00E8re fois). Saisissez la cl\u00E9 manuellement.",
+               "\u0645\u0627\u0633\u062D QR \u063A\u064A\u0631 \u0645\u062A\u0627\u062D (\u064A\u062A\u0637\u0644\u0628 \u062E\u062F\u0645\u0627\u062A Google Play \u0648\u0627\u0644\u0625\u0646\u062A\u0631\u0646\u062A \u0623\u0648\u0644 \u0645\u0631\u0629). \u0623\u062F\u062E\u0644 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u064A\u062F\u0648\u064A\u0627\u064B."),
+            Toast.LENGTH_LONG).show()
+    }
+
+    private fun extractKey(raw: String?): String? {
+        if (raw.isNullOrBlank()) return null
+        val m = Regex("TT-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}").find(raw)
+        return m?.value?.uppercase()
     }
 
     private fun tr(en: String, fr: String, ar: String): String = when (appLang()) {
