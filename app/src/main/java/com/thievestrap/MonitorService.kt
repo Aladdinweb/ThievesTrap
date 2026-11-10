@@ -162,6 +162,7 @@ class MonitorService : Service() {
                     val photoFile = java.io.File(path)
                     val label = if (reason == "poweroff") "Power-off attempt selfie" else "Intruder selfie #$count"
                     recordAlert(label)
+                    ActivityLog.selfie(this, label) // v2.9.12
                     prefs().edit().putString("last_selfie_path", path).apply()
                     if (LicenseManager.isPremium(this) && photoFile.exists() &&
                         photoFile.length() > 0) {
@@ -410,7 +411,8 @@ class MonitorService : Service() {
     private fun logCmd(cmd: String, sender: String, outcome: String) {
         Log.i(TAG, "CMD '$cmd' from $sender -> $outcome")
         val tail = sender.filter { it.isDigit() }.takeLast(4)
-        ActivityLog.append(this, "${cmd.take(16)} (..$tail): $outcome")
+        // v2.9.12: only real remote commands reach the on-screen log (PINs masked); unrelated SMS are never stored
+        ActivityLog.remoteCmd(this, cmd, tail, outcome)
     }
 
     /** Armed / Premium / Device Admin state plus the last remote-command and security-event outcomes. Only sent to a registered sender or a valid Plan B PIN. */

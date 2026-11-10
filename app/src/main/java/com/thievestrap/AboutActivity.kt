@@ -42,12 +42,12 @@ class AboutActivity : AppCompatActivity() {
 
         // Terms of Use
         findViewById<android.view.View>(R.id.item_terms).setOnClickListener {
-            openUrl("https://iline.tech/thieves-trap/terms")
+            openUrl("https://thievestrap-license.ferakalaaeddine.workers.dev/terms")
         }
 
         // Privacy Policy
         findViewById<android.view.View>(R.id.item_privacy).setOnClickListener {
-            openUrl("https://iline.tech/thieves-trap/privacy")
+            openUrl("https://thievestrap-license.ferakalaaeddine.workers.dev/privacy")
         }
 
         findViewById<Button>(R.id.btn_back_about).setOnClickListener {

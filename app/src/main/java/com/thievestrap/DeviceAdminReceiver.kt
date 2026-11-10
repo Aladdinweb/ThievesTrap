@@ -21,6 +21,7 @@ class DeviceAdminReceiver : DeviceAdminReceiver() {
         val count = prefs.getInt("wrong_pin_count", 0) + 1
         prefs.edit().putInt("wrong_pin_count", count).apply()
         Log.i(TAG, "Wrong PIN #$count, threshold=$threshold")
+        ActivityLog.wrongUnlock(context, count) // v2.9.12
 
         // FIX 2026-09-03: capture now strictly respects the user-selected
         // threshold (1-5) instead of firing unconditionally on attempt #1.

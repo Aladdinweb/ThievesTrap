@@ -1,5 +1,6 @@
 package com.thievestrap
 
+import android.app.Activity
 import android.app.DownloadManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -11,6 +12,8 @@ import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.widget.ProgressBar
 import android.widget.Toast
@@ -42,6 +45,105 @@ object UpdateManager {
     // NOTE: The "corrupt" error was caused by this being 1 MB which rejected real APKs
     // that had already been partially streamed. Now 500 KB.
     private const val MIN_APK_BYTES = 500_000L
+
+    // ── v2.9.12: Force Update (mandatory minimum version) ───────────────────
+    // The minimum is set in the private admin panel (Worker KV) and read from the public
+    // GET /version endpoint, so it can be raised without a release and survives release.yml.
+    // Rules: only the UI of MainActivity is blocked (protection services keep running);
+    // fail open when the check cannot be made; a minimum that has no released APK yet is ignored.
+    private const val MIN_VERSION_URL = "https://thievestrap-license.ferakalaaeddine.workers.dev/version"
+    private const val PREFS_NAME = "tt_prefs"
+    private const val KEY_MIN_VERSION = "min_version_code"
+    private const val RELEASES_PAGE = "https://github.com/$GITHUB_OWNER/$GITHUB_REPO/releases/latest"
+    private var forceDialog: AlertDialog? = null
+    @Volatile private var lastMinCheckMs = 0L
+
+    fun isForceDialogShowing(): Boolean = forceDialog?.isShowing == true
+
+    fun dismissForceDialog() {
+        try { forceDialog?.dismiss() } catch (e: Exception) {}
+        forceDialog = null
+    }
+
+    fun enforceMinimumVersion(activity: Activity) {
+        val sp = activity.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        // Last verified minimum: enforced immediately, even offline.
+        if (sp.getInt(KEY_MIN_VERSION, 0) > BuildConfig.VERSION_CODE) showForceUpdateDialog(activity)
+        val now = System.currentTimeMillis()
+        if (now - lastMinCheckMs < 60_000L) return
+        lastMinCheckMs = now
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val min = fetchMinVersionCode() ?: return@launch          // offline / server error: fail open, keep cached value
+                val latest = fetchVersionJson()?.first ?: return@launch   // cannot confirm an APK exists: change nothing
+                val enforce = if (min > BuildConfig.VERSION_CODE && latest >= min) min else 0
+                sp.edit().putInt(KEY_MIN_VERSION, enforce).apply()
+                withContext(Dispatchers.Main) {
+                    if (activity.isFinishing || activity.isDestroyed) return@withContext
+                    if (enforce > BuildConfig.VERSION_CODE) showForceUpdateDialog(activity) else dismissForceDialog()
+                }
+            } catch (e: Exception) { Log.w(TAG, "min version check: ${e.message}") }
+        }
+    }
+
+    private fun fetchMinVersionCode(): Int? {
+        var conn: HttpURLConnection? = null
+        return try {
+            conn = (URL(MIN_VERSION_URL).openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                setRequestProperty("User-Agent", "ThievesTrap-App")
+                connectTimeout = 10_000; readTimeout = 10_000
+            }
+            if (conn.responseCode != HttpURLConnection.HTTP_OK) return null
+            val json = JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
+            if (!json.optBoolean("ok", false)) null else json.optInt("min_version_code", 0).coerceAtLeast(0)
+        } catch (e: Exception) { null }
+        finally { try { conn?.disconnect() } catch (e: Exception) {} }
+    }
+
+    private fun tr(ctx: Context, en: String, fr: String, ar: String): String =
+        when (LocaleHelper.getLang(ctx)) { "fr" -> fr; "ar" -> ar; else -> en }
+
+    private fun showForceUpdateDialog(activity: Activity) {
+        if (activity.isFinishing || activity.isDestroyed) return
+        if (forceDialog?.isShowing == true) return
+        val dlg = AlertDialog.Builder(activity)
+            .setTitle(tr(activity, "Update Required", "Mise \u00e0 jour requise", "\u062a\u062d\u062f\u064a\u062b \u0645\u0637\u0644\u0648\u0628"))
+            .setMessage(tr(activity,
+                "This version of Thieves Trap is no longer supported. Install the latest version to keep using the app. Your protection keeps running in the background while you update.",
+                "Cette version de Thieves Trap n\u2019est plus prise en charge. Installez la derni\u00e8re version pour continuer \u00e0 utiliser l\u2019application. Votre protection continue de fonctionner en arri\u00e8re-plan pendant la mise \u00e0 jour.",
+                "\u0644\u0645 \u064a\u0639\u062f \u0647\u0630\u0627 \u0627\u0644\u0625\u0635\u062f\u0627\u0631 \u0645\u0646 Thieves Trap \u0645\u062f\u0639\u0648\u0645\u0627\u064b. \u062b\u0628\u0651\u062a \u0623\u062d\u062f\u062b \u0625\u0635\u062f\u0627\u0631 \u0644\u0645\u0648\u0627\u0635\u0644\u0629 \u0627\u0633\u062a\u062e\u062f\u0627\u0645 \u0627\u0644\u062a\u0637\u0628\u064a\u0642. \u062a\u0633\u062a\u0645\u0631 \u062d\u0645\u0627\u064a\u062a\u0643 \u0641\u064a \u0627\u0644\u0639\u0645\u0644 \u0641\u064a \u0627\u0644\u062e\u0644\u0641\u064a\u0629 \u0623\u062b\u0646\u0627\u0621 \u0627\u0644\u062a\u062d\u062f\u064a\u062b."))
+            .setCancelable(false)
+            .setPositiveButton(tr(activity, "Update now", "Mettre \u00e0 jour", "\u062d\u062f\u0651\u062b \u0627\u0644\u0622\u0646"), null)
+            .create()
+        dlg.setCanceledOnTouchOutside(false)
+        dlg.show()
+        // Set after show() so tapping the button does not dismiss the dialog.
+        dlg.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener { btn ->
+            btn.isEnabled = false
+            Handler(Looper.getMainLooper()).postDelayed({ btn.isEnabled = true }, 6000L)
+            startForcedUpdate(activity)
+        }
+        forceDialog = dlg
+    }
+
+    private fun startForcedUpdate(activity: Activity) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val latest = fetchVersionJson()
+            withContext(Dispatchers.Main) {
+                if (latest != null && latest.first > BuildConfig.VERSION_CODE) {
+                    downloadAndInstall(activity, latest.third, latest.second)
+                } else {
+                    try {
+                        activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(RELEASES_PAGE))
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    } catch (e: Exception) {
+                        Toast.makeText(activity, RELEASES_PAGE, Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        }
+    }
 
     // ── Manual check (sidebar button) ────────────────────────────────────────
 

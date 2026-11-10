@@ -1,0 +1,12 @@
+# Thieves Trap ADMIN Worker (key generation, license management, Force Update minimum).
+# Separate from the public site/license Worker. Deployed by .github/workflows/deploy-admin-worker.yml
+# Secret ADMIN_TOKEN is NOT here: set it in Cloudflare (Workers > tt-console-7k3q9x > Settings > Variables and Secrets).
+name = "tt-console-7k3q9x"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+workers_dev = true
+
+# Same KV namespace as the public Worker (license_worker/wrangler.toml).
+[[kv_namespaces]]
+binding = "LICENSES"
+id = "58a121ef3ce243658d5e8623133433b5"

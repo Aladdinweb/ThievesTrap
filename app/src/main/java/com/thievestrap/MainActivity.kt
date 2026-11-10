@@ -67,9 +67,14 @@ class MainActivity : AppCompatActivity() {
         // v2.9.7.1: silent, automatic check -- once per process lifetime, not
         // on every onResume (switching screens and coming back would otherwise
         // re-prompt). UpdateManager shows the dialog itself only if newer.
+        // v2.9.12: mandatory minimum-version gate. Blocks this screen only; the
+        // protection services (SMS commands, SIM trap, Watch Tether) are untouched.
+        try { UpdateManager.enforceMinimumVersion(this) } catch (e: Exception) {}
         if (!autoUpdateCheckDone) {
             autoUpdateCheckDone = true
-            try { UpdateManager.checkForUpdateAutoPopup(this) } catch (e: Exception) {}
+            if (!UpdateManager.isForceDialogShowing()) {
+                try { UpdateManager.checkForUpdateAutoPopup(this) } catch (e: Exception) {}
+            }
         }
         try { showMultiSimWarningIfPending() } catch (e: Exception) {}
         try {
@@ -102,7 +107,45 @@ class MainActivity : AppCompatActivity() {
         }
         registerReceiver(settingsRefreshReceiver,
             IntentFilter("com.thievestrap.SETTINGS_REFRESH"))
+        // v2.9.12: validate the license on every resume so the shield never stays on
+        // "Full Protection" after an expiry or revocation.
+        enforceLicenseState()
+        syncLicenseWithServer()
         window.decorView.post { updateStatus() }
+    }
+
+    private var lastLicenseSyncMs = 0L
+
+    /**
+     * Full Theft Protection is a premium feature. If the license is definitively gone
+     * (expired, revoked, deleted, moved to another phone, tampered) switch it off now.
+     * A license that is only waiting for its online check (lease ran out while offline)
+     * is NOT switched off: a thief cutting the internet must not disable protection.
+     * The shield shows Medium Protection until the check succeeds (see updateStatus).
+     */
+    private fun enforceLicenseState() {
+        try {
+            if (!prefs.getBoolean("theft_mode", false)) return
+            val info = LicenseManager.getLicenseInfo(this)
+            if (info != null && !info.expired) return
+            prefs.edit().putBoolean("theft_mode", false).putBoolean("location_ping", false).apply()
+            try {
+                startService(Intent(this, MonitorService::class.java).apply { action = "THEFT_OFF" })
+            } catch (e: Exception) {}
+        } catch (e: Exception) {}
+    }
+
+    /** Ask the license server now (at most every 30 s) and redraw the moment the answer arrives. */
+    private fun syncLicenseWithServer() {
+        val now = System.currentTimeMillis()
+        if (now - lastLicenseSyncMs < 30_000L) return
+        lastLicenseSyncMs = now
+        val redraw = Runnable {
+            if (!isFinishing && !isDestroyed) { enforceLicenseState(); updateStatus() }
+        }
+        try { LicenseManager.refreshAsync(this) { runOnUiThread(redraw) } } catch (e: Exception) {}
+        // refreshAsync skips its callback when another check is already running, so redraw once more shortly after.
+        mainHandler.postDelayed(redraw, 5000L)
     }
 
     override fun onPause() {
@@ -113,6 +156,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        UpdateManager.dismissForceDialog()
         mediaPlayer?.release()
     }
 
@@ -921,6 +965,7 @@ class MainActivity : AppCompatActivity() {
         val running     = prefs.getBoolean("running", false)
         val theft       = prefs.getBoolean("theft_mode", false)
         val isPremium   = LicenseManager.isPremium(this)
+        val fullProtection = running && theft && isPremium   // v2.9.12: never shown without a valid license
         val adminActive = dpm.isAdminActive(adminComponent)
         val armTime     = prefs.getLong("arm_time", 0)
         val lastAlert   = prefs.getString("last_alert", null)
@@ -929,7 +974,7 @@ class MainActivity : AppCompatActivity() {
         try {
             val shieldView = findViewById<android.widget.ImageView>(R.id.iv_shield_main)
             when {
-                running && theft -> {
+                fullProtection -> {
                     shieldView.setColorFilter(android.graphics.Color.parseColor("#00FF66"))
                     findViewById<TextView>(R.id.tv_status).apply {
                         text = "FULLY PROTECTED"; setTextColor(0xFF00FF66.toInt())
@@ -953,7 +998,8 @@ class MainActivity : AppCompatActivity() {
         try {
             val sub = findViewById<TextView>(R.id.tv_sub_status)
             when {
-                running && theft -> { sub.text = "Full Protection"; sub.setTextColor(0xFF00FF66.toInt()) }
+                fullProtection   -> { sub.text = "Full Protection"; sub.setTextColor(0xFF00FF66.toInt()) }
+                running && theft -> { sub.text = "Medium Protection \u2014 license needs an online check"; sub.setTextColor(0xFFFF8C00.toInt()) }
                 running          -> { sub.text = "Medium Protection"; sub.setTextColor(0xFFFF8C00.toInt()) }
                 else             -> sub.text = ""
             }
@@ -961,7 +1007,7 @@ class MainActivity : AppCompatActivity() {
 
         try {
             findViewById<TextView>(R.id.tv_mode_desc).text = when {
-                running && theft -> "Full Theft Mode — All alerts active"
+                fullProtection   -> "Full Theft Mode — All alerts active"
                 running          -> "Your Phone is Currently Protected"
                 else             -> "Tap to Activate Protection"
             }
@@ -973,7 +1019,7 @@ class MainActivity : AppCompatActivity() {
             findViewById<TextView>(R.id.tv_activity_log).text = when {
                 recentLog.isNotEmpty() -> recentLog.joinToString("\n")
                 !running -> "System idle — tap ARM to protect this phone"
-                theft    -> "Full protection active\nMonitoring all events"
+                fullProtection -> "Full protection active\nMonitoring all events"
                 else     -> "Normal mode — Monitoring password attempts"
             }
         } catch (e: Exception) {}
