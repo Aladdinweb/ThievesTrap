@@ -19,7 +19,6 @@ const TIME_TOLERANCE = 600;            // max clock difference (s) between app a
 const ALLOW_REINSTALL_SAME_ANDROID_ID = false;
 const MAX_TRIAL_DAYS = 14;         // longest allowed trial key (1..14 days, set at generation)
 const VERSION_JSON = "https://raw.githubusercontent.com/Aladdinweb/ThievesTrap/main/version.json";
-const RELEASES_LATEST = "https://github.com/Aladdinweb/ThievesTrap/releases/latest";
 const RELEASE_PREFIX = "https://github.com/Aladdinweb/ThievesTrap/releases/";
 
 const json = (obj, status = 200) =>
@@ -40,7 +39,7 @@ const getRec = async (env, key) => {
 };
 // small summary goes into KV metadata so the dashboard can list licenses without reading every record
 const meta = (r) => ({
-  plan: r.plan, days: r.days || 0, created_at: r.created_at, device: r.device || null, activated_at: r.activated_at || null,
+  plan: r.plan, days: r.days || 0, extra_days: r.extra_days || 0, renewals: r.renewals || 0, created_at: r.created_at, device: r.device || null, activated_at: r.activated_at || null,
   expires_at: r.expires_at || 0, revoked: !!r.revoked, note: String(r.note || "").slice(0, 120),
 });
 const putRec = (env, key, rec) =>
@@ -133,7 +132,8 @@ async function activate(body, env) {
   let dirty = false;
   if (!rec.activated_at) {
     rec.activated_at = r.now;
-    const days = planDays(rec);
+    const base = planDays(rec);
+    const days = base ? base + Math.max(0, parseInt(rec.extra_days, 10) || 0) : 0; // extra_days = renewal bought before first use
     rec.expires_at = days ? r.now + days * 86400 : 0; // 0 = lifetime
     dirty = true;
   }
@@ -187,10 +187,28 @@ async function latestRelease() {
   return { code: parseInt(j.version_code, 10) || 0, name: String(j.version_name || "").slice(0, 20), url };
 }
 
-async function download() {
-  let target = RELEASES_LATEST;
-  try { const l = await latestRelease(); if (l) target = l.url; } catch (e) {}
-  return new Response(null, { status: 302, headers: { location: target, "cache-control": "no-store" } });
+// The APK is streamed through this Worker, so visitors only ever see this site's own address.
+async function download(req) {
+  let l = null;
+  try { l = await latestRelease(); } catch (e) {}
+  if (!l) return new Response("Download temporarily unavailable. Please try again later.", { status: 503, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } });
+  const init = { redirect: "follow", headers: { "user-agent": "ThievesTrap-Site" } };
+  const range = req.headers.get("range");
+  if (range) init.headers.range = range;
+  let up;
+  try { up = await fetch(l.url, init); } catch (e) { up = null; }
+  if (!up || !(up.status === 200 || up.status === 206)) {
+    return new Response("Download temporarily unavailable. Please try again later.", { status: 502, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } });
+  }
+  const h = new Headers({
+    "content-type": "application/vnd.android.package-archive",
+    "content-disposition": 'attachment; filename="Thieves_Trap_v' + (l.name || "latest").replace(/[^0-9A-Za-z._-]/g, "") + '.apk"',
+    "cache-control": "public, max-age=300",
+    "accept-ranges": "bytes",
+    "x-content-type-options": "nosniff",
+  });
+  for (const k of ["content-length", "content-range"]) { const v = up.headers.get(k); if (v) h.set(k, v); }
+  return new Response(up.body, { status: up.status, headers: h });
 }
 
 // Public, read-only. min_version_code is set from the admin panel (KV key cfg:min_version); 0 = no minimum.
@@ -215,7 +233,7 @@ export default {
       if (path === "/") return sitePage("home");
       if (path === "/terms") return sitePage("terms");
       if (path === "/privacy") return sitePage("privacy");
-      if (path === "/download") return await download();
+      if (path === "/download") return await download(req);
       if (path === "/version") return await versionInfo(env);
       if (path === "/robots.txt") return new Response("User-agent: *\nAllow: /\n", { headers: { "content-type": "text/plain; charset=utf-8" } });
       return notFound();

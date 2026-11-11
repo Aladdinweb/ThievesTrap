@@ -10,3 +10,8 @@ workers_dev = true
 [[kv_namespaces]]
 binding = "LICENSES"
 id = "58a121ef3ce243658d5e8623133433b5"
+
+# Lets Diagnostics call the public Worker directly (no public URL needed).
+[[services]]
+binding = "PUBLIC"
+service = "thievestrap-license"

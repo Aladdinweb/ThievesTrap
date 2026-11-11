@@ -4,17 +4,20 @@
 // ticket printing and the Force Update minimum version all live here.
 //
 // Bindings required:  KV namespace  LICENSES   (same namespace id as license_worker/wrangler.toml)
+//                     service binding PUBLIC -> Worker thievestrap-license (used only by Diagnostics)
 // Secrets required:   ADMIN_TOKEN (long random string, also the dashboard password; NOT the old one)
 //
 // GET  /              dashboard page (useless without the token, noindex)
-// POST /admin/ping | generate | list | info | revoke | restore | unbind | delete | minversion   (Bearer ADMIN_TOKEN)
+// POST /admin/ping | generate | list | info | renew | revoke | restore | unbind | delete | minversion | diagnostics   (Bearer ADMIN_TOKEN)
 
 const ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no 0/O/1/I/L
 const PLAN_DAYS = { monthly: 30, "3months": 90, annual: 365, lifetime: 0 };
 const MAX_TRIAL_DAYS = 14;         // longest allowed trial key (1..14 days, set at generation)
 const MAX_BAD_ATTEMPTS = 10;       // failed admin logins per IP ...
 const BAD_ATTEMPT_WINDOW = 900;    // ... per 15 minutes
-const MAX_MIN_VERSION = 100000;    // sanity cap for the Force Update minimum versionCode
+const MAX_MIN_VERSION = 100000;
+const MAX_RENEW_DAYS = 3650;       // one renewal step: at most 10 years
+const MAX_HORIZON_DAYS = 3650;     // a key may never expire more than 10 years from today    // sanity cap for the Force Update minimum versionCode
 
 const json = (obj, status = 200) =>
   new Response(JSON.stringify(obj), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -57,7 +60,7 @@ const getRec = async (env, key) => {
 };
 // small summary goes into KV metadata so the dashboard can list licenses without reading every record
 const meta = (r) => ({
-  plan: r.plan, days: r.days || 0, created_at: r.created_at, device: r.device || null, activated_at: r.activated_at || null,
+  plan: r.plan, days: r.days || 0, extra_days: r.extra_days || 0, renewals: r.renewals || 0, created_at: r.created_at, device: r.device || null, activated_at: r.activated_at || null,
   expires_at: r.expires_at || 0, revoked: !!r.revoked, note: String(r.note || "").slice(0, 120),
 });
 const putRec = (env, key, rec) =>
@@ -66,6 +69,58 @@ const putRec = (env, key, rec) =>
 
 async function admin(path, body, env) {
   if (path === "/admin/ping") return json({ ok: true });
+
+  // Diagnostics: health of this panel, the shared KV and the public Worker (via the PUBLIC service binding).
+  if (path === "/admin/diagnostics") {
+    const now = Math.floor(Date.now() / 1000);
+    const out = { ok: true, time: new Date().toISOString(), admin: {}, kv: {}, public: {} };
+    out.admin.token_ok = typeof env.ADMIN_TOKEN === "string" && env.ADMIN_TOKEN.length >= 32;
+    try {
+      const by = { unused: 0, active: 0, expired: 0, revoked: 0 };
+      let total = 0, cursor, pages = 0, more = false;
+      do {
+        const res = await env.LICENSES.list({ prefix: "k:", limit: 1000, cursor });
+        for (const k of res.keys) {
+          const m = k.metadata || {};
+          total++;
+          if (m.revoked) by.revoked++;
+          else if (!m.activated_at) by.unused++;
+          else if (m.expires_at && now >= m.expires_at) by.expired++;
+          else by.active++;
+        }
+        cursor = res.list_complete ? null : res.cursor;
+        more = !!cursor; pages++;
+      } while (cursor && pages < 5);
+      out.kv = { ok: true, total, by_status: by, truncated: more };
+      out.min_version_code = parseInt(await env.LICENSES.get("cfg:min_version"), 10) || 0;
+    } catch (e) { out.kv = { ok: false, error: "kv_failed" }; }
+    if (!env.PUBLIC) {
+      out.public = { bound: false };
+    } else {
+      out.public.bound = true;
+      const call = async (p, init) => {
+        try { return await env.PUBLIC.fetch(new Request("https://public.internal" + p, init)); } catch (e) { return null; }
+      };
+      const v = await call("/version");
+      if (!v) out.public.version = { ok: false };
+      else {
+        let j = null; try { j = await v.json(); } catch (e) {}
+        out.public.version = { ok: v.status === 200 && !!j, status: v.status, key_fp: j && j.key_fp || null, min_version_code: j ? j.min_version_code : null,
+          latest_version_code: j ? j.latest_version_code : null, latest_version_name: j ? j.latest_version_name : null };
+      }
+      const home = await call("/");
+      out.public.site = { ok: !!home && home.status === 200, status: home ? home.status : 0 };
+      const dl = await call("/download", { headers: { range: "bytes=0-0" } });
+      let total = null;
+      if (dl) { const cr = dl.headers.get("content-range") || ""; const mm = cr.match(/\/(\d+)$/); total = mm ? parseInt(mm[1], 10) : parseInt(dl.headers.get("content-length") || "0", 10) || null; try { await dl.body?.cancel(); } catch (e) {} }
+      out.public.download = { ok: !!dl && (dl.status === 200 || dl.status === 206), status: dl ? dl.status : 0, bytes: total };
+      const adm = await call("/admin");
+      out.public.admin_hidden = { ok: !!adm && adm.status === 404, status: adm ? adm.status : 0 };
+      const chk = await call("/check", { method: "POST", body: "{}" });
+      out.public.api = { ok: !!chk && chk.status !== 404 && chk.status < 500, status: chk ? chk.status : 0 }; // a real API answers 4xx (e.g. update_required) to an empty request
+    }
+    return json(out);
+  }
 
   // Force Update: the lowest app versionCode allowed to open its UI. 0 = no minimum.
   // The public Worker serves it (GET /version); the app ignores a minimum that has no released APK yet.
@@ -119,6 +174,28 @@ async function admin(path, body, env) {
   if (!rec) return json({ error: "invalid_key" }, 404);
   if (path === "/admin/info") return json({ ok: true, key, ...rec });
   if (path === "/admin/delete") { await env.LICENSES.delete("k:" + key); return json({ ok: true, key, deleted: true }); } // permanent
+  if (path === "/admin/renew") {
+    // Extend an existing key without generating a new one. body.days = whole days to add (1..3650).
+    const days = body.days;
+    if (!Number.isInteger(days) || days < 1 || days > MAX_RENEW_DAYS) return json({ error: "bad_days", min: 1, max: MAX_RENEW_DAYS }, 400);
+    if (rec.plan === "lifetime" || (rec.activated_at && !rec.expires_at)) return json({ error: "lifetime" }, 400); // nothing to extend
+    const now = Math.floor(Date.now() / 1000);
+    if (rec.activated_at) {
+      // active: add to the current expiry; expired: restart from today
+      const next = Math.max(now, rec.expires_at || 0) + days * 86400;
+      if (next - now > MAX_HORIZON_DAYS * 86400) return json({ error: "too_long", max_days: MAX_HORIZON_DAYS }, 400);
+      rec.expires_at = next;
+    } else {
+      // unused: the bonus is added to the plan length when the key is first activated
+      const extra = (parseInt(rec.extra_days, 10) || 0) + days;
+      if (extra > MAX_HORIZON_DAYS) return json({ error: "too_long", max_days: MAX_HORIZON_DAYS }, 400);
+      rec.extra_days = extra;
+    }
+    rec.renewals = (parseInt(rec.renewals, 10) || 0) + 1;
+    rec.last_renewed_at = now;
+    await putRec(env, key, rec);
+    return json({ ok: true, key, activated: !!rec.activated_at, expires_at: rec.expires_at || 0, extra_days: rec.extra_days || 0, renewals: rec.renewals });
+  }
   if (path === "/admin/revoke") { rec.revoked = true; await putRec(env, key, rec); return json({ ok: true, key, revoked: true }); }
   if (path === "/admin/restore") { rec.revoked = false; await putRec(env, key, rec); return json({ ok: true, key, revoked: false }); }
   if (path === "/admin/unbind") { rec.device = null; rec.dev_pub = null; await putRec(env, key, rec); return json({ ok: true, key, device: null }); } // expiry is kept
@@ -177,6 +254,9 @@ button:disabled{opacity:.5}
 .item:first-child{border-top:0}
 .mt{margin-top:10px}.w90{width:90px}.w130{width:130px}
 .acts{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap}
+.diagbox{white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;line-height:1.5}
+.renew{margin-top:8px;padding:10px;border:1px solid #2f2f36;border-radius:10px;background:#101014}
+.renew .row{align-items:flex-end}
 input[type=checkbox]{width:22px;height:22px;padding:0;flex:none;accent-color:#d4af37}
 .chk{display:flex;align-items:center;gap:8px;margin:0;font-size:13px;color:#e8e8ea}
 .pre{padding:7px 12px}
@@ -273,10 +353,13 @@ body>*:not(#printArea){display:none!important}
       <button class="sec" id="btnMore" hidden>Load more</button>
       <button class="sec" id="btnRefresh">Refresh</button>
       <button class="dan" id="btnPurge">Delete all revoked</button>
+      <button class="sec" id="btnDiag">Diagnostics</button>
       <button class="sec" id="btnLogout">Sign out</button>
     </div>
   </div>
 </div>
+
+<div id="diag" class="small diagbox card" hidden></div>
 
 <div id="printArea"></div>
 
@@ -290,7 +373,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   var token = sessionStorage.getItem("tt_admin") || "";
   var items = [], cursor = null;
   var PLAN = { monthly: "Monthly", "3months": "3 Months", annual: "Annual", lifetime: "Lifetime", trial: "Trial" };
-  var selected = {}, lastShown = [], lastGen = null;
+  var selected = {}, lastShown = [], lastGen = null, renewOpen = null;
   function $(id) { return document.getElementById(id); }
 
   function api(path, body) {
@@ -483,6 +566,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       var badge = document.createElement("span"); badge.className = "badge b-" + st; badge.textContent = st;
       info.appendChild(badge);
       var parts = [planLabel(it)];
+      if (!it.activated_at && it.extra_days) parts.push("+" + it.extra_days + "d bonus");
+      if (it.renewals) parts.push("renewed x" + it.renewals);
       if (it.activated_at) parts.push(it.expires_at ? "expires " + fmt(it.expires_at) : "no expiry");
       if (it.device) parts.push("device " + it.device);
       if (it.note) parts.push(it.note);
@@ -508,6 +593,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         });
         acts.appendChild(rv);
       }
+      var rn = document.createElement("button"); rn.className = "sec"; rn.textContent = "Renew / Extend";
+      rn.addEventListener("click", function () { renewOpen = renewOpen === it.key ? null : it.key; render(); });
+      acts.appendChild(rn);
       var del = document.createElement("button"); del.className = "dan"; del.textContent = "Delete";
       del.addEventListener("click", function () {
         act("/admin/delete", it, function (x) { delete selected[x.key]; items = items.filter(function (y) { return y.key !== x.key; }); },
@@ -517,6 +605,44 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       });
       acts.appendChild(del);
       d.appendChild(acts);
+      if (renewOpen === it.key) {
+        var rf = document.createElement("div"); rf.className = "renew";
+        var hint = document.createElement("div"); hint.className = "small";
+        hint.textContent = !it.activated_at ? "Unused key: the extra time is added to the plan length when it is first activated."
+          : (st === "Expired" ? "Expired key: renewed from today." : "Active key: added to the current expiry date.");
+        rf.appendChild(hint);
+        var pr = document.createElement("div"); pr.className = "acts";
+        var amt = document.createElement("input"); amt.type = "number"; amt.min = "1"; amt.step = "1"; amt.value = "1"; amt.inputMode = "numeric";
+        var unit = document.createElement("select");
+        [["30", "month(s)"], ["1", "day(s)"], ["365", "year(s)"]].forEach(function (u) { var o = document.createElement("option"); o.value = u[0]; o.textContent = u[1]; unit.appendChild(o); });
+        [["+1 month", 1, "30"], ["+3 months", 3, "30"], ["+1 year", 1, "365"]].forEach(function (p) {
+          var b = document.createElement("button"); b.className = "sec"; b.textContent = p[0];
+          b.addEventListener("click", function () { amt.value = String(p[1]); unit.value = p[2]; });
+          pr.appendChild(b);
+        });
+        rf.appendChild(pr);
+        var fr = document.createElement("div"); fr.className = "row mt";
+        var c1 = document.createElement("div"); c1.className = "w130"; c1.appendChild(amt);
+        var c2 = document.createElement("div"); c2.className = "w130"; c2.appendChild(unit);
+        var go = document.createElement("button"); go.textContent = "Apply";
+        var no = document.createElement("button"); no.className = "sec"; no.textContent = "Cancel";
+        no.addEventListener("click", function () { renewOpen = null; render(); });
+        go.addEventListener("click", function () {
+          var n = Number(amt.value), days = n * Number(unit.value);
+          if (!Number.isInteger(n) || n < 1 || days > 3650) { $("listMsg").textContent = "Enter a whole number (max 10 years in total)."; return; }
+          var base = !it.activated_at ? 0 : Math.max(Date.now() / 1000, it.expires_at || 0);
+          var when = it.activated_at ? " New expiry: " + fmt(base + days * 86400) + "." : "";
+          if (!window.confirm("Extend " + it.key + " by " + days + " day(s)?" + when)) return;
+          api("/admin/renew", { key: it.key, days: days }).then(function (r) {
+            if (r.status !== 200) { $("listMsg").textContent = "Error: " + (r.data.error === "lifetime" ? "Lifetime keys cannot be extended." : (r.data.error || r.status)); return; }
+            it.expires_at = r.data.expires_at; it.extra_days = r.data.extra_days; it.renewals = r.data.renewals;
+            renewOpen = null; render();
+            $("listMsg").textContent = "Renewed. The phone picks it up within about 15 minutes (immediately when its Premium screen is opened).";
+          });
+        });
+        fr.appendChild(c1); fr.appendChild(c2); fr.appendChild(go); fr.appendChild(no);
+        rf.appendChild(fr); d.appendChild(rf);
+      }
       box.appendChild(d);
     });
     $("listMsg").textContent = list.length + " shown, " + items.length + " loaded" + (cursor ? " (more available)" : "");
@@ -562,6 +688,32 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (v > 0 && !window.confirm("Block every app build older than versionCode " + v + " until the user updates? Make sure that version is already released.")) return;
     api("/admin/minversion", { value: v }).then(function (r) {
       $("minMsg").textContent = r.status === 200 ? "Saved. Minimum is now " + r.data.min_version_code + "." : "Error: " + (r.data.error || r.status);
+    });
+  });
+  $("btnDiag").addEventListener("click", function () {
+    var box = $("diag"); box.hidden = false; box.textContent = "Checking...";
+    api("/admin/diagnostics").then(function (r) {
+      if (r.status !== 200) { box.textContent = "Diagnostics failed: " + (r.data.error || r.status); return; }
+      var d = r.data, L = [];
+      function line(ok, text) { L.push((ok === null ? "INFO " : ok ? "OK   " : "FAIL ") + text); }
+      line(null, "Checked " + d.time);
+      line(d.admin.token_ok, "Admin token " + (d.admin.token_ok ? "is long enough" : "is SHORT: set a new 64-character ADMIN_TOKEN"));
+      if (d.kv.ok) {
+        line(true, "KV database: " + d.kv.total + " key(s)" + (d.kv.truncated ? " (first 5000 counted)" : "") + " - unused " + d.kv.by_status.unused + ", active " + d.kv.by_status.active + ", expired " + d.kv.by_status.expired + ", revoked " + d.kv.by_status.revoked);
+        line(null, "Force Update minimum versionCode: " + d.min_version_code + (d.min_version_code ? "" : " (none)"));
+      } else line(false, "KV database unreachable");
+      var p = d.public;
+      if (!p.bound) line(false, "Public Worker not linked (service binding PUBLIC missing, redeploy the admin Worker)");
+      else {
+        line(p.version.ok, "Public license Worker /version: " + (p.version.ok ? "answering, latest app " + (p.version.latest_version_name || "unknown") + " (code " + p.version.latest_version_code + ")" : "no answer"));
+        line(!!(p.version.ok && p.version.key_fp), "Signing key fingerprint: " + (p.version.key_fp || "MISSING (SIGNING_KEY secret not working)"));
+        line(p.site.ok, "Public website: HTTP " + p.site.status);
+        line(p.download.ok, "APK download: " + (p.download.ok ? "reachable" + (p.download.bytes ? ", " + Math.round(p.download.bytes / 1048576 * 10) / 10 + " MB" : "") : "NOT reachable (HTTP " + p.download.status + ")"));
+        line(p.admin_hidden.ok, "Admin hidden from public site: " + (p.admin_hidden.ok ? "yes (404)" : "NO, HTTP " + p.admin_hidden.status));
+        line(p.api.ok, "License API answers: HTTP " + p.api.status);
+      }
+      L.push("Fingerprint check: compare the key fingerprint with the app's PUBLIC_KEY_B64 (see STATE.md).");
+      box.textContent = L.join("\\n");
     });
   });
   $("btnPurge").addEventListener("click", function () {
