@@ -6,7 +6,8 @@
 //                         /version  ->  {min_version_code, latest_version_code, latest_version_name, key_fp}
 // License API (POST):     /activate  (binds an UNBOUND key to the phone; a DIFFERENT phone gets key_in_use)
 //                         /check     (background re-validation; NEVER changes the binding)
-// Everything else answers 404. The admin panel is a separate Worker that only shares the KV namespace.
+// A SUSPENDED key (admin Suspend) is refused on /activate (suspended, 403) and answered on /check with a signed, already-expired
+// payload so phones lose Premium without losing the key; Resume restores it. Everything else answers 404. The admin panel is a separate Worker that only shares the KV namespace.
 
 import { sitePage } from "./site.js";
 
@@ -40,7 +41,7 @@ const getRec = async (env, key) => {
 // small summary goes into KV metadata so the dashboard can list licenses without reading every record
 const meta = (r) => ({
   plan: r.plan, days: r.days || 0, extra_days: r.extra_days || 0, renewals: r.renewals || 0, created_at: r.created_at, device: r.device || null, activated_at: r.activated_at || null,
-  expires_at: r.expires_at || 0, revoked: !!r.revoked, note: String(r.note || "").slice(0, 120),
+  expires_at: r.expires_at || 0, revoked: !!r.revoked, suspended: !!r.suspended, note: String(r.note || "").slice(0, 120),
 });
 const putRec = (env, key, rec) =>
   env.LICENSES.put("k:" + key, JSON.stringify(rec), { metadata: meta(rec) });
@@ -96,9 +97,11 @@ async function parseRequest(action, body) {
   return { r: { key, device, nonce, pub, dpk, now } };
 }
 
-async function signedAnswer(env, rec, r) {
+// expOverride: used for a SUSPENDED key. The phone receives a validly signed answer whose expiry is already
+// in the past, so it drops Premium at its next check but KEEPS the key and recovers by itself after Resume.
+async function signedAnswer(env, rec, r, expOverride) {
   return signPayload(env, {
-    v: 2, device: r.device, dpk: r.dpk, plan: rec.plan, exp: rec.expires_at || 0,
+    v: 2, device: r.device, dpk: r.dpk, plan: rec.plan, exp: expOverride !== undefined ? expOverride : (rec.expires_at || 0),
     iat: r.now, lease: r.now + LEASE_SECONDS, nonce: r.nonce,
   });
 }
@@ -119,6 +122,7 @@ async function activate(body, env) {
   const rec = await getRec(env, r.key);
   if (!rec) return json({ error: "invalid_key" }, 404);
   if (rec.revoked) return json({ error: "revoked" }, 403);
+  if (rec.suspended) return json({ error: "suspended" }, 403);   // paused by the admin: nothing is bound or persisted
 
   const bound = !!(rec.device || rec.dev_pub);
   const sameDevice = bound && (isBoundDevice(rec, r) ||
@@ -163,6 +167,12 @@ async function check(body, env) {
   if (rec.revoked) return json({ error: "revoked" }, 403);
   // Not bound to THIS phone (bound elsewhere, or just unbound by the admin): this phone is locked out.
   if (!(rec.device || rec.dev_pub) || !isBoundDevice(rec, r)) return json({ error: "key_in_use" }, 403);
+  if (rec.suspended) {
+    // Only the bound phone learns this. It gets an already-expired signed answer (Premium off, key kept);
+    // after Resume the next check returns the normal answer and Premium comes back with no re-entry.
+    try { return json({ ok: true, suspended: true, ...(await signedAnswer(env, rec, r, r.now - 1)) }); }
+    catch (e) { return json({ error: "signing_failed" }, 500); }
+  }
   if (rec.expires_at && r.now >= rec.expires_at) return json({ error: "expired" }, 403);
   if (!rec.dev_pub && rec.device === r.device) {               // one-time upgrade of an older record
     rec.dev_pub = r.pub;

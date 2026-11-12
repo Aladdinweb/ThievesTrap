@@ -8,7 +8,8 @@
 // Secrets required:   ADMIN_TOKEN (long random string, also the dashboard password; NOT the old one)
 //
 // GET  /              dashboard page (useless without the token, noindex)
-// POST /admin/ping | generate | list | info | renew | revoke | restore | unbind | delete | minversion | diagnostics   (Bearer ADMIN_TOKEN)
+// POST /admin/ping | generate | list | info | renew | suspend | resume | revoke | restore | unbind | delete | purge | audit |
+//      minversion | diagnostics   (Bearer ADMIN_TOKEN)
 
 const ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no 0/O/1/I/L
 const PLAN_DAYS = { monthly: 30, "3months": 90, annual: 365, lifetime: 0 };
@@ -17,7 +18,10 @@ const MAX_BAD_ATTEMPTS = 10;       // failed admin logins per IP ...
 const BAD_ATTEMPT_WINDOW = 900;    // ... per 15 minutes
 const MAX_MIN_VERSION = 100000;
 const MAX_RENEW_DAYS = 3650;       // one renewal step: at most 10 years
-const MAX_HORIZON_DAYS = 3650;     // a key may never expire more than 10 years from today    // sanity cap for the Force Update minimum versionCode
+const MAX_HORIZON_DAYS = 3650;     // a key may never expire more than 10 years from today
+const AUDIT_TTL = 90 * 86400;      // admin action log entries live 90 days
+const MAX_AUDIT_LIST = 100;
+const PURGE_BATCH = 40;            // revoked keys deleted per "Delete all revoked" call    // sanity cap for the Force Update minimum versionCode
 
 const json = (obj, status = 200) =>
   new Response(JSON.stringify(obj), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -61,11 +65,23 @@ const getRec = async (env, key) => {
 // small summary goes into KV metadata so the dashboard can list licenses without reading every record
 const meta = (r) => ({
   plan: r.plan, days: r.days || 0, extra_days: r.extra_days || 0, renewals: r.renewals || 0, created_at: r.created_at, device: r.device || null, activated_at: r.activated_at || null,
-  expires_at: r.expires_at || 0, revoked: !!r.revoked, note: String(r.note || "").slice(0, 120),
+  expires_at: r.expires_at || 0, revoked: !!r.revoked, suspended: !!r.suspended, note: String(r.note || "").slice(0, 120),
 });
 const putRec = (env, key, rec) =>
   env.LICENSES.put("k:" + key, JSON.stringify(rec), { metadata: meta(rec) });
 
+
+// ---------------------------------------------------------------- audit trail
+// One small KV entry per sensitive admin action: key "a:<reversed time>:<rand>" (so a plain list returns the NEWEST
+// first), the details live in KV metadata (no value read needed), auto-deleted after 90 days. Never throws.
+const maskKey = (k) => { const p = String(k || "").split("-"); return p.length === 5 ? p[0] + "-" + p[1] + "-...-" + p[4] : (k ? "..." : ""); };
+async function audit(env, action, key, detail) {
+  try {
+    const t = Date.now();
+    const id = "a:" + String(9999999999999 - t).padStart(13, "0") + ":" + toB64(crypto.getRandomValues(new Uint8Array(3))).replace(/[^A-Za-z0-9]/g, "x");
+    await env.LICENSES.put(id, "1", { expirationTtl: AUDIT_TTL, metadata: { t, a: action, k: maskKey(key), d: String(detail || "").slice(0, 160) } });
+  } catch (e) { /* the log must never break the action */ }
+}
 
 async function admin(path, body, env) {
   if (path === "/admin/ping") return json({ ok: true });
@@ -76,7 +92,7 @@ async function admin(path, body, env) {
     const out = { ok: true, time: new Date().toISOString(), admin: {}, kv: {}, public: {} };
     out.admin.token_ok = typeof env.ADMIN_TOKEN === "string" && env.ADMIN_TOKEN.length >= 32;
     try {
-      const by = { unused: 0, active: 0, expired: 0, revoked: 0 };
+      const by = { unused: 0, active: 0, expired: 0, revoked: 0, suspended: 0 };
       let total = 0, cursor, pages = 0, more = false;
       do {
         const res = await env.LICENSES.list({ prefix: "k:", limit: 1000, cursor });
@@ -84,6 +100,7 @@ async function admin(path, body, env) {
           const m = k.metadata || {};
           total++;
           if (m.revoked) by.revoked++;
+          else if (m.suspended) by.suspended++;
           else if (!m.activated_at) by.unused++;
           else if (m.expires_at && now >= m.expires_at) by.expired++;
           else by.active++;
@@ -131,8 +148,27 @@ async function admin(path, body, env) {
     }
     const v = body.value;
     if (!Number.isInteger(v) || v < 0 || v > MAX_MIN_VERSION) return json({ error: "bad_value", min: 0, max: MAX_MIN_VERSION }, 400);
+    const before = parseInt(await env.LICENSES.get("cfg:min_version"), 10) || 0;
     if (v === 0) await env.LICENSES.delete("cfg:min_version"); else await env.LICENSES.put("cfg:min_version", String(v));
+    await audit(env, "force_update", "", "minimum versionCode " + before + " -> " + v);
     return json({ ok: true, min_version_code: v });
+  }
+
+  // Delete revoked keys in small batches (call again while "remaining" > 0). One log entry per batch.
+  if (path === "/admin/purge") {
+    const res = await env.LICENSES.list({ prefix: "k:", limit: 1000 });
+    const revoked = res.keys.filter((k) => k.metadata && k.metadata.revoked);
+    const batch = revoked.slice(0, PURGE_BATCH);
+    for (const k of batch) await env.LICENSES.delete(k.name);
+    if (batch.length) await audit(env, "purge_revoked", "", batch.length + " revoked key(s) deleted");
+    return json({ ok: true, deleted: batch.length, remaining: revoked.length - batch.length + (res.list_complete ? 0 : 1) });
+  }
+
+  // Newest-first admin action log.
+  if (path === "/admin/audit") {
+    const limit = Math.min(Math.max(parseInt(body.limit || 50, 10) || 50, 1), MAX_AUDIT_LIST);
+    const res = await env.LICENSES.list({ prefix: "a:", limit, cursor: body.cursor || undefined });
+    return json({ ok: true, items: res.keys.map((k) => k.metadata || {}), cursor: res.list_complete ? null : res.cursor });
   }
 
   if (path === "/admin/generate") {
@@ -156,6 +192,7 @@ async function admin(path, body, env) {
       });
       keys.push(key);
     }
+    await audit(env, "generate", keys[0], count + " x " + plan + (plan === "trial" ? " (" + trialDays + " d)" : ""));
     return json({ ok: true, plan, days: trialDays, keys });
   }
 
@@ -173,7 +210,7 @@ async function admin(path, body, env) {
   const rec = await getRec(env, key);
   if (!rec) return json({ error: "invalid_key" }, 404);
   if (path === "/admin/info") return json({ ok: true, key, ...rec });
-  if (path === "/admin/delete") { await env.LICENSES.delete("k:" + key); return json({ ok: true, key, deleted: true }); } // permanent
+  if (path === "/admin/delete") { await env.LICENSES.delete("k:" + key); await audit(env, "delete", key, rec.plan + (rec.activated_at ? ", was activated" : ", unused")); return json({ ok: true, key, deleted: true }); } // permanent
   if (path === "/admin/renew") {
     // Extend an existing key without generating a new one. body.days = whole days to add (1..3650).
     const days = body.days;
@@ -194,11 +231,24 @@ async function admin(path, body, env) {
     rec.renewals = (parseInt(rec.renewals, 10) || 0) + 1;
     rec.last_renewed_at = now;
     await putRec(env, key, rec);
+    await audit(env, "renew", key, "+" + days + " d" + (rec.activated_at ? ", expires " + new Date(rec.expires_at * 1000).toISOString().slice(0, 10) : ", bonus before activation"));
     return json({ ok: true, key, activated: !!rec.activated_at, expires_at: rec.expires_at || 0, extra_days: rec.extra_days || 0, renewals: rec.renewals });
   }
-  if (path === "/admin/revoke") { rec.revoked = true; await putRec(env, key, rec); return json({ ok: true, key, revoked: true }); }
-  if (path === "/admin/restore") { rec.revoked = false; await putRec(env, key, rec); return json({ ok: true, key, revoked: false }); }
-  if (path === "/admin/unbind") { rec.device = null; rec.dev_pub = null; await putRec(env, key, rec); return json({ ok: true, key, device: null }); } // expiry is kept
+  if (path === "/admin/revoke") { rec.revoked = true; await putRec(env, key, rec); await audit(env, "revoke", key, rec.plan); return json({ ok: true, key, revoked: true }); }
+  if (path === "/admin/restore") { rec.revoked = false; await putRec(env, key, rec); await audit(env, "restore", key, rec.plan); return json({ ok: true, key, revoked: false }); }
+  if (path === "/admin/unbind") { rec.device = null; rec.dev_pub = null; await putRec(env, key, rec); await audit(env, "unbind", key, "device released"); return json({ ok: true, key, device: null }); } // expiry is kept
+  // Suspend / Resume: a PAUSE, not a revocation. The key, its device binding and its expiry date stay as they are
+  // (the clock keeps running; use Renew if you want to compensate). The public Worker refuses /activate and answers
+  // /check with an already-expired signed payload, so the phone loses Premium but keeps the key and recovers on Resume.
+  if (path === "/admin/suspend") {
+    if (rec.revoked) return json({ error: "revoked" }, 400);
+    if (!rec.suspended) { rec.suspended = true; rec.suspended_at = Math.floor(Date.now() / 1000); await putRec(env, key, rec); await audit(env, "suspend", key, rec.plan); }
+    return json({ ok: true, key, suspended: true });
+  }
+  if (path === "/admin/resume") {
+    if (rec.suspended) { rec.suspended = false; rec.suspended_at = null; await putRec(env, key, rec); await audit(env, "resume", key, rec.plan); }
+    return json({ ok: true, key, suspended: false });
+  }
   return json({ error: "not_found" }, 404);
 }
 
@@ -224,42 +274,117 @@ function dashboard() {
 const PAGE = `<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#08080a">
 <title>Admin</title>
 <style nonce="__NONCE__">
-*{box-sizing:border-box}
+:root{--bg:#08080a;--card:#111114;--card2:#16161a;--line:#24242b;--tx:#f2f2f4;--mu:#9a9aa3;--grn:#00ff66;--red:#ff4545;--gold:#d4af37;--amb:#f5a524;--blu:#5aa9ff}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
-body{margin:0;background:#0a0a0b;color:#e8e8ea;font:15px/1.4 system-ui,sans-serif;padding:16px;max-width:760px;margin:0 auto}
-h1{color:#ffd700;font-size:20px;margin:8px 0 16px}
-h2{color:#ffd700;font-size:15px;margin:0 0 10px}
-.card{background:#14141a;border:1px solid #2a2a30;border-radius:12px;padding:14px;margin-bottom:14px}
-label{display:block;font-size:12px;color:#8e8e93;margin:8px 0 4px}
-input,select{width:100%;padding:11px;border-radius:8px;border:1px solid #333338;background:#0a0a0b;color:#fff;font-size:15px}
-button{padding:10px 14px;border-radius:8px;border:0;background:#d4af37;color:#0a0a0b;font-weight:700;font-size:14px;cursor:pointer}
-button.sec{background:#26262c;color:#e8e8ea}
-button.dan{background:#5a1010;color:#ff8a80}
-button:disabled{opacity:.5}
-.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.grow{flex:1;min-width:120px}
-.key{font:700 16px ui-monospace,monospace;color:#ffd700;word-break:break-all}
-.newkey{display:flex;gap:8px;align-items:center;justify-content:space-between;background:#0a0a0b;border:1px solid #d4af37;border-radius:8px;padding:10px;margin-top:8px}
-.msg{font-size:13px;margin-top:8px;color:#ff8a80}
-.ok{color:#66bb6a}
-.small{font-size:12px;color:#8e8e93}
-.badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700}
-.b-Active{background:#12301a;color:#66bb6a}.b-Unused{background:#222;color:#c0c0c8}
-.b-Expired{background:#3a2a0a;color:#ffa726}.b-Revoked{background:#3a1010;color:#ef5350}
-.item{border-top:1px solid #2a2a30;padding:10px 0}
-.item:first-child{border-top:0}
-.mt{margin-top:10px}.w90{width:90px}.w130{width:130px}
-.acts{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap}
-.diagbox{white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;line-height:1.5}
-.renew{margin-top:8px;padding:10px;border:1px solid #2f2f36;border-radius:10px;background:#101014}
-.renew .row{align-items:flex-end}
-input[type=checkbox]{width:22px;height:22px;padding:0;flex:none;accent-color:#d4af37}
-.chk{display:flex;align-items:center;gap:8px;margin:0;font-size:13px;color:#e8e8ea}
-.pre{padding:7px 12px}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:calc(78px + env(safe-area-inset-bottom,0px));overflow-x:hidden}
+h1,h2,h3{margin:0}
+h2{font-size:17px;margin-bottom:4px}
+p{margin:0}
+.small{font-size:13px;color:var(--mu)}
+.mt{margin-top:12px}
+.mt2{margin-top:6px}
+code,.mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+/* sign in */
+.loginwrap{min-height:100vh;display:grid;place-items:center;padding:20px}
+.login{width:min(100%,380px)}
+.login h1{font-size:22px;margin-bottom:4px}
+/* top bar + navigation */
+.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;padding:10px 16px;padding-top:max(10px,env(safe-area-inset-top,0px));background:rgba(8,8,10,.93);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.brand{font-weight:800;letter-spacing:.05em}.brand span{color:var(--grn);font-weight:700}
+.grow{flex:1;min-width:0}
+.tabs{position:fixed;inset-inline:0;bottom:0;z-index:30;display:grid;grid-template-columns:repeat(5,1fr);background:rgba(12,12,15,.97);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs button{min-height:58px;background:none;border:0;border-radius:0;color:var(--mu);font-size:11.5px;font-weight:600;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;padding:6px 2px}
+.tabs button svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tabs button.on{color:var(--grn)}
+.tabs button:active{background:rgba(0,255,102,.08)}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+.tab{display:none}
+.tab.on{display:block}
+/* cards, grids */
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px;min-width:0}
+.cols{display:grid;gap:14px;align-items:start;grid-template-columns:minmax(0,1fr)}
+.cols>.card{margin-bottom:0}
+.stats{display:grid;gap:10px;grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:14px}
+.stat{min-height:0;text-align:start;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;cursor:pointer;color:var(--tx);transition:border-color .2s,transform .15s}
+.stat:active{transform:scale(.98)}
+.stat b{display:block;font-size:26px;line-height:1.1}
+.stat span{font-size:12px;color:var(--mu);text-transform:uppercase;letter-spacing:.06em}
+.stat.s-Active b{color:var(--grn)}.stat.s-Unused b{color:var(--blu)}.stat.s-Expired b{color:var(--mu)}.stat.s-Suspended b{color:var(--amb)}.stat.s-Revoked b{color:var(--red)}
+.stat:hover{border-color:#3a3a44}
+/* form controls */
+label{display:block;font-size:13px;color:var(--mu);margin:12px 0 4px}
+input,select{width:100%;min-height:44px;background:#0c0c0f;border:1px solid var(--line);border-radius:10px;color:var(--tx);padding:8px 12px;font:inherit}
+input:focus,select:focus{outline:none;border-color:var(--grn);box-shadow:0 0 0 3px rgba(0,255,102,.15)}
+input[type=checkbox]{width:22px;height:22px;min-height:0;accent-color:var(--grn)}
+button{min-height:44px;background:var(--grn);color:#03140a;border:0;border-radius:10px;padding:8px 16px;font:inherit;font-weight:700;cursor:pointer;transition:transform .12s,box-shadow .2s,opacity .2s}
+button:hover{box-shadow:0 0 16px rgba(0,255,102,.3)}
+button:active{transform:scale(.97)}
+button:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
+button.sec{background:var(--card2);color:var(--tx);border:1px solid var(--line)}
+button.sec:hover{border-color:#3a3a44;box-shadow:none}
+button.dan{background:rgba(255,69,69,.12);color:var(--red);border:1px solid rgba(255,69,69,.4)}
+button.dan:hover{box-shadow:0 0 14px rgba(255,69,69,.25)}
+button.warn{background:rgba(245,165,36,.12);color:var(--amb);border:1px solid rgba(245,165,36,.45)}
+button.warn:hover{box-shadow:0 0 14px rgba(245,165,36,.25)}
+button.gold{background:rgba(212,175,55,.12);color:var(--gold);border:1px solid rgba(212,175,55,.45)}
+button.gold:hover{box-shadow:0 0 14px rgba(212,175,55,.25)}
+button.sm{min-height:36px;padding:4px 12px;font-size:13px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.row>.f{flex:1 1 150px;min-width:0}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.toolbar{display:grid;gap:10px;grid-template-columns:minmax(0,1fr)}
+/* key list */
+.klist{display:grid;gap:12px;grid-template-columns:minmax(0,1fr)}
+.krow{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:12px;min-width:0}
+.khead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.key{font-weight:700;font-size:14px;letter-spacing:.02em;overflow-wrap:anywhere;flex:1 1 200px}
+.kmeta{margin:6px 0 10px;font-size:12.5px;color:var(--mu);overflow-wrap:anywhere}
+.acts{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(112px,1fr))}
+.acts button{min-height:40px;padding:6px 8px;font-size:13px}
+.badge{font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:3px 10px;border-radius:999px;border:1px solid var(--line);flex:none}
+.b-Active{color:var(--grn);border-color:rgba(0,255,102,.5);background:rgba(0,255,102,.08)}
+.b-Unused{color:var(--blu);border-color:rgba(90,169,255,.5);background:rgba(90,169,255,.08)}
+.b-Expired{color:var(--mu)}
+.b-Suspended{color:var(--amb);border-color:rgba(245,165,36,.55);background:rgba(245,165,36,.1)}
+.b-Revoked{color:var(--red);border-color:rgba(255,69,69,.5);background:rgba(255,69,69,.08)}
+.renew{margin-top:10px;padding:10px;border:1px solid #2f2f36;border-radius:12px;background:#0e0e11}
+/* new keys output */
+.newkey{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--card2);margin-top:8px}
+.newkey code{flex:1;overflow-wrap:anywhere;font-weight:700}
+/* activity */
+.ev{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.ev:last-child{border-bottom:0}
+.evt{grid-row:span 2;font-size:12px;color:var(--mu);min-width:86px}
+.evh{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.evb{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;padding:2px 9px;border-radius:999px;border:1px solid var(--line)}
+.e-generate,.e-resume,.e-restore{color:var(--grn);border-color:rgba(0,255,102,.45)}
+.e-renew,.e-force_update{color:var(--gold);border-color:rgba(212,175,55,.5)}
+.e-suspend{color:var(--amb);border-color:rgba(245,165,36,.5)}
+.e-revoke,.e-delete,.e-purge_revoked{color:var(--red);border-color:rgba(255,69,69,.5)}
+.e-unbind{color:var(--blu);border-color:rgba(90,169,255,.5)}
+.evk{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px}
+.evd{grid-column:2;font-size:13px;color:var(--mu);overflow-wrap:anywhere}
+.diagbox{white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.55;background:#0c0c0f;border:1px solid var(--line);border-radius:12px;padding:12px;overflow-wrap:anywhere}
+.w100{width:90px;flex:none}
+.msg{margin-top:8px;font-size:13px;color:var(--mu);min-height:1em}
+@media(min-width:640px){.stats{grid-template-columns:repeat(3,minmax(0,1fr))}.toolbar{grid-template-columns:minmax(0,2fr) minmax(0,1fr)}}
+@media(min-width:900px){
+body{padding-bottom:24px}
+.stats{grid-template-columns:repeat(6,minmax(0,1fr))}
+.cols{grid-template-columns:repeat(2,minmax(0,1fr))}
+.klist{grid-template-columns:repeat(2,minmax(0,1fr))}
+.tabs{position:sticky;top:var(--topH,58px);bottom:auto;grid-template-columns:repeat(5,auto);justify-content:start;gap:4px;padding:8px 16px;border-top:0;border-bottom:1px solid var(--line);background:rgba(8,8,10,.95)}
+.tabs button{flex-direction:row;gap:8px;min-height:40px;padding:0 16px;border-radius:10px;font-size:14px}
+.tabs button.on{background:rgba(0,255,102,.1)}
+}
+@media(max-width:380px){.acts{grid-template-columns:repeat(2,minmax(0,1fr))}}
 #printArea{display:none}
 .ticket{box-sizing:border-box;width:94mm;height:50mm;border:0.3mm dashed #888;border-radius:3mm;overflow:hidden;display:flex;flex-direction:column;background:#fff;color:#111;break-inside:avoid;page-break-inside:avoid;font-family:system-ui,Arial,sans-serif}
 .tk-head{background:#0a0a0b;color:#d4af37;padding:1.6mm 3mm;display:flex;justify-content:space-between;align-items:baseline;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -281,85 +406,141 @@ body>*:not(#printArea){display:none!important}
 #printArea{display:grid!important;grid-template-columns:94mm 94mm;gap:6mm;justify-content:center;align-content:start}
 }
 </style></head><body>
-<h1>Thieves Trap - Admin</h1>
 
-<div id="login" class="card">
-  <h2>Sign in</h2>
-  <label for="tok">Admin token</label>
-  <input id="tok" type="password" autocomplete="current-password">
-  <div class="row mt"><button id="btnLogin">Sign in</button></div>
-  <div id="loginMsg" class="msg"></div>
+<div id="login" class="loginwrap">
+  <div class="card login">
+    <h1>Thieves Trap Admin</h1>
+    <p class="small">Private panel. Enter the admin token.</p>
+    <label for="tok">Admin token</label>
+    <input id="tok" type="password" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <div class="mt"><button id="btnLogin" type="button">Sign in</button></div>
+    <div id="loginMsg" class="msg"></div>
+  </div>
 </div>
 
 <div id="app" hidden>
-  <div class="card">
-    <h2>Generate keys</h2>
-    <div class="row">
-      <div class="grow"><label for="plan">Plan</label>
-        <select id="plan">
-          <option value="monthly">Monthly (30 days)</option>
-          <option value="3months">3 Months (90 days)</option>
-          <option value="annual">Annual (365 days)</option>
-          <option value="lifetime">Lifetime / Admin</option>
-          <option value="trial">Trial (custom days, max 14)</option>
-        </select></div>
-      <div class="w90"><label for="count">Count</label><input id="count" type="number" min="1" max="50" value="1"></div>
-    </div>
-    <div id="trialBox" hidden>
-      <div class="row">
-        <div class="w130"><label for="days">Trial days (1-14)</label><input id="days" type="number" min="1" max="14" value="7"></div>
-        <button class="sec pre" data-days="1">1 day</button>
-        <button class="sec pre" data-days="3">3 days</button>
-        <button class="sec pre" data-days="5">5 days</button>
-        <button class="sec pre" data-days="7">7 days</button>
-        <button class="sec pre" data-days="14">14 days</button>
+  <header class="top" id="topbar">
+    <div class="brand">THIEVES TRAP <span>Admin</span></div>
+    <div class="grow"></div>
+    <button class="sec sm" id="btnOut" type="button">Sign out</button>
+  </header>
+  <nav class="tabs" id="tabs" aria-label="Sections">
+    <button type="button" data-tab="overview" class="on"><svg viewBox="0 0 24 24"><path d="M4 13h6V4H4zM14 20h6V4h-6zM4 20h6v-3H4z"/></svg><span>Overview</span></button>
+    <button type="button" data-tab="keys"><svg viewBox="0 0 24 24"><circle cx="8" cy="12" r="4"/><path d="M12 12h9M18 12v4M15 12v3"/></svg><span>Keys</span></button>
+    <button type="button" data-tab="generate"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>Generate</span></button>
+    <button type="button" data-tab="activity"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span>Activity</span></button>
+    <button type="button" data-tab="system"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg><span>System</span></button>
+  </nav>
+
+  <main class="wrap">
+    <section id="tab-overview" class="tab on">
+      <div class="stats" id="stats"></div>
+      <div class="cols">
+        <div class="card">
+          <h2>Quick actions</h2>
+          <div class="small">Common tasks.</div>
+          <div class="btns mt">
+            <button type="button" data-tab="generate">Generate keys</button>
+            <button type="button" class="sec" data-tab="keys">Manage keys</button>
+            <button type="button" class="sec" data-tab="system">Force Update</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Recent activity</h2>
+          <div id="recent" class="small">Loading...</div>
+          <div class="mt"><button type="button" class="sec sm" data-tab="activity">Open activity log</button></div>
+        </div>
       </div>
-      <div class="small mt">The trial clock starts when the key is first activated on a phone.</div>
-    </div>
-    <label for="note">Note (optional, e.g. customer name)</label>
-    <input id="note" maxlength="120">
-    <div class="row mt"><button id="btnGen">Generate</button></div>
-    <div id="genMsg" class="msg"></div>
-    <div id="genOut"></div>
-    <div class="row mt" id="copyAllRow" hidden><button class="sec" id="btnCopyAll">Copy all</button><button id="btnPrintNew">Print these tickets</button></div>
-  </div>
+    </section>
 
-  <div class="card">
-    <h2>Force Update</h2>
-    <div class="small">Lowest app versionCode allowed to open the app. Older builds see a mandatory "Update Required" dialog (their protection keeps running). 0 = no minimum. Only raise it to a versionCode that is ALREADY released: the app ignores a minimum that has no APK yet.</div>
-    <div class="row mt">
-      <div class="grow"><label for="minv">Minimum versionCode</label><input id="minv" type="number" min="0" step="1" inputmode="numeric"></div>
-      <button id="btnMinSave">Save</button>
-    </div>
-    <div id="minMsg" class="small mt"></div>
-  </div>
+    <section id="tab-generate" class="tab">
+      <div class="card">
+        <h2>Generate license keys</h2>
+        <div class="row mt2">
+          <div class="f"><label for="plan">Plan</label>
+            <select id="plan">
+              <option value="monthly">Monthly (30 days)</option>
+              <option value="3months">3 Months (90 days)</option>
+              <option value="annual">Annual (365 days)</option>
+              <option value="lifetime">Lifetime (no expiry)</option>
+              <option value="trial">Trial (custom days, max 14)</option>
+            </select></div>
+          <div class="f"><label for="count">How many (1-50)</label><input id="count" type="number" min="1" max="50" value="1" inputmode="numeric"></div>
+        </div>
+        <div id="trialBox" hidden>
+          <label for="trialDays">Trial length in days (1-14)</label>
+          <div class="btns">
+            <input id="trialDays" type="number" min="1" max="14" value="3" inputmode="numeric" class="w100">
+            <button type="button" class="sec sm" data-days="1">1</button><button type="button" class="sec sm" data-days="3">3</button><button type="button" class="sec sm" data-days="5">5</button><button type="button" class="sec sm" data-days="7">7</button><button type="button" class="sec sm" data-days="14">14</button>
+          </div>
+          <div class="small mt2">The trial clock starts when the key is first activated on a phone.</div>
+        </div>
+        <label for="note">Note (optional, e.g. customer name)</label>
+        <input id="note" type="text" maxlength="120" autocomplete="off">
+        <div class="mt"><button id="btnGen" type="button">Generate</button></div>
+        <div id="genMsg" class="msg"></div>
+        <div id="genOut" hidden>
+          <div id="genList"></div>
+          <div class="btns mt"><button type="button" class="sec" id="btnCopyAll">Copy all</button><button type="button" class="gold" id="btnPrintGen">Print these tickets</button></div>
+        </div>
+      </div>
+    </section>
 
-  <div class="card">
-    <h2>Licenses</h2>
-    <div class="row">
-      <div class="grow"><input id="search" placeholder="Search key, note or device"></div>
-      <div class="w130"><select id="filter">
-        <option value="">All</option><option>Unused</option><option>Active</option><option>Expired</option><option>Revoked</option>
-      </select></div>
-    </div>
-    <div class="row mt">
-      <label class="chk"><input type="checkbox" id="selAll"> Select all shown</label>
-      <span id="selCount" class="small grow">0 selected</span>
-      <button id="btnPrint" disabled>Print Selected Tickets</button>
-    </div>
-    <div id="list"></div>
-    <div id="listMsg" class="small mt"></div>
-    <div class="row mt">
-      <button class="sec" id="btnMore" hidden>Load more</button>
-      <button class="sec" id="btnRefresh">Refresh</button>
-      <button class="dan" id="btnPurge">Delete all revoked</button>
-      <button class="sec" id="btnDiag">Diagnostics</button>
-      <button class="sec" id="btnLogout">Sign out</button>
-    </div>
-  </div>
+    <section id="tab-keys" class="tab">
+      <div class="card">
+        <h2>Licenses</h2>
+        <div class="toolbar mt2">
+          <div><label for="search">Search key or note</label><input id="search" type="search" autocomplete="off"></div>
+          <div><label for="filter">Status</label>
+            <select id="filter"><option value="">All</option><option>Unused</option><option>Active</option><option>Expired</option><option>Suspended</option><option>Revoked</option></select></div>
+        </div>
+        <div class="row mt">
+          <label class="f"><input id="selAll" type="checkbox"> Select all shown</label>
+          <span class="small" id="selCount">0 selected</span>
+        </div>
+        <div class="btns mt">
+          <button type="button" class="gold" id="btnPrint" disabled>Print Selected Tickets</button>
+          <button type="button" class="sec" id="btnRefresh">Refresh</button>
+          <button type="button" class="dan" id="btnPurge">Delete all revoked</button>
+        </div>
+        <div id="listMsg" class="msg"></div>
+      </div>
+      <div id="klist" class="klist"></div>
+    </section>
+
+    <section id="tab-activity" class="tab">
+      <div class="card">
+        <div class="row">
+          <div class="f"><h2>Admin activity</h2><div class="small">Key generation, renewals, suspensions, revocations and Force Update changes. Kept for 90 days. A new entry can take up to a minute to show after a refresh.</div></div>
+          <button type="button" class="sec" id="btnAuditRefresh">Refresh</button>
+        </div>
+        <div id="auditList" class="mt"></div>
+        <div class="mt"><button type="button" class="sec" id="btnAuditMore" hidden>Load older</button></div>
+        <div id="auditMsg" class="msg"></div>
+      </div>
+    </section>
+
+    <section id="tab-system" class="tab">
+      <div class="cols">
+        <div class="card">
+          <h2>Force Update</h2>
+          <div class="small">Lowest app versionCode allowed to open the app. Older builds see a mandatory "Update Required" dialog (their protection keeps running). 0 = no minimum. Only raise it to a versionCode that is ALREADY released: the app ignores a minimum that has no APK yet.</div>
+          <div class="row mt">
+            <div class="f"><label for="minv">Minimum versionCode</label><input id="minv" type="number" min="0" step="1" inputmode="numeric"></div>
+            <button id="btnMinSave" type="button">Save</button>
+          </div>
+          <div id="minMsg" class="msg"></div>
+        </div>
+        <div class="card">
+          <h2>Diagnostics</h2>
+          <div class="small">Checks this panel, the key database and the public Worker.</div>
+          <div class="mt"><button id="btnDiag" type="button" class="sec">Run diagnostics</button></div>
+          <div id="diag" class="diagbox mt" hidden></div>
+        </div>
+      </div>
+    </section>
+  </main>
 </div>
-
-<div id="diag" class="small diagbox card" hidden></div>
 
 <div id="printArea"></div>
 
@@ -370,11 +551,18 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
 <script nonce="__NONCE__">
 (function () {
+  "use strict";
   var token = sessionStorage.getItem("tt_admin") || "";
-  var items = [], cursor = null;
-  var PLAN = { monthly: "Monthly", "3months": "3 Months", annual: "Annual", lifetime: "Lifetime", trial: "Trial" };
+  var items = [], moreKeys = false, audit = [], auditCursor = null, auditLoaded = false;
   var selected = {}, lastShown = [], lastGen = null, renewOpen = null;
+  var PLAN = { monthly: "Monthly", "3months": "3 Months", annual: "Annual", lifetime: "Lifetime", trial: "Trial" };
+  var EVENT = { generate: "Generated", renew: "Renewed", suspend: "Suspended", resume: "Resumed", revoke: "Revoked", restore: "Restored",
+                unbind: "Unbound", "delete": "Deleted", purge_revoked: "Purged revoked", force_update: "Force Update" };
+  var STATUSES = ["Active", "Unused", "Expired", "Suspended", "Revoked"];
+
   function $(id) { return document.getElementById(id); }
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined && text !== null) e.textContent = text; return e; }
+  function btn(label, cls, fn) { var b = el("button", cls || "", label); b.type = "button"; b.addEventListener("click", fn); return b; }
 
   function api(path, body) {
     return fetch(path, {
@@ -386,31 +574,25 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     });
   }
 
-  function copy(text, btn) {
-    function done() { var o = btn.textContent; btn.textContent = "Copied"; setTimeout(function () { btn.textContent = o; }, 1200); }
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(done, fallback);
-    } else { fallback(); }
+  function copy(text, b) {
+    function done() { var o = b.textContent; b.textContent = "Copied"; setTimeout(function () { b.textContent = o; }, 1200); }
     function fallback() {
       var t = document.createElement("textarea"); t.value = text; document.body.appendChild(t);
       t.select(); try { document.execCommand("copy"); done(); } catch (e) {} document.body.removeChild(t);
     }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
   }
 
-  function fmt(ts) {
-    return ts ? new Date(ts * 1000).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "";
-  }
+  function fmt(ts) { return ts ? new Date(ts * 1000).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : ""; }
+  function fmtTime(ms) { return new Date(ms).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
   function status(it) {
     if (it.revoked) return "Revoked";
+    if (it.suspended) return "Suspended";
     if (!it.activated_at) return "Unused";
     if (it.expires_at && Date.now() / 1000 >= it.expires_at) return "Expired";
     return "Active";
   }
-
-  function planLabel(o) {
-    var base = PLAN[o.plan] || o.plan;
-    return o.plan === "trial" && o.days ? base + " " + o.days + "d" : base;
-  }
+  function planLabel(o) { var base = PLAN[o.plan] || o.plan; return o.plan === "trial" && o.days ? base + " " + o.days + "d" : base; }
   function validityText(plan, days) {
     if (plan === "lifetime") return "Lifetime license - never expires";
     if (plan === "monthly") return "Valid for 30 days from activation";
@@ -419,8 +601,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (plan === "trial") return days + "-day trial from activation";
     return String(plan);
   }
+  function maskKey(k) { var p = String(k || "").split("-"); return p.length === 5 ? p[0] + "-" + p[1] + "-...-" + p[4] : ""; }
   function byNewest(a, b) { return (b.created_at || 0) - (a.created_at || 0); }
 
+  /* ---------- tickets (unchanged design) ---------- */
   function qrSvg(text) {
     var qr = qrcode(0, "M"); qr.addData(text); qr.make();
     var n = qr.getModuleCount(), q = 4, size = n + 2 * q, NS = "http://www.w3.org/2000/svg";
@@ -437,11 +621,6 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     svg.appendChild(path);
     return svg;
   }
-
-  function el(tag, cls, text) {
-    var e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e;
-  }
-
   function ticketEl(t) {
     var tk = el("div", "ticket");
     var head = el("div", "tk-head");
@@ -461,12 +640,70 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     tk.appendChild(head); tk.appendChild(body); tk.appendChild(foot);
     return tk;
   }
-
   function printItems(arr) {
     if (!arr.length) return;
     var area = $("printArea"); area.textContent = "";
     arr.forEach(function (t) { area.appendChild(ticketEl(t)); });
     window.print();
+  }
+
+  /* ---------- navigation ---------- */
+  var TABS = ["overview", "keys", "generate", "activity", "system"];
+  function setTab(name, push) {
+    if (TABS.indexOf(name) < 0) name = "overview";
+    TABS.forEach(function (t) { $("tab-" + t).classList.toggle("on", t === name); });
+    Array.prototype.forEach.call($("tabs").querySelectorAll("button"), function (b) { b.classList.toggle("on", b.getAttribute("data-tab") === name); });
+    if (push !== false && location.hash !== "#" + name) { try { history.replaceState(null, "", "#" + name); } catch (e) {} }
+    if (name === "activity" && !auditLoaded) loadAudit(true);
+    window.scrollTo(0, 0);
+  }
+  Array.prototype.forEach.call(document.querySelectorAll("[data-tab]"), function (b) {
+    b.addEventListener("click", function () {
+      var f = b.getAttribute("data-filter");
+      if (f !== null) { $("filter").value = f; render(); }
+      setTab(b.getAttribute("data-tab"));
+    });
+  });
+  function measureTop() { var t = $("topbar"); if (t) document.documentElement.style.setProperty("--topH", t.offsetHeight + "px"); }
+  window.addEventListener("resize", measureTop);
+
+  /* ---------- keys ---------- */
+  function loadKeys() {
+    var acc = [], pages = 0;
+    $("listMsg").textContent = "Loading...";
+    function page(cur) {
+      return api("/admin/list", { limit: 200, cursor: cur }).then(function (r) {
+        if (r.status === 401) { logout("Session expired. Sign in again."); return; }
+        if (r.status !== 200) { $("listMsg").textContent = "Error " + r.status; return; }
+        acc = acc.concat(r.data.items || []); pages++;
+        moreKeys = !!r.data.cursor;
+        if (r.data.cursor && pages < 10) return page(r.data.cursor);
+      });
+    }
+    return page(null).then(function () {
+      items = acc.sort(byNewest);
+      $("listMsg").textContent = moreKeys ? "Showing the newest " + items.length + " keys." : "";
+      render();
+    }).catch(function () { $("listMsg").textContent = "Network error."; });
+  }
+
+  function renderStats() {
+    var counts = { Active: 0, Unused: 0, Expired: 0, Suspended: 0, Revoked: 0 };
+    items.forEach(function (it) { counts[status(it)]++; });
+    var box = $("stats"); box.textContent = "";
+    var all = el("button", "stat", ""); all.type = "button";
+    all.appendChild(el("b", "", String(items.length) + (moreKeys ? "+" : ""))); all.appendChild(el("span", "", "Total"));
+    all.setAttribute("data-tab", "keys"); all.setAttribute("data-filter", "");
+    box.appendChild(all);
+    STATUSES.forEach(function (s) {
+      var c = el("button", "stat s-" + s, ""); c.type = "button";
+      c.appendChild(el("b", "", String(counts[s]))); c.appendChild(el("span", "", s));
+      c.setAttribute("data-tab", "keys"); c.setAttribute("data-filter", s);
+      box.appendChild(c);
+    });
+    Array.prototype.forEach.call(box.querySelectorAll("[data-tab]"), function (b) {
+      b.addEventListener("click", function () { $("filter").value = b.getAttribute("data-filter"); render(); setTab("keys"); });
+    });
   }
 
   function updateSel() {
@@ -476,218 +713,244 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $("selAll").checked = lastShown.length > 0 && lastShown.every(function (it) { return selected[it.key]; });
   }
 
-  function show(loggedIn) { $("login").hidden = loggedIn; $("app").hidden = !loggedIn; if (loggedIn) loadMin(); }
-
-  function login() {
-    token = $("tok").value.trim() || token;
-    $("loginMsg").textContent = "";
-    api("/admin/ping").then(function (r) {
-      if (r.status === 200) { sessionStorage.setItem("tt_admin", token); $("tok").value = ""; show(true); reload(); }
-      else if (r.status === 429 || (r.data && r.data.error === "too_many_attempts")) $("loginMsg").textContent = "Too many attempts. Wait 15 minutes.";
-      else { token = ""; sessionStorage.removeItem("tt_admin"); $("loginMsg").textContent = "Wrong token."; }
-    }).catch(function () { $("loginMsg").textContent = "Network error."; });
+  function pushAudit(action, key, detail) {
+    audit.unshift({ t: Date.now(), a: action, k: maskKey(key), d: detail || "" });
+    renderAudit(); renderRecent();
   }
 
-  function logout() { token = ""; sessionStorage.removeItem("tt_admin"); items = []; show(false); }
-
-  function generate() {
-    $("genMsg").className = "msg"; $("genMsg").textContent = "";
-    $("btnGen").disabled = true;
-    var body = { plan: $("plan").value, count: parseInt($("count").value, 10) || 1, note: $("note").value };
-    if (body.plan === "trial") {
-      body.days = parseInt($("days").value, 10);
-      if (!(body.days >= 1 && body.days <= 14)) { $("genMsg").textContent = "Trial days must be 1 to 14."; $("btnGen").disabled = false; return; }
-    }
-    api("/admin/generate", body)
-      .then(function (r) {
-        $("btnGen").disabled = false;
-        if (r.status !== 200) { $("genMsg").textContent = "Error: " + (r.data.error || r.status); return; }
-        var out = $("genOut"); out.textContent = "";
-        r.data.keys.forEach(function (k) {
-          var row = document.createElement("div"); row.className = "newkey";
-          var code = document.createElement("span"); code.className = "key"; code.textContent = k;
-          var b = document.createElement("button"); b.textContent = "Copy";
-          b.addEventListener("click", function () { copy(k, b); });
-          row.appendChild(code); row.appendChild(b); out.appendChild(row);
-        });
-        $("copyAllRow").hidden = false;
-        lastGen = { keys: r.data.keys, plan: r.data.plan, days: r.data.days || 0 };
-        $("btnCopyAll").onclick = function () { copy(r.data.keys.join("\\n"), $("btnCopyAll")); };
-        $("genMsg").className = "msg ok";
-        $("genMsg").textContent = r.data.keys.length + " " + planLabel(r.data) + " key(s) created.";
-        reload();
-      }).catch(function () { $("btnGen").disabled = false; $("genMsg").textContent = "Network error."; });
-  }
-
-  function reload() { items = []; cursor = null; loadMore(); }
-
-  function loadMore() {
-    $("listMsg").textContent = "Loading...";
-    api("/admin/list", { limit: 100, cursor: cursor }).then(function (r) {
-      if (r.status === 401 || r.status === 429) { logout(); return; }
-      if (r.status !== 200) { $("listMsg").textContent = "Error: " + (r.data.error || r.status); return; }
-      items = items.concat(r.data.items);
-      cursor = r.data.cursor;
-      $("btnMore").hidden = !cursor;
-      render();
-    }).catch(function () { $("listMsg").textContent = "Network error."; });
-  }
-
-  function act(path, it, apply, confirmText) {
-    if (confirmText && !window.confirm(confirmText)) return;
-    api(path, { key: it.key }).then(function (r) {
-      if (r.status !== 200) { $("listMsg").textContent = "Error: " + (r.data.error || r.status); return; }
-      apply(it); render();
+  function renewForm(it, st) {
+    var rf = el("div", "renew");
+    rf.appendChild(el("div", "small", !it.activated_at ? "Unused key: the extra time is added to the plan length when it is first activated."
+      : (st === "Expired" ? "Expired key: renewed from today." : "Active key: added to the current expiry date.")));
+    var pr = el("div", "btns mt2");
+    var amt = el("input"); amt.type = "number"; amt.min = "1"; amt.step = "1"; amt.value = "1"; amt.inputMode = "numeric";
+    var unit = el("select");
+    [["30", "month(s)"], ["1", "day(s)"], ["365", "year(s)"]].forEach(function (u) { var o = el("option", "", u[1]); o.value = u[0]; unit.appendChild(o); });
+    [["+1 month", 1, "30"], ["+3 months", 3, "30"], ["+1 year", 1, "365"]].forEach(function (p) {
+      pr.appendChild(btn(p[0], "sec sm", function () { amt.value = String(p[1]); unit.value = p[2]; }));
     });
+    rf.appendChild(pr);
+    var fr = el("div", "row mt");
+    var c1 = el("div", "f"); c1.appendChild(amt);
+    var c2 = el("div", "f"); c2.appendChild(unit);
+    fr.appendChild(c1); fr.appendChild(c2);
+    fr.appendChild(btn("Apply", "", function () {
+      var n = Number(amt.value), days = n * Number(unit.value);
+      if (!Number.isInteger(n) || n < 1 || days > 3650) { $("listMsg").textContent = "Enter a whole number (max 10 years in total)."; return; }
+      var base = !it.activated_at ? 0 : Math.max(Date.now() / 1000, it.expires_at || 0);
+      var when = it.activated_at ? " New expiry: " + fmt(base + days * 86400) + "." : "";
+      if (!window.confirm("Extend " + it.key + " by " + days + " day(s)?" + when)) return;
+      api("/admin/renew", { key: it.key, days: days }).then(function (r) {
+        if (r.status !== 200) { $("listMsg").textContent = "Error: " + (r.data.error === "lifetime" ? "Lifetime keys cannot be extended." : (r.data.error || r.status)); return; }
+        it.expires_at = r.data.expires_at; it.extra_days = r.data.extra_days; it.renewals = r.data.renewals;
+        renewOpen = null; pushAudit("renew", it.key, "+" + days + " d"); render();
+        $("listMsg").textContent = "Renewed. The phone picks it up within about 15 minutes (immediately when its Premium screen is opened).";
+      });
+    }));
+    fr.appendChild(btn("Cancel", "sec", function () { renewOpen = null; render(); }));
+    rf.appendChild(fr);
+    return rf;
+  }
+
+  function keyRow(it) {
+    var st = status(it);
+    var d = el("div", "krow");
+    var head = el("div", "khead");
+    var cb = el("input"); cb.type = "checkbox"; cb.checked = !!selected[it.key];
+    cb.addEventListener("change", function () { if (cb.checked) selected[it.key] = true; else delete selected[it.key]; updateSel(); });
+    head.appendChild(cb);
+    head.appendChild(el("code", "key", it.key));
+    head.appendChild(el("span", "badge b-" + st, st));
+    d.appendChild(head);
+
+    var parts = [planLabel(it)];
+    if (it.created_at) parts.push("created " + fmt(it.created_at));
+    if (!it.activated_at && it.extra_days) parts.push("+" + it.extra_days + "d bonus");
+    if (it.renewals) parts.push("renewed x" + it.renewals);
+    if (it.activated_at) { parts.push("activated " + fmt(it.activated_at)); parts.push(it.expires_at ? "expires " + fmt(it.expires_at) : "no expiry"); }
+    parts.push(it.device ? "device " + String(it.device).slice(0, 6) + "..." : (it.activated_at ? "unbound" : "not bound"));
+    if (it.note) parts.push("note: " + it.note);
+    d.appendChild(el("div", "kmeta", parts.join("  |  ")));
+
+    var acts = el("div", "acts");
+    acts.appendChild(btn("Copy", "sec", function (e) { copy(it.key, e.currentTarget); }));
+    acts.appendChild(btn("Renew / Extend", "gold", function () { renewOpen = renewOpen === it.key ? null : it.key; render(); }));
+    if (!it.revoked) {
+      if (it.suspended) {
+        acts.appendChild(btn("Resume", "", function () {
+          if (!window.confirm("Resume " + it.key + "? Premium comes back on the phone at its next check.")) return;
+          api("/admin/resume", { key: it.key }).then(function (r) {
+            if (r.status !== 200) { $("listMsg").textContent = "Error: " + (r.data.error || r.status); return; }
+            it.suspended = false; pushAudit("resume", it.key, it.plan); render();
+          });
+        }));
+      } else if (st === "Active" || st === "Unused") {
+        acts.appendChild(btn("Suspend", "warn", function () {
+          if (!window.confirm("Suspend " + it.key + "?\\n\\nThe phone loses Premium at its next check (about 15 minutes, immediately when its Premium screen is opened) but keeps the key. The expiry date does NOT pause. You can resume it at any time.")) return;
+          api("/admin/suspend", { key: it.key }).then(function (r) {
+            if (r.status !== 200) { $("listMsg").textContent = "Error: " + (r.data.error || r.status); return; }
+            it.suspended = true; pushAudit("suspend", it.key, it.plan); render();
+          });
+        }));
+      }
+    }
+    acts.appendChild(btn("Unbind", "sec", function () {
+      if (!window.confirm("Release " + it.key + " from its phone? That phone loses Premium at its next check and the next phone to activate the key binds it (the expiry date is kept).")) return;
+      api("/admin/unbind", { key: it.key }).then(function (r) {
+        if (r.status !== 200) { $("listMsg").textContent = "Error: " + (r.data.error || r.status); return; }
+        it.device = null; pushAudit("unbind", it.key, "device released"); render();
+      });
+    }));
+    if (it.revoked) {
+      acts.appendChild(btn("Restore", "", function () {
+        api("/admin/restore", { key: it.key }).then(function (r) { if (r.status === 200) { it.revoked = false; pushAudit("restore", it.key, it.plan); render(); } });
+      }));
+    } else {
+      acts.appendChild(btn("Revoke", "dan", function () {
+        if (!window.confirm("Revoke " + it.key + "? The phone loses Premium and the key is cleared from it. (To pause it temporarily use Suspend.)")) return;
+        api("/admin/revoke", { key: it.key }).then(function (r) { if (r.status === 200) { it.revoked = true; pushAudit("revoke", it.key, it.plan); render(); } });
+      }));
+    }
+    acts.appendChild(btn("Delete", "dan", function () {
+      var warn = st === "Active" ? "\\n\\nThis key is ACTIVE on a phone." : "";
+      if (!window.confirm("Permanently delete " + it.key + "? This cannot be undone." + warn)) return;
+      api("/admin/delete", { key: it.key }).then(function (r) {
+        if (r.status !== 200) { $("listMsg").textContent = "Error: " + (r.data.error || r.status); return; }
+        items = items.filter(function (x) { return x.key !== it.key; }); delete selected[it.key];
+        pushAudit("delete", it.key, it.plan); render();
+      });
+    }));
+    d.appendChild(acts);
+    if (renewOpen === it.key) d.appendChild(renewForm(it, st));
+    return d;
   }
 
   function render() {
+    renderStats();
     var q = $("search").value.trim().toLowerCase(), f = $("filter").value;
-    var list = items.slice().sort(byNewest)
-      .filter(function (it) {
-        if (f && status(it) !== f) return false;
-        if (!q) return true;
-        return (it.key + " " + (it.note || "") + " " + (it.device || "")).toLowerCase().indexOf(q) >= 0;
-      });
-    var box = $("list"); box.textContent = ""; lastShown = list;
-    list.forEach(function (it) {
-      var st = status(it);
-      var d = document.createElement("div"); d.className = "item";
-
-      var top = document.createElement("div"); top.className = "row";
-      var k = document.createElement("span"); k.className = "key grow"; k.textContent = it.key;
-      var cb = document.createElement("button"); cb.className = "sec"; cb.textContent = "Copy";
-      cb.addEventListener("click", function () { copy(it.key, cb); });
-      var cbx = document.createElement("input"); cbx.type = "checkbox"; cbx.checked = !!selected[it.key];
-      cbx.addEventListener("change", function () { if (cbx.checked) selected[it.key] = true; else delete selected[it.key]; updateSel(); });
-      top.appendChild(cbx); top.appendChild(k); top.appendChild(cb); d.appendChild(top);
-
-      var info = document.createElement("div"); info.className = "small";
-      var badge = document.createElement("span"); badge.className = "badge b-" + st; badge.textContent = st;
-      info.appendChild(badge);
-      var parts = [planLabel(it)];
-      if (!it.activated_at && it.extra_days) parts.push("+" + it.extra_days + "d bonus");
-      if (it.renewals) parts.push("renewed x" + it.renewals);
-      if (it.activated_at) parts.push(it.expires_at ? "expires " + fmt(it.expires_at) : "no expiry");
-      if (it.device) parts.push("device " + it.device);
-      if (it.note) parts.push(it.note);
-      info.appendChild(document.createTextNode(" " + parts.join(" \\u00b7 ")));
-      d.appendChild(info);
-
-      var acts = document.createElement("div"); acts.className = "acts";
-      if (it.device) {
-        var u = document.createElement("button"); u.className = "sec"; u.textContent = "Unbind device";
-        u.addEventListener("click", function () {
-          act("/admin/unbind", it, function (x) { x.device = null; }, "Unbind this key from its device? The phone using it is locked out at its next check, and the key binds to whichever phone activates it next. Expiry is kept.");
-        });
-        acts.appendChild(u);
-      }
-      if (it.revoked) {
-        var rs = document.createElement("button"); rs.className = "sec"; rs.textContent = "Restore";
-        rs.addEventListener("click", function () { act("/admin/restore", it, function (x) { x.revoked = false; }, null); });
-        acts.appendChild(rs);
-      } else {
-        var rv = document.createElement("button"); rv.className = "dan"; rv.textContent = "Revoke";
-        rv.addEventListener("click", function () {
-          act("/admin/revoke", it, function (x) { x.revoked = true; }, "Revoke this key? The app will drop premium at its next server check.");
-        });
-        acts.appendChild(rv);
-      }
-      var rn = document.createElement("button"); rn.className = "sec"; rn.textContent = "Renew / Extend";
-      rn.addEventListener("click", function () { renewOpen = renewOpen === it.key ? null : it.key; render(); });
-      acts.appendChild(rn);
-      var del = document.createElement("button"); del.className = "dan"; del.textContent = "Delete";
-      del.addEventListener("click", function () {
-        act("/admin/delete", it, function (x) { delete selected[x.key]; items = items.filter(function (y) { return y.key !== x.key; }); },
-          st === "Active"
-            ? "PERMANENTLY delete this ACTIVE key? The customer will lose premium at the app's next server check."
-            : "Permanently delete this key? This cannot be undone.");
-      });
-      acts.appendChild(del);
-      d.appendChild(acts);
-      if (renewOpen === it.key) {
-        var rf = document.createElement("div"); rf.className = "renew";
-        var hint = document.createElement("div"); hint.className = "small";
-        hint.textContent = !it.activated_at ? "Unused key: the extra time is added to the plan length when it is first activated."
-          : (st === "Expired" ? "Expired key: renewed from today." : "Active key: added to the current expiry date.");
-        rf.appendChild(hint);
-        var pr = document.createElement("div"); pr.className = "acts";
-        var amt = document.createElement("input"); amt.type = "number"; amt.min = "1"; amt.step = "1"; amt.value = "1"; amt.inputMode = "numeric";
-        var unit = document.createElement("select");
-        [["30", "month(s)"], ["1", "day(s)"], ["365", "year(s)"]].forEach(function (u) { var o = document.createElement("option"); o.value = u[0]; o.textContent = u[1]; unit.appendChild(o); });
-        [["+1 month", 1, "30"], ["+3 months", 3, "30"], ["+1 year", 1, "365"]].forEach(function (p) {
-          var b = document.createElement("button"); b.className = "sec"; b.textContent = p[0];
-          b.addEventListener("click", function () { amt.value = String(p[1]); unit.value = p[2]; });
-          pr.appendChild(b);
-        });
-        rf.appendChild(pr);
-        var fr = document.createElement("div"); fr.className = "row mt";
-        var c1 = document.createElement("div"); c1.className = "w130"; c1.appendChild(amt);
-        var c2 = document.createElement("div"); c2.className = "w130"; c2.appendChild(unit);
-        var go = document.createElement("button"); go.textContent = "Apply";
-        var no = document.createElement("button"); no.className = "sec"; no.textContent = "Cancel";
-        no.addEventListener("click", function () { renewOpen = null; render(); });
-        go.addEventListener("click", function () {
-          var n = Number(amt.value), days = n * Number(unit.value);
-          if (!Number.isInteger(n) || n < 1 || days > 3650) { $("listMsg").textContent = "Enter a whole number (max 10 years in total)."; return; }
-          var base = !it.activated_at ? 0 : Math.max(Date.now() / 1000, it.expires_at || 0);
-          var when = it.activated_at ? " New expiry: " + fmt(base + days * 86400) + "." : "";
-          if (!window.confirm("Extend " + it.key + " by " + days + " day(s)?" + when)) return;
-          api("/admin/renew", { key: it.key, days: days }).then(function (r) {
-            if (r.status !== 200) { $("listMsg").textContent = "Error: " + (r.data.error === "lifetime" ? "Lifetime keys cannot be extended." : (r.data.error || r.status)); return; }
-            it.expires_at = r.data.expires_at; it.extra_days = r.data.extra_days; it.renewals = r.data.renewals;
-            renewOpen = null; render();
-            $("listMsg").textContent = "Renewed. The phone picks it up within about 15 minutes (immediately when its Premium screen is opened).";
-          });
-        });
-        fr.appendChild(c1); fr.appendChild(c2); fr.appendChild(go); fr.appendChild(no);
-        rf.appendChild(fr); d.appendChild(rf);
-      }
-      box.appendChild(d);
+    lastShown = items.filter(function (it) {
+      if (f && status(it) !== f) return false;
+      if (q && it.key.toLowerCase().indexOf(q) < 0 && String(it.note || "").toLowerCase().indexOf(q) < 0) return false;
+      return true;
     });
-    $("listMsg").textContent = list.length + " shown, " + items.length + " loaded" + (cursor ? " (more available)" : "");
+    var box = $("klist"); box.textContent = "";
+    if (!lastShown.length) box.appendChild(el("div", "card small", items.length ? "No keys match this filter." : "No keys yet. Generate some in the Generate tab."));
+    lastShown.forEach(function (it) { box.appendChild(keyRow(it)); });
     updateSel();
   }
 
-  $("btnLogin").addEventListener("click", login);
-  $("tok").addEventListener("keydown", function (e) { if (e.key === "Enter") login(); });
-  $("btnGen").addEventListener("click", generate);
-  $("btnMore").addEventListener("click", loadMore);
-  $("btnRefresh").addEventListener("click", reload);
-  $("btnLogout").addEventListener("click", logout);
+  /* ---------- generate ---------- */
   $("plan").addEventListener("change", function () { $("trialBox").hidden = $("plan").value !== "trial"; });
-  document.querySelectorAll("button[data-days]").forEach(function (b) {
-    b.addEventListener("click", function () { $("days").value = b.getAttribute("data-days"); });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-days]"), function (b) {
+    b.addEventListener("click", function () { $("trialDays").value = b.getAttribute("data-days"); });
   });
+  $("btnGen").addEventListener("click", function () {
+    var plan = $("plan").value, count = parseInt($("count").value, 10) || 1;
+    var body = { plan: plan, count: count, note: $("note").value.trim() };
+    if (plan === "trial") {
+      var td = Number($("trialDays").value);
+      if (!Number.isInteger(td) || td < 1 || td > 14) { $("genMsg").textContent = "Trial length must be a whole number from 1 to 14 days."; return; }
+      body.days = td;
+    }
+    $("genMsg").textContent = "Generating...";
+    $("btnGen").disabled = true;
+    api("/admin/generate", body).then(function (r) {
+      $("btnGen").disabled = false;
+      if (r.status !== 200) { $("genMsg").textContent = "Error: " + (r.data.error || r.status); return; }
+      lastGen = (r.data.keys || []).map(function (k) { return { key: k, plan: r.data.plan, days: r.data.days }; });
+      $("genMsg").textContent = lastGen.length + " key(s) generated.";
+      var list = $("genList"); list.textContent = "";
+      lastGen.forEach(function (g) {
+        var row = el("div", "newkey"); row.appendChild(el("code", "", g.key));
+        row.appendChild(btn("Copy", "sec sm", function (e) { copy(g.key, e.currentTarget); }));
+        list.appendChild(row);
+      });
+      $("genOut").hidden = false;
+      if (lastGen.length) pushAudit("generate", lastGen[0].key, lastGen.length + " x " + plan);
+      loadKeys();
+    }).catch(function () { $("btnGen").disabled = false; $("genMsg").textContent = "Network error."; });
+  });
+  $("btnCopyAll").addEventListener("click", function (e) { if (lastGen) copy(lastGen.map(function (g) { return g.key; }).join("\\n"), e.currentTarget); });
+  $("btnPrintGen").addEventListener("click", function () { if (lastGen) printItems(lastGen); });
+
+  /* ---------- keys toolbar ---------- */
+  $("search").addEventListener("input", render);
+  $("filter").addEventListener("change", render);
+  $("btnRefresh").addEventListener("click", loadKeys);
   $("selAll").addEventListener("change", function () {
-    var on = $("selAll").checked;
-    lastShown.forEach(function (it) { if (on) selected[it.key] = true; else delete selected[it.key]; });
+    lastShown.forEach(function (it) { if ($("selAll").checked) selected[it.key] = true; else delete selected[it.key]; });
     render();
   });
   $("btnPrint").addEventListener("click", function () {
-    var arr = items.slice().sort(byNewest).filter(function (it) { return selected[it.key]; });
-    if (!arr.length) return;
-    var used = arr.filter(function (it) { return status(it) !== "Unused"; }).length;
-    if (used && !window.confirm(used + " selected key(s) are already Active, Expired or Revoked. Print them anyway?")) return;
+    var arr = items.filter(function (it) { return selected[it.key]; });
+    var bad = arr.filter(function (it) { return status(it) !== "Unused"; }).length;
+    if (bad && !window.confirm(bad + " selected key(s) are not Unused (already used, expired, suspended or revoked). Print anyway?")) return;
     printItems(arr.map(function (it) { return { key: it.key, plan: it.plan, days: it.days }; }));
   });
-  $("btnPrintNew").addEventListener("click", function () {
-    if (!lastGen) return;
-    printItems(lastGen.keys.map(function (k) { return { key: k, plan: lastGen.plan, days: lastGen.days }; }));
+  $("btnPurge").addEventListener("click", function () {
+    var n = items.filter(function (it) { return it.revoked; }).length;
+    if (!n) { $("listMsg").textContent = "No revoked keys."; return; }
+    if (!window.confirm("Permanently delete all " + n + " revoked key(s)?")) return;
+    var total = 0, loops = 0;
+    $("listMsg").textContent = "Deleting...";
+    function step() {
+      return api("/admin/purge").then(function (r) {
+        if (r.status !== 200) { $("listMsg").textContent = "Error: " + (r.data.error || r.status); return; }
+        total += r.data.deleted; loops++;
+        if (r.data.deleted > 0 && r.data.remaining > 0 && loops < 25) return step();
+      });
+    }
+    step().then(function () { $("listMsg").textContent = total + " revoked key(s) deleted."; auditLoaded = false; loadKeys(); });
   });
-  window.addEventListener("afterprint", function () { $("printArea").textContent = ""; });
+
+  /* ---------- activity ---------- */
+  function eventRow(e) {
+    var d = el("div", "ev");
+    d.appendChild(el("div", "evt", fmtTime(e.t)));
+    var h = el("div", "evh");
+    h.appendChild(el("span", "evb e-" + e.a, EVENT[e.a] || e.a));
+    if (e.k) h.appendChild(el("span", "evk", e.k));
+    d.appendChild(h);
+    if (e.d) d.appendChild(el("div", "evd", e.d));
+    return d;
+  }
+  function renderAudit() {
+    var box = $("auditList"); box.textContent = "";
+    if (!audit.length) box.appendChild(el("div", "small", auditLoaded ? "No admin activity recorded yet." : "Loading..."));
+    audit.forEach(function (e) { box.appendChild(eventRow(e)); });
+    $("btnAuditMore").hidden = !auditCursor;
+  }
+  function renderRecent() {
+    var box = $("recent"); box.textContent = "";
+    if (!audit.length) { box.textContent = auditLoaded ? "No admin activity recorded yet." : "Loading..."; return; }
+    audit.slice(0, 5).forEach(function (e) { box.appendChild(eventRow(e)); });
+  }
+  function loadAudit(reset) {
+    $("auditMsg").textContent = "";
+    return api("/admin/audit", { limit: 50, cursor: reset ? undefined : auditCursor }).then(function (r) {
+      if (r.status === 401) { logout("Session expired. Sign in again."); return; }
+      if (r.status !== 200) { $("auditMsg").textContent = "Error " + r.status; return; }
+      audit = reset ? (r.data.items || []) : audit.concat(r.data.items || []);
+      auditCursor = r.data.cursor || null; auditLoaded = true;
+      renderAudit(); renderRecent();
+    }).catch(function () { $("auditMsg").textContent = "Network error."; });
+  }
+  $("btnAuditRefresh").addEventListener("click", function () { loadAudit(true); });
+  $("btnAuditMore").addEventListener("click", function () { loadAudit(false); });
+
+  /* ---------- system ---------- */
   function loadMin() {
     api("/admin/minversion").then(function (r) {
       if (r.status === 200) { $("minv").value = String(r.data.min_version_code); $("minMsg").textContent = "Current minimum: " + r.data.min_version_code + (r.data.min_version_code ? "" : " (none)"); }
     });
   }
   $("btnMinSave").addEventListener("click", function () {
-    var raw = $("minv").value.trim();
-    var v = Number(raw);
+    var raw = $("minv").value.trim(), v = Number(raw);
     if (raw === "" || !Number.isInteger(v) || v < 0) { $("minMsg").textContent = "Enter a whole number (0 = no minimum)."; return; }
     if (v > 0 && !window.confirm("Block every app build older than versionCode " + v + " until the user updates? Make sure that version is already released.")) return;
     api("/admin/minversion", { value: v }).then(function (r) {
       $("minMsg").textContent = r.status === 200 ? "Saved. Minimum is now " + r.data.min_version_code + "." : "Error: " + (r.data.error || r.status);
+      if (r.status === 200) pushAudit("force_update", "", "minimum versionCode -> " + v);
     });
   });
   $("btnDiag").addEventListener("click", function () {
@@ -699,7 +962,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       line(null, "Checked " + d.time);
       line(d.admin.token_ok, "Admin token " + (d.admin.token_ok ? "is long enough" : "is SHORT: set a new 64-character ADMIN_TOKEN"));
       if (d.kv.ok) {
-        line(true, "KV database: " + d.kv.total + " key(s)" + (d.kv.truncated ? " (first 5000 counted)" : "") + " - unused " + d.kv.by_status.unused + ", active " + d.kv.by_status.active + ", expired " + d.kv.by_status.expired + ", revoked " + d.kv.by_status.revoked);
+        var b = d.kv.by_status;
+        line(true, "KV database: " + d.kv.total + " key(s)" + (d.kv.truncated ? " (first 5000 counted)" : "") + " - unused " + b.unused + ", active " + b.active + ", suspended " + (b.suspended || 0) + ", expired " + b.expired + ", revoked " + b.revoked);
         line(null, "Force Update minimum versionCode: " + d.min_version_code + (d.min_version_code ? "" : " (none)"));
       } else line(false, "KV database unreachable");
       var p = d.public;
@@ -716,28 +980,37 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       box.textContent = L.join("\\n");
     });
   });
-  $("btnPurge").addEventListener("click", function () {
-    var gone = items.filter(function (it) { return status(it) === "Revoked"; });
-    if (!gone.length) { $("listMsg").textContent = "No revoked keys loaded."; return; }
-    if (!window.confirm("Permanently delete " + gone.length + " revoked key(s)? This cannot be undone.")) return;
-    var i = 0;
-    (function next() {
-      if (i >= gone.length) { render(); return; }
-      var k = gone[i++].key;
-      api("/admin/delete", { key: k }).then(function (r) {
-        if (r.status === 200 || r.status === 404) delete selected[k]; items = items.filter(function (y) { return y.key !== k; });
-        $("listMsg").textContent = "Deleting " + i + " / " + gone.length + "...";
-        next();
-      });
-    })();
-  });
-  $("search").addEventListener("input", render);
-  $("filter").addEventListener("change", render);
 
-  if (token) { api("/admin/ping").then(function (r) { if (r.status === 200) { show(true); reload(); } else logout(); }); }
+  /* ---------- session ---------- */
+  function showApp(on) {
+    $("login").hidden = on; $("app").hidden = !on;
+    if (on) { measureTop(); setTab(location.hash.slice(1), false); }
+  }
+  function logout(msg) {
+    token = ""; sessionStorage.removeItem("tt_admin"); items = []; audit = []; auditLoaded = false; selected = {};
+    showApp(false); $("loginMsg").textContent = msg || "";
+  }
+  function login() {
+    token = $("tok").value.trim() || token;
+    $("loginMsg").textContent = "";
+    api("/admin/ping").then(function (r) {
+      if (r.status === 200) { sessionStorage.setItem("tt_admin", token); $("tok").value = ""; start(); }
+      else if (r.status === 429 || (r.data && r.data.error === "too_many_attempts")) $("loginMsg").textContent = "Too many attempts. Wait 15 minutes.";
+      else { token = ""; sessionStorage.removeItem("tt_admin"); $("loginMsg").textContent = "Wrong token."; }
+    }).catch(function () { $("loginMsg").textContent = "Network error."; });
+  }
+  function start() { showApp(true); loadKeys(); loadAudit(true); loadMin(); }
+  $("btnLogin").addEventListener("click", login);
+  $("tok").addEventListener("keydown", function (e) { if (e.key === "Enter") login(); });
+  $("btnOut").addEventListener("click", function () { logout(""); });
+  window.addEventListener("hashchange", function () { if (!$("app").hidden) setTab(location.hash.slice(1), false); });
+  window.addEventListener("afterprint", function () { $("printArea").textContent = ""; });
+
+  if (token) { api("/admin/ping").then(function (r) { if (r.status === 200) start(); else logout(""); }).catch(function () { showApp(false); }); }
 })();
 </script>
-</body></html>`;
+</body></html>
+`;
 
 // ---------------------------------------------------------------- router
 
