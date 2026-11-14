@@ -1,90 +1,45 @@
-name: Build APK
+name: Android CI & Security Check
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
 
 jobs:
   build:
+    name: Build and Test
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
           distribution: 'temurin'
-          cache: 'gradle'
+          java-version: '17'
 
-      # FIX 2026-09-03: removed android-actions/setup-android@v3. GitHub
-      # deprecated Node.js 20 on Actions runners and force-runs older
-      # actions (including this one) on Node 24, which broke it. Every
-      # successful build all session actually used the Android SDK
-      # pre-installed on the ubuntu-latest runner image itself (visible at
-      # /usr/local/lib/android/sdk in build logs) -- this step was already
-      # redundant, so removing it fixes the failure with no functional loss.
-      - name: Download Gradle Wrapper JAR
-        run: |
-          mkdir -p gradle/wrapper
-          curl --retry 5 --retry-delay 3 --connect-timeout 30 --max-time 60 -L \
-            "https://github.com/gradle/gradle/raw/v8.4.0/gradle/wrapper/gradle-wrapper.jar" \
-            -o gradle/wrapper/gradle-wrapper.jar || \
-          curl --retry 3 --retry-delay 5 --connect-timeout 30 --max-time 60 -L \
-            "https://raw.githubusercontent.com/gradle/gradle/v8.4.0/gradle/wrapper/gradle-wrapper.jar" \
-            -o gradle/wrapper/gradle-wrapper.jar
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-      - name: Make gradlew executable
+      - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Cache Gradle packages
-        uses: actions/cache@v4
+      - name: Run Android Lint & Build Debug APK
+        run: ./gradlew assembleDebug
+
+  gitleaks:
+    name: Security Scan (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
-          restore-keys: ${{ runner.os }}-gradle-
+          fetch-depth: 0
 
-      # Decode keystore from GitHub Secret (base64 → .jks file)
-      - name: Decode keystore
-        run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/thieves_trap.jks
-          echo "Keystore size: $(du -sh app/thieves_trap.jks)"
-          # Verify it's a valid JKS (magic bytes: 0xFEEDFEED)
-          hexdump -n 4 -e '1/1 "%02X"' app/thieves_trap.jks
-
-      # Build signed release APK — passes signing params at command line
-      # so no keystore credentials are stored in build.gradle
-      - name: Build Signed Release APK
-        run: |
-          ./gradlew assembleRelease --no-daemon --stacktrace \
-            -Pandroid.injected.signing.store.file="$(pwd)/app/thieves_trap.jks" \
-            -Pandroid.injected.signing.store.password="${{ secrets.KEYSTORE_PASSWORD }}" \
-            -Pandroid.injected.signing.key.alias="${{ secrets.KEY_ALIAS }}" \
-            -Pandroid.injected.signing.key.password="${{ secrets.KEY_PASSWORD }}" \
-            -PtelegramBotToken="${{ secrets.TELEGRAM_BOT_TOKEN }}"
+      - name: Run Gitleaks Scan
+        uses: gitleaks/gitleaks-action@v2
         env:
-          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false"
-
-      - name: Find APK
-        id: find_apk
-        run: |
-          APK=$(find app/build/outputs/apk/release -name "*.apk" | head -n1)
-          if [ -z "$APK" ]; then
-            echo "ERROR: No release APK found!"
-            find app/build/outputs -type f
-            exit 1
-          fi
-          echo "APK: $APK  Size: $(du -sh "$APK" | cut -f1)"
-          echo "apk_path=$APK" >> "$GITHUB_OUTPUT"
-          echo "apk_name=$(basename "$APK")" >> "$GITHUB_OUTPUT"
-
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.find_apk.outputs.apk_name }}
-          path: ${{ steps.find_apk.outputs.apk_path }}
-          if-no-files-found: error
-          retention-days: 30
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
