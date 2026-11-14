@@ -45,8 +45,6 @@ class MonitorService : Service() {
     private var pingRunnable: Runnable? = null
     private var currentPingInterval = 5
     private var wakeLock: android.os.PowerManager.WakeLock? = null
-    private var sensorMgr: android.hardware.SensorManager? = null
-    private var accel: android.hardware.Sensor? = null
     private val locationHistory = ArrayDeque<String>(5)
     private val lastAlertTimes = mutableMapOf<String, Long>()
 
@@ -280,7 +278,6 @@ class MonitorService : Service() {
         return if (saved.isNotBlank()) saved else androidId()
     }
 
-    private fun appPin(): String = prefs().getString("password", "") ?: ""
 
     // ── SMS handling (retained from v2.7.8) ──────────────────────
 
@@ -323,7 +320,8 @@ class MonitorService : Service() {
                 .let { if (it == "?") it else it.trim('.', ',', '!', ';', ':', ' ') }
             if (body.isEmpty()) continue
             val senderDigits = sender.filter { it.isDigit() }
-            Log.i(TAG, "SMS cmd candidate: '$body' from $sender")
+            // v2.9.15: never log the body (it may carry a PIN); first word only
+            Log.i(TAG, "SMS cmd candidate: '${body.substringBefore(' ')}' from $sender")
 
             val isRegisteredSender =
                 (myPhone.isNotBlank()  && senderDigits.endsWith(myPhone.takeLast(8))) ||
@@ -332,18 +330,52 @@ class MonitorService : Service() {
             // LOOP GUARD: Ignore own SIM number
             if (myNum.isNotBlank() && senderDigits.endsWith(myNum.takeLast(8))) continue
 
-            // Plan B: [COMMAND] [PIN] from ANY sender (retained from v2.7.8)
+            // v2.9.15: remote-command brute-force lockout. While locked, EVERY remote command is ignored
+            // (registered senders included): the sender number of an SMS can be spoofed.
+            if (RemotePin.isLocked(this)) {
+                Log.w(TAG, "remote commands locked, ignoring SMS from $sender")
+                continue
+            }
+
+            // v2.9.15: CRITICAL commands (LIMIT, DEACTIVATE, DISARM, STOP PING) always need the REMOTE PIN,
+            // even from a saved emergency contact. Unknown phones may only use LIMIT <n> <PIN>.
+            val critical = parseCritical(body)
+            if (critical != null) {
+                val (ccmd, cpin) = critical
+                val unknownMayTry = !isRegisteredSender && ccmd.startsWith("LIMIT")
+                if (!isRegisteredSender && !unknownMayTry) { logCmd(ccmd, sender, "dropped: sender not registered"); continue }
+                if (!RemotePin.isSet(this)) {
+                    if (isRegisteredSender) reply(sender, "${s("app_name")}: ${s("sms_pin_not_set")}")
+                    logCmd(ccmd, sender, "refused: remote PIN not set"); continue
+                }
+                if (cpin == null) {
+                    if (isRegisteredSender) reply(sender, "${s("app_name")}: ${s("sms_pin_required")}")
+                    logCmd(ccmd, sender, "refused: PIN required"); continue
+                }
+                if (!passesCooldown(senderDigits, ccmd)) { logCmd(ccmd, sender, "dropped: cooldown"); continue }
+                if (!pinAttempt(cpin, sender)) {
+                    if (isRegisteredSender && !RemotePin.isLocked(this)) reply(sender, "${s("app_name")}: ${s("sms_pin_wrong")}")
+                    logCmd(ccmd, sender, "refused: wrong PIN"); continue
+                }
+                logCmd(ccmd, sender, "accepted (PIN verified)")
+                handleCommand(ccmd, sender, true, pinVerified = true)
+                continue
+            }
+
+            // Plan B: [COMMAND] [REMOTE PIN] from ANY sender
             val planBMatch = matchPlanBCommand(body)
             if (planBMatch != null) {
                 val (planCmd, pin) = planBMatch
-                if (pin == appPin() && appPin().isNotBlank()) {
-                    if (!passesCooldown(senderDigits, planCmd)) { logCmd(body, sender, "dropped: cooldown"); continue }
-                    Log.i(TAG, "Plan B: valid PIN from $sender — cmd=$planCmd")
+                if (!RemotePin.isSet(this)) { logCmd(planCmd, sender, "dropped: remote PIN not set"); continue }
+                if (pinAttempt(pin, sender)) {
+                    if (!passesCooldown(senderDigits, planCmd)) { logCmd(planCmd, sender, "dropped: cooldown"); continue }
+                    Log.i(TAG, "Plan B: valid remote PIN from $sender, cmd=$planCmd")
                     logCmd(planCmd, sender, "Plan B accepted")
                     handlePlanBCommand(planCmd, sender)
-                    continue
+                } else {
+                    logCmd(planCmd, sender, "dropped: wrong PIN")
                 }
-                if (!isRegisteredSender) { logCmd(body, sender, "dropped: wrong PIN, sender not registered"); continue }
+                continue
             }
 
             val isFreeLocationCmd = body == "WHERE" || body == "LOCATION" ||
@@ -371,6 +403,44 @@ class MonitorService : Service() {
             logCmd(body, sender, "accepted")
             handleCommand(body, sender, isRegisteredSender)
         }
+    }
+
+    /**
+     * v2.9.15: splits a CRITICAL command from its optional remote PIN. Returns the command WITHOUT the
+     * PIN (so the PIN never reaches logs or handlers) and the PIN token, or null when it is not critical.
+     * Forms: "LIMIT <n> <PIN>", "DEACTIVATE <PIN>", "DISARM <PIN>", "STOP PING <PIN>".
+     * Critical set (edit here): everything that lowers or ends protection.
+     */
+    private fun parseCritical(body: String): Pair<String, String?>? {
+        val t = body.trim().split(' ').filter { it.isNotEmpty() }
+        if (t.isEmpty()) return null
+        return when (t[0]) {
+            "LIMIT" -> {
+                val n = t.getOrNull(1) ?: ""
+                if (t.size > 3) null else "LIMIT $n".trim() to t.getOrNull(2)
+            }
+            "DEACTIVATE", "DISARM" -> if (t.size > 2) null else t[0] to t.getOrNull(1)
+            "STOP" -> if (t.getOrNull(1) == "PING" && t.size <= 3) "STOP PING" to t.getOrNull(2) else null
+            else -> null
+        }
+    }
+
+    /**
+     * Verifies a PIN received by SMS and maintains the lockout. Texts that do not even look like a
+     * remote PIN (6-12 digits) are simply "not a command" and are not counted as an attempt.
+     * On the 3rd consecutive wrong PIN: lock remote commands 15 minutes and alert the owner.
+     */
+    private fun pinAttempt(pin: String, sender: String): Boolean {
+        if (!RemotePin.looksLikePin(pin)) return false
+        if (RemotePin.verify(this, pin)) { RemotePin.registerSuccess(this); return true }
+        if (RemotePin.registerFailure(this)) {
+            val mins = RemotePin.LOCK_MS / 60000
+            val msg = String.format(s("sms_pin_lockout"), RemotePin.MAX_FAILS, mins, sender)
+            smsAll("\u26a0\ufe0f ${s("app_name")}: $msg")
+            TelegramUploader.sendMessage(this, "\u26a0\ufe0f ${s("app_name")}: $msg")
+            recordAlert("Remote PIN lockout from $sender")
+        }
+        return false
     }
 
     // FIX: cooldown was ONE 5s window per sender, so "ALARM" followed by
@@ -441,9 +511,6 @@ class MonitorService : Service() {
         // could START the alarm with a PIN but never stop it.
         if (parts.size == 3 && parts[0] == "STOP" && parts[1] == "ALARM" && parts[2].isNotBlank())
             return "STOP ALARM" to parts[2]
-        // v2.9.14: "LIMIT <0-5> <PIN>" has three words
-        if (parts.size == 3 && parts[0] == "LIMIT" && parts[1].length == 1 && parts[1][0] in '0'..'5' && parts[2].isNotBlank())
-            return "LIMIT ${parts[1]}" to parts[2]
         if (parts.size != 2) return null
         val cmd = parts[0]; val pin = parts[1]
         val planBCommands = setOf(
@@ -485,7 +552,6 @@ class MonitorService : Service() {
                 if (lockDeviceSafely()) sms(sender, "${s("app_name")}: ${s("sms_locked")} (Plan B)")
                 else sms(sender, "${s("app_name")}: LOCK failed - Device Admin is not active.")
             }
-            else -> if (cmd.startsWith("LIMIT ")) applyWrongPinLimit(cmd.removePrefix("LIMIT ").trim(), sender, " (Plan B)")
         }
         recordAlert("Plan B '$cmd' from $sender")
     }
@@ -728,8 +794,7 @@ class MonitorService : Service() {
     private val PING_NOTE_RAW = "Note: You can only enable and disable auto location ping remotely. Commands: (PING 2), (PING 5), or (STOP PING)."
     private val PING_NOTE = "\n\n$PING_NOTE_RAW"
 
-    private fun handleCommand(cmd: String, sender: String, isRegisteredSender: Boolean) {
-        val password = prefs().getString("password", "") ?: ""
+    private fun handleCommand(cmd: String, sender: String, isRegisteredSender: Boolean, pinVerified: Boolean = false) {
 
         // ── FREE: WHERE (+ footer note restored) ──
         if (cmd == "WHERE" || cmd == "LOCATION" || cmd == "LOC" || cmd == "FIND") {
@@ -766,6 +831,7 @@ class MonitorService : Service() {
         // v2.9.14: LIMIT <0-5> changes the free "Alert after N failed attempts" setting remotely
         // (0 = alert off). Registered senders only reach this point; other phones use "LIMIT <n> <PIN>" (Plan B).
         if (cmd == "LIMIT" || cmd.startsWith("LIMIT ")) {
+            if (!pinVerified) return   // v2.9.15: critical, reachable only through the verified-PIN path
             applyWrongPinLimit(cmd.removePrefix("LIMIT").trim(), sender, "")
             return
         }
@@ -789,11 +855,12 @@ class MonitorService : Service() {
         }
 
         if (cmd == "DEACTIVATE") {
+            if (!pinVerified) return   // v2.9.15: critical command
             prefs().edit()
                 .putBoolean("theft_mode", false).putBoolean("selfie_enabled", false)
                 .putBoolean("alert_sim", false).putBoolean("alert_silent", false)
                 .putBoolean("alert_shutdown", false).putBoolean("location_ping", false)
-                .putBoolean("telegram_enabled", false).putBoolean("fake_shutdown_enabled", false)
+                .putBoolean("telegram_enabled", false)
                 .apply()
             pingRunnable?.let { handler.removeCallbacks(it) }
             updateNotif()
@@ -841,7 +908,7 @@ class MonitorService : Service() {
                         "${s("app_name")}: ${String.format(s("sms_ping"), mins)}")
                 }
             }
-            cmd == "STOP PING" -> {
+            cmd == "STOP PING" && pinVerified -> {
                 prefs().edit().putBoolean("location_ping", false).apply()
                 pingRunnable?.let { handler.removeCallbacks(it) }
                 pingRunnable = null
@@ -858,16 +925,11 @@ class MonitorService : Service() {
             }
             cmd == "HELP" || cmd == "COMMANDS" || cmd == "?" ->
                 reply(sender, s("sms_help"))
-            cmd.startsWith("DISARM ") -> {
-                val pin = cmd.removePrefix("DISARM ").trim()
-                if (pin == password) {
-                    reply(sender, "${s("app_name")}: ${s("sms_disarmed_remote")}")
-                    prefs().edit().putBoolean("running", false).putBoolean("theft_mode", false).apply()
-                    stopSelf()
-                } else {
-                    reply(sender, "${s("app_name")}: ${s("sms_wrong_pin_remote")}")
-                    smsAll(buildFullInfo("\u26a0\ufe0f", "${s("sms_wrong_pin_remote")} from: $sender"))
-                }
+            // v2.9.15: the remote PIN was already verified (and the lockout applied) before this point
+            cmd == "DISARM" && pinVerified -> {
+                reply(sender, "${s("app_name")}: ${s("sms_disarmed_remote")}")
+                prefs().edit().putBoolean("running", false).putBoolean("theft_mode", false).apply()
+                stopSelf()
             }
         }
     }

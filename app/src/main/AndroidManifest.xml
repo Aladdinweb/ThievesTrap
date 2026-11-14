@@ -6,7 +6,6 @@
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
     <uses-permission android:name="android.permission.SEND_SMS"/>
     <uses-permission android:name="android.permission.RECEIVE_SMS"/>
-    <uses-permission android:name="android.permission.READ_SMS"/>
     <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
     <uses-permission android:name="android.permission.READ_CONTACTS"/>
     <uses-permission android:name="android.permission.READ_PHONE_NUMBERS"/>
@@ -17,9 +16,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
-    <uses-permission android:name="android.permission.BODY_SENSORS"/>
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
-    <uses-permission android:name="android.permission.BIND_DEVICE_ADMIN"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
     <uses-permission android:name="android.permission.CAMERA"/>
@@ -47,9 +44,6 @@
         android:allowBackup="false">
 
         <activity android:name=".ConsentActivity"       android:exported="false"/>
-        <activity android:name=".FakeShutdownActivity"  android:exported="false"
-            android:excludeFromRecents="true"
-            android:theme="@android:style/Theme.NoTitleBar.Fullscreen"/>
         <activity android:name=".SplashActivity"        android:exported="true"
             android:theme="@style/Theme.ThievesTrap"
             android:screenOrientation="portrait">
@@ -115,10 +109,7 @@
             </intent-filter>
         </receiver>
 
-        <!-- FIX 2026-09-04: proactively reconciles Premium license state
-             right when an in-place app update completes, since the
-             Keystore-backed encrypted prefs holding that flag can be
-             invalidated by the update. -->
+        <!-- Restarts MonitorService after an in-place app update if protection was on. -->
         <receiver android:name=".PackageReplacedReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>

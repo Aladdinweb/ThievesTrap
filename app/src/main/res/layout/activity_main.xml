@@ -322,6 +322,18 @@
             android:textSize="14sp" android:textColor="#DDDDDD"/>
     </LinearLayout>
 
+    <LinearLayout android:id="@+id/nav_remote_pin"
+        android:layout_width="match_parent" android:layout_height="52dp"
+        android:orientation="horizontal" android:gravity="center_vertical"
+        android:paddingStart="24dp" android:paddingEnd="16dp"
+        android:clickable="true" android:foreground="?attr/selectableItemBackground">
+        <TextView android:text="&#128241;" android:layout_width="32dp"
+            android:layout_height="wrap_content" android:textSize="16sp" android:textColor="#AAAAAA"/>
+        <TextView android:id="@+id/nav_remote_pin_label" android:text="" android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1"
+            android:textSize="14sp" android:textColor="#DDDDDD"/>
+    </LinearLayout>
+
     <View android:layout_width="match_parent" android:layout_height="1dp"
         android:background="#1A1A1A" android:layout_marginTop="4dp" android:layout_marginBottom="4dp"/>
 

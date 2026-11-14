@@ -9,25 +9,14 @@ import androidx.core.content.ContextCompat
 /**
  * PackageReplacedReceiver
  *
- * FIX 2026-09-04: fires on MY_PACKAGE_REPLACED, immediately after this app
- * is updated in place. App updates can invalidate the Keystore-backed
- * master key behind LicenseManager's EncryptedSharedPreferences, silently
- * reverting a legitimately-activated Premium license to Free with zero
- * visible error. This proactively calls the reconciliation logic right when
- * an update completes, so the very first isPremium() check afterward is
- * already correct rather than relying on that call's own reactive self-heal
- * path. MainActivity.onCreate() also calls the same reconcile function as a
- * second safety net, in case this broadcast doesn't fire reliably on some
- * OEM/launcher combinations.
+ * Fires on MY_PACKAGE_REPLACED, right after this app is updated in place.
+ * v2.9.15: the legacy license reconciliation was removed with the legacy
+ * path (signed licenses live in plain prefs and survive updates by themselves);
+ * this receiver now only restarts MonitorService if protection was on.
  */
 class PackageReplacedReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_MY_PACKAGE_REPLACED) return
-        try {
-            LicenseManager.reconcileAfterUpdate(context)
-        } catch (e: Exception) {
-            Log.e("PackageReplacedReceiver", "reconcile failed: ${e.message}")
-        }
         // An in-place update kills MonitorService. The static SMS receiver
         // survives (manifest-registered) but SMS_COMMAND needs the service
         // alive to be handled cleanly, so bring it back if protection was on.

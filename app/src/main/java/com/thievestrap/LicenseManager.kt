@@ -8,8 +8,6 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import android.util.Log
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKeys
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
@@ -66,20 +64,16 @@ object LicenseManager {
     private const val API_URL = "https://thievestrap-license.ferakalaaeddine.workers.dev"
     private const val PUBLIC_KEY_B64 = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEkjfjWDCbfWX86mg8Op9wp/n1FTcPjiS4r86Y+sRJ9ih15vb6Hz1cezi9a3KD+5KSjGrU0erfD9dz2aRsGq322A=="
 
-    private const val ALLOW_LEGACY = true                         // grandfather pre-server activations
     private const val SOFT_REFRESH_MS = 15L * 60 * 1000           // re-check this often while the app is in use
     private const val RETRY_MS = 5L * 60 * 1000                   // after a failed attempt
-    private const val V1_LEASE_MS = 72L * 3600 * 1000             // for licenses stored by v2.9.9.x
     private const val KS_ALIAS = "tt_license_dev_v1"
 
-    // legacy (pre-server) storage, kept only for grandfathered devices
-    private const val PREFS_FILE = "tt_secure"
-    private const val KEY_PREMIUM = "p"
-    private const val KEY_LICENSE = "l"
-    private const val BACKUP_PREFS = "tt_premium_backup"
-    private const val KEY_BACKUP_PREMIUM = "premium_backup"
-    private const val KEY_BACKUP_LICENSE = "license_backup"
-    private const val KEY_LAST_VERSION_CODE = "last_version_code"
+    // v2.9.15: names of the REMOVED pre-server storage, kept only so purgeLegacyState() can erase it
+    private const val OLD_SECURE_PREFS = "tt_secure"
+    private const val BACKUP_PREFS = "tt_premium_backup"      // still the file that holds the signed license
+    private const val OLD_BACKUP_KEYS_A = "premium_backup"
+    private const val OLD_BACKUP_KEYS_B = "license_backup"
+    private const val OLD_BACKUP_KEYS_C = "last_version_code"
 
     // signed-license storage (plain prefs are fine: everything is signature-checked)
     private const val K_PAYLOAD = "lic_payload"
@@ -99,7 +93,6 @@ object LicenseManager {
     data class LicenseInfo(
         val plan: String,
         val expMillis: Long,          // 0 = lifetime
-        val legacy: Boolean,
         val expired: Boolean,
         val leaseExpired: Boolean = false   // true = must be re-checked online before it counts again
     )
@@ -163,10 +156,8 @@ object LicenseManager {
 
     fun isPremium(context: Context): Boolean {
         val info = getLicenseInfo(context) ?: return false
-        if (!info.legacy) {
-            ensureBackgroundCheck(context.applicationContext)
-            maybeRefreshAsync(context.applicationContext, force = false)
-        }
+        ensureBackgroundCheck(context.applicationContext)
+        maybeRefreshAsync(context.applicationContext, force = false)
         return !info.expired && !info.leaseExpired
     }
 
@@ -176,21 +167,19 @@ object LicenseManager {
         val payload = b.getString(K_PAYLOAD, null)
         val sig = b.getString(K_SIG, null)
         if (payload != null) {
-            // A stored license that fails verification is tampered: no premium, no legacy fallback.
+            // A stored license that fails verification is tampered: no premium, no fallback of any kind.
             val json = verifyAndParse(context, payload, sig ?: "") ?: return null
             val expMs = json.optLong("exp", 0L) * 1000L
-            val leaseMs = if (json.optInt("v") >= 2) json.optLong("lease", 0L) * 1000L
-                          else json.optLong("iat", 0L) * 1000L + V1_LEASE_MS
+            // v2.9.15: only v2 answers are accepted (lease + device key bound); v1 payloads are rejected in verifyAndParse
+            val leaseMs = json.optLong("lease", 0L) * 1000L
             val now = effectiveNow(b)
             return LicenseInfo(
                 plan = json.optString("plan", ""),
                 expMillis = expMs,
-                legacy = false,
                 expired = expMs != 0L && now >= expMs,
                 leaseExpired = now >= leaseMs
             )
         }
-        if (ALLOW_LEGACY && legacyPremium(context)) return LicenseInfo("legacy", 0L, true, false, false)
         return null
     }
 
@@ -200,47 +189,31 @@ object LicenseManager {
 
     /** Local reset. The key stays valid on the server and can be activated again on this device. */
     fun revokePremium(context: Context) {
-        try {
-            getSecurePrefs(context).edit().putBoolean(KEY_PREMIUM, false).putString(KEY_LICENSE, "").apply()
-        } catch (e: Exception) {}
         backup(context).edit()
-            .putBoolean(KEY_BACKUP_PREMIUM, false).putString(KEY_BACKUP_LICENSE, "")
             .remove(K_PAYLOAD).remove(K_SIG).remove(K_KEY).remove(K_OK_AT).remove(K_TRY_AT)
             .apply()
         try { WorkManager.getInstance(context.applicationContext).cancelUniqueWork(WORK_NAME) } catch (e: Exception) {}
         workerScheduled.set(false)
     }
 
-    /** Kept for compatibility with existing callers; only meaningful for the legacy path. */
-    fun setPremium(context: Context, value: Boolean, license: String = "") {
-        try {
-            getSecurePrefs(context).edit().putBoolean(KEY_PREMIUM, value).putString(KEY_LICENSE, license).apply()
-        } catch (e: Exception) { Log.e(TAG, "setPremium: secure write failed", e) }
-        backup(context).edit().putBoolean(KEY_BACKUP_PREMIUM, value).putString(KEY_BACKUP_LICENSE, license).apply()
-    }
-
-    // Called from PackageReplacedReceiver / MainActivity. Signed licenses live in plain prefs
-    // and survive updates by themselves; this only re-asserts the legacy flag.
-    fun reconcileAfterUpdate(context: Context) {
+    /**
+     * v2.9.15: one-time erase of everything the removed pre-server (legacy) path ever stored: the
+     * encrypted premium flag, the plain-text premium backup and the plain "tt_fb" fallback flags.
+     * Safe to call on every start. A phone that was premium only through that path is Free now and
+     * must activate a server key.
+     */
+    fun purgeLegacyState(context: Context) {
         try {
             val b = backup(context)
-            val current = try {
-                @Suppress("DEPRECATION")
-                context.packageManager.getPackageInfo(context.packageName, 0).versionCode
-            } catch (e: Exception) { -1 }
-            val last = b.getInt(KEY_LAST_VERSION_CODE, -1)
-            if (last != current) {
-                if (b.getBoolean(KEY_BACKUP_PREMIUM, false)) {
-                    try {
-                        getSecurePrefs(context).edit()
-                            .putBoolean(KEY_PREMIUM, true)
-                            .putString(KEY_LICENSE, b.getString(KEY_BACKUP_LICENSE, "") ?: "")
-                            .apply()
-                    } catch (e: Exception) { Log.e(TAG, "reconcile: secure write failed", e) }
-                }
-                b.edit().putInt(KEY_LAST_VERSION_CODE, current).apply()
+            if (b.contains(OLD_BACKUP_KEYS_A) || b.contains(OLD_BACKUP_KEYS_B) || b.contains(OLD_BACKUP_KEYS_C)) {
+                b.edit().remove(OLD_BACKUP_KEYS_A).remove(OLD_BACKUP_KEYS_B).remove(OLD_BACKUP_KEYS_C).apply()
             }
-        } catch (e: Exception) { Log.e(TAG, "reconcileAfterUpdate failed", e) }
+            val app = context.applicationContext
+            if (app.getSharedPreferences(OLD_SECURE_PREFS, Context.MODE_PRIVATE).all.isNotEmpty())
+                app.deleteSharedPreferences(OLD_SECURE_PREFS)
+            val fb = app.getSharedPreferences("tt_fb", Context.MODE_PRIVATE)
+            if (fb.contains("p") || fb.contains("l")) fb.edit().remove("p").remove("l").apply()
+        } catch (e: Exception) { Log.w(TAG, "purgeLegacyState failed", e) }
     }
 
     // ------------------------------------------------------------------ online re-validation
@@ -444,13 +417,11 @@ object LicenseManager {
             if (!sv.verify(der)) { lastFail = "signature"; return null }
             val json = JSONObject(String(payload, Charsets.UTF_8))
             val v = json.optInt("v")
-            if (v != 1 && v != 2) { lastFail = "version"; return null }
+            if (v != 2) { lastFail = "version"; return null }   // v2.9.15: v1 (no device-key binding) is no longer accepted
             if (json.optString("device") != getAndroidId(context)) { lastFail = "device"; return null }
-            if (v >= 2) {
-                val mine = localDpk()
-                if (mine == null) { lastFail = "keystore"; return null }
-                if (json.optString("dpk") != mine) { lastFail = "dpk"; return null }
-            }
+            val mine = localDpk()
+            if (mine == null) { lastFail = "keystore"; return null }
+            if (json.optString("dpk") != mine) { lastFail = "dpk"; return null }
             json
         } catch (e: Exception) {
             Log.w(TAG, "verify failed", e)
@@ -519,35 +490,4 @@ object LicenseManager {
         }
     }
 
-    // ---- legacy (pre-server) premium flag, unchanged behaviour ----
-
-    private fun getSecurePrefs(context: Context): SharedPreferences {
-        return try {
-            val alias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
-            EncryptedSharedPreferences.create(
-                PREFS_FILE, alias, context,
-                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "EncryptedSharedPreferences unavailable, falling back to plain tt_fb prefs", e)
-            context.getSharedPreferences("tt_fb", Context.MODE_PRIVATE)
-        }
-    }
-
-    private fun legacyPremium(context: Context): Boolean {
-        val secure = try { getSecurePrefs(context).getBoolean(KEY_PREMIUM, false) } catch (e: Exception) { false }
-        if (secure) return true
-        val b = backup(context)
-        if (b.getBoolean(KEY_BACKUP_PREMIUM, false)) {
-            try {
-                getSecurePrefs(context).edit()
-                    .putBoolean(KEY_PREMIUM, true)
-                    .putString(KEY_LICENSE, b.getString(KEY_BACKUP_LICENSE, "") ?: "")
-                    .apply()
-            } catch (e: Exception) { Log.e(TAG, "legacy self-heal failed", e) }
-            return true
-        }
-        return false
-    }
 }

@@ -50,16 +50,15 @@ class MainActivity : AppCompatActivity() {
         setupDrawerIsolation()
         // v2.9.14: the power-off selfie feature was removed; forget its stored switch
         prefs.edit().remove("poweroff_selfie_enabled").apply()
-        // FIX 2026-09-04: second safety net alongside PackageReplacedReceiver
-        // (MY_PACKAGE_REPLACED) for premium-state reconciliation after an
-        // app update, in case that broadcast doesn't fire reliably on some
-        // OEM/launcher combinations.
-        try { LicenseManager.reconcileAfterUpdate(this) } catch (e: Exception) {}
+        // v2.9.15: erase whatever the removed legacy (pre-server) license path ever stored
+        try { LicenseManager.purgeLegacyState(this) } catch (e: Exception) {}
         if (!prefs.contains("password")) {
             startActivity(Intent(this, SetupActivity::class.java))
             finish(); return
         }
         setupButtons()
+        // v2.9.15: remote SMS commands that need a PIN stay refused until a REMOTE PIN exists
+        window.decorView.post { if (!RemotePin.isSet(this)) showRemotePinDialog(firstTime = true) }
     }
 
     private var settingsRefreshReceiver: BroadcastReceiver? = null
@@ -244,6 +243,10 @@ class MainActivity : AppCompatActivity() {
             }
             findViewById<android.view.View>(R.id.nav_change_pin).setOnClickListener {
                 close(); showPinChangeDialog()
+            }
+            findViewById<android.widget.TextView>(R.id.nav_remote_pin_label).text = s("remote_pin_nav")
+            findViewById<android.view.View>(R.id.nav_remote_pin).setOnClickListener {
+                close(); showRemotePinDialog(firstTime = false)
             }
             try {
                 findViewById<android.view.View>(R.id.nav_language)
@@ -697,6 +700,64 @@ class MainActivity : AppCompatActivity() {
                     })
                 }
             }.setNegativeButton(s("cancel"), null).show()
+    }
+
+    /**
+     * v2.9.15: sets or changes the REMOTE SMS PIN (6-12 digits, stored only as a PBKDF2 hash, must differ
+     * from the local unlock PIN). The local PIN authorises the change, so someone holding an unlocked
+     * phone but not the PIN cannot install their own remote PIN.
+     */
+    private fun showRemotePinDialog(firstTime: Boolean) {
+        fun pinField(hintKey: String) = EditText(this).apply {
+            hint = s(hintKey)
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                    android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD
+        }
+        val local = pinField("remote_pin_local_hint")
+        val first = pinField("remote_pin_new_hint")
+        val again = pinField("remote_pin_confirm_hint")
+        val note = android.widget.TextView(this).apply { text = s("remote_pin_msg"); setPadding(0, 0, 0, 16) }
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(40, 20, 40, 20)
+            addView(note); addView(local); addView(first); addView(again)
+        }
+        val b = AlertDialog.Builder(this).setTitle(s("remote_pin_title")).setView(container)
+            .setPositiveButton(s("change"), null)
+            .setNegativeButton(if (firstTime) s("remote_pin_later") else s("cancel"), null)
+        if (firstTime) b.setCancelable(false)
+        val dialog = b.create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val a = local.text.toString().trim()
+                val n = first.text.toString().trim()
+                val c = again.text.toString().trim()
+                val saved = prefs.getString("password", "") ?: ""
+                when {
+                    a != saved -> Toast.makeText(this, s("wrong_pin"), Toast.LENGTH_SHORT).show()
+                    n != c -> Toast.makeText(this, s("remote_pin_mismatch"), Toast.LENGTH_LONG).show()
+                    else -> {
+                        // hashing takes a moment: keep it off the main thread
+                        Thread {
+                            val r = RemotePin.set(this, n)
+                            runOnUiThread {
+                                when (r) {
+                                    is RemotePin.SetResult.Ok -> {
+                                        Toast.makeText(this, s("remote_pin_saved"), Toast.LENGTH_LONG).show()
+                                        dialog.dismiss()
+                                    }
+                                    is RemotePin.SetResult.BadFormat ->
+                                        Toast.makeText(this, s("remote_pin_invalid"), Toast.LENGTH_LONG).show()
+                                    is RemotePin.SetResult.SameAsLocal ->
+                                        Toast.makeText(this, s("remote_pin_same_as_local"), Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        }.start()
+                    }
+                }
+            }
+        }
+        dialog.show()
     }
 
     private fun showPinChangeDialog() {

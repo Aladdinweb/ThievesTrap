@@ -149,7 +149,22 @@ object Strings {
         "sms_ping_stopped" to "Auto pings stopped.",
         "sms_limit_set" to "Wrong-attempt alert limit set to %d.",
         "sms_limit_off" to "Wrong-attempt alert turned OFF (LIMIT 0).",
-        "sms_limit_usage" to "Usage: LIMIT <0-5> (0 = off). From another phone: LIMIT <0-5> <PIN>.",
+        "sms_limit_usage" to "Usage: LIMIT <0-5> <REMOTE PIN> (0 = off).",
+        "sms_pin_required" to "This command needs your remote PIN, e.g. DEACTIVATE <REMOTE PIN>.",
+        "sms_pin_not_set" to "Remote PIN not set. Open the app (menu > Remote SMS PIN) to create it.",
+        "sms_pin_wrong" to "Wrong remote PIN.",
+        "sms_pin_lockout" to "%1\$d wrong remote PINs in a row. Remote SMS commands are blocked for %2\$d minutes. Last sender: %3\$s",
+        "remote_pin_nav" to "Remote SMS PIN",
+        "remote_pin_title" to "Remote SMS PIN",
+        "remote_pin_msg" to "This PIN is used ONLY in SMS commands sent from another phone. It must differ from your unlock PIN (6 to 12 digits). It is stored as a hash and cannot be read back. 3 wrong tries block remote commands for 15 minutes.",
+        "remote_pin_local_hint" to "Current security PIN",
+        "remote_pin_new_hint" to "New remote PIN (6-12 digits)",
+        "remote_pin_confirm_hint" to "Repeat remote PIN",
+        "remote_pin_saved" to "Remote PIN saved.",
+        "remote_pin_mismatch" to "The two remote PINs do not match.",
+        "remote_pin_invalid" to "The remote PIN must be 6 to 12 digits.",
+        "remote_pin_same_as_local" to "The remote PIN must be different from your unlock PIN.",
+        "remote_pin_later" to "Later",
         "sms_alarm_on" to "ALARM ACTIVATED! Loud sound playing.",
         "sms_alarm_off" to "Alarm stopped.",
         "sms_locked" to "Phone screen locked.",
@@ -284,7 +299,7 @@ object Strings {
         "consent_and" to " and ",
         "consent_terms_link" to "Terms of Use.",
         "get_started" to "GET STARTED",
-        "sms_help" to "THIEVES TRAP COMMANDS:\nWHERE - GPS location\nINFO - Full device info\nSTATUS - Quick status\nBATTERY - Battery level\nSIM - SIM details\nIMEI - Device IMEI\nHISTORY - Last 5 locations\nALARM - Loud alarm\nSTOP ALARM - Silence alarm\nLOCK - Lock screen\nLIMIT [0-5] - Wrong-attempt alert limit (0 = off)\nPING [n] - Auto ping every n min\nSTOP PING - Stop pings\nACTIVE - Activate theft mode\nDEACTIVATE - Deactivate\nDISARM [PIN] - Stop monitoring"
+        "sms_help" to "THIEVES TRAP COMMANDS:\nWHERE - GPS location\nINFO - Full device info\nSTATUS - Quick status\nBATTERY - Battery level\nSIM - SIM details\nIMEI - Device IMEI\nHISTORY - Last 5 locations\nALARM - Loud alarm\nSTOP ALARM - Silence alarm\nLOCK - Lock screen\nLIMIT [0-5] [PIN] - Wrong-attempt alert limit (0 = off)\nPING [n] - Auto ping every n min\nSTOP PING [PIN] - Stop pings\nACTIVE - Activate theft mode\nDEACTIVATE [PIN] - Deactivate\nDISARM [PIN] - Stop monitoring"
     )
 
     val FR = mapOf(
@@ -410,7 +425,22 @@ object Strings {
         "sms_ping_stopped" to "Pings automatiques arrêtés.",
         "sms_limit_set" to "Limite d'alerte de tentatives erronées réglée sur %d.",
         "sms_limit_off" to "Alerte de tentatives erronées désactivée (LIMIT 0).",
-        "sms_limit_usage" to "Utilisation : LIMIT <0-5> (0 = désactivé). Depuis un autre téléphone : LIMIT <0-5> <PIN>.",
+        "sms_limit_usage" to "Utilisation : LIMIT <0-5> <PIN À DISTANCE> (0 = désactivé).",
+        "sms_pin_required" to "Cette commande demande votre PIN à distance, ex. : DEACTIVATE <PIN À DISTANCE>.",
+        "sms_pin_not_set" to "PIN à distance non défini. Ouvrez l'application (menu > PIN SMS à distance) pour le créer.",
+        "sms_pin_wrong" to "PIN à distance incorrect.",
+        "sms_pin_lockout" to "%1\$d PIN à distance erronés de suite. Les commandes SMS à distance sont bloquées pendant %2\$d minutes. Dernier expéditeur : %3\$s",
+        "remote_pin_nav" to "PIN SMS à distance",
+        "remote_pin_title" to "PIN SMS à distance",
+        "remote_pin_msg" to "Ce PIN sert UNIQUEMENT aux commandes SMS envoyées depuis un autre téléphone. Il doit être différent de votre PIN de déverrouillage (6 à 12 chiffres). Il est stocké sous forme de hash et ne peut pas être relu. 3 essais erronés bloquent les commandes à distance pendant 15 minutes.",
+        "remote_pin_local_hint" to "PIN de sécurité actuel",
+        "remote_pin_new_hint" to "Nouveau PIN à distance (6-12 chiffres)",
+        "remote_pin_confirm_hint" to "Répéter le PIN à distance",
+        "remote_pin_saved" to "PIN à distance enregistré.",
+        "remote_pin_mismatch" to "Les deux PIN à distance ne correspondent pas.",
+        "remote_pin_invalid" to "Le PIN à distance doit contenir 6 à 12 chiffres.",
+        "remote_pin_same_as_local" to "Le PIN à distance doit être différent de votre PIN de déverrouillage.",
+        "remote_pin_later" to "Plus tard",
         "sms_alarm_on" to "ALARME ACTIVÉE ! Son fort en cours.",
         "sms_alarm_off" to "Alarme arrêtée.",
         "sms_locked" to "Écran verrouillé.",
@@ -545,7 +575,7 @@ object Strings {
         "consent_and" to " et les ",
         "consent_terms_link" to "Conditions d'utilisation.",
         "get_started" to "COMMENCER",
-        "sms_help" to "COMMANDES PIÈGE À VOLEURS :\nWHERE - Position GPS\nINFO - Infos complètes\nSTATUS - Statut rapide\nBATTERY - Batterie\nSIM - Détails SIM\nIMEI - IMEI appareil\nHISTORY - 5 dernières positions\nALARM - Alarme forte\nSTOP ALARM - Arrêter alarme\nLOCK - Verrouiller écran\nLIMIT [0-5] - Limite tentatives erronées (0 = off)\nPING [n] - Ping auto\nSTOP PING - Arrêter pings\nACTIVE - Activer mode vol\nDEACTIVATE - Désactiver\nDISARM [PIN] - Arrêter surveillance"
+        "sms_help" to "COMMANDES PIÈGE À VOLEURS :\nWHERE - Position GPS\nINFO - Infos complètes\nSTATUS - Statut rapide\nBATTERY - Batterie\nSIM - Détails SIM\nIMEI - IMEI appareil\nHISTORY - 5 dernières positions\nALARM - Alarme forte\nSTOP ALARM - Arrêter alarme\nLOCK - Verrouiller écran\nLIMIT [0-5] [PIN] - Limite tentatives erronées (0 = off)\nPING [n] - Ping auto\nSTOP PING [PIN] - Arrêter pings\nACTIVE - Activer mode vol\nDEACTIVATE [PIN] - Désactiver\nDISARM [PIN] - Arrêter surveillance"
     )
 
     val AR = mapOf(
@@ -671,7 +701,22 @@ object Strings {
         "sms_ping_stopped" to "تم إيقاف الإرسال التلقائي.",
         "sms_limit_set" to "تم ضبط حد تنبيه المحاولات الخاطئة على %d.",
         "sms_limit_off" to "تم إيقاف تنبيه المحاولات الخاطئة (LIMIT 0).",
-        "sms_limit_usage" to "الاستخدام: LIMIT <0-5> (0 = إيقاف). من هاتف آخر: LIMIT <0-5> <PIN>.",
+        "sms_limit_usage" to "الاستخدام: LIMIT <0-5> <رمز PIN عن بُعد> (0 = إيقاف).",
+        "sms_pin_required" to "هذا الأمر يتطلب رمز PIN عن بُعد، مثال: DEACTIVATE <رمز PIN عن بُعد>.",
+        "sms_pin_not_set" to "لم يتم تعيين رمز PIN عن بُعد. افتح التطبيق (القائمة > رمز PIN للرسائل عن بُعد) لإنشائه.",
+        "sms_pin_wrong" to "رمز PIN عن بُعد خاطئ.",
+        "sms_pin_lockout" to "%1\$d رموز PIN عن بُعد خاطئة متتالية. تم حظر أوامر الرسائل عن بُعد لمدة %2\$d دقيقة. آخر مرسل: %3\$s",
+        "remote_pin_nav" to "رمز PIN للرسائل عن بُعد",
+        "remote_pin_title" to "رمز PIN للرسائل عن بُعد",
+        "remote_pin_msg" to "يُستخدم هذا الرمز فقط في أوامر الرسائل المرسلة من هاتف آخر. يجب أن يختلف عن رمز فتح القفل (من 6 إلى 12 رقماً). يُخزَّن على شكل بصمة ولا يمكن استرجاعه. 3 محاولات خاطئة تحظر الأوامر عن بُعد لمدة 15 دقيقة.",
+        "remote_pin_local_hint" to "رمز PIN الأمني الحالي",
+        "remote_pin_new_hint" to "رمز PIN جديد عن بُعد (6-12 رقماً)",
+        "remote_pin_confirm_hint" to "أعد إدخال رمز PIN عن بُعد",
+        "remote_pin_saved" to "تم حفظ رمز PIN عن بُعد.",
+        "remote_pin_mismatch" to "رمزا PIN غير متطابقين.",
+        "remote_pin_invalid" to "يجب أن يتكون رمز PIN عن بُعد من 6 إلى 12 رقماً.",
+        "remote_pin_same_as_local" to "يجب أن يختلف رمز PIN عن بُعد عن رمز فتح القفل.",
+        "remote_pin_later" to "لاحقاً",
         "sms_alarm_on" to "تم تفعيل الإنذار! صوت عالٍ يعمل.",
         "sms_alarm_off" to "تم إيقاف الإنذار.",
         "sms_locked" to "تم قفل شاشة الهاتف.",
@@ -806,6 +851,6 @@ object Strings {
         "consent_and" to " و",
         "consent_terms_link" to "شروط الاستخدام.",
         "get_started" to "ابدأ الآن",
-        "sms_help" to "أوامر فخ اللصوص:\nWHERE - الموقع\nINFO - معلومات كاملة\nSTATUS - حالة سريعة\nBATTERY - البطارية\nSIM - تفاصيل SIM\nIMEI - رقم IMEI\nHISTORY - آخر 5 مواقع\nALARM - إنذار صوتي\nSTOP ALARM - إيقاف الإنذار\nLOCK - قفل الشاشة\nLIMIT [0-5] - حد المحاولات الخاطئة (0 = إيقاف)\nPING [n] - إرسال تلقائي\nSTOP PING - إيقاف\nACTIVE - تفعيل وضع السرقة\nDEACTIVATE - إلغاء التفعيل\nDISARM [PIN] - إيقاف المراقبة"
+        "sms_help" to "أوامر فخ اللصوص:\nWHERE - الموقع\nINFO - معلومات كاملة\nSTATUS - حالة سريعة\nBATTERY - البطارية\nSIM - تفاصيل SIM\nIMEI - رقم IMEI\nHISTORY - آخر 5 مواقع\nALARM - إنذار صوتي\nSTOP ALARM - إيقاف الإنذار\nLOCK - قفل الشاشة\nLIMIT [0-5] [PIN] - حد المحاولات الخاطئة (0 = إيقاف)\nPING [n] - إرسال تلقائي\nSTOP PING [PIN] - إيقاف\nACTIVE - تفعيل وضع السرقة\nDEACTIVATE [PIN] - إلغاء التفعيل\nDISARM [PIN] - إيقاف المراقبة"
     )
 }
