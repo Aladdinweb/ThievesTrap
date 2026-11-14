@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Glassmorphism approximation: translucent light fill over the dark
-     background + a thin light border, since true backdrop blur needs
-     RenderEffect (API 31+) and this project targets minSdk 26. -->
+<!-- v2.9.14: clean subtle card (same as the website cards), no translucency -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="#14FFFFFF"/>
-    <stroke android:width="1dp" android:color="#22FFFFFF"/>
-    <corners android:radius="18dp"/>
+    <solid android:color="#0D0D10"/>
+    <stroke android:width="1dp" android:color="#202027"/>
+    <corners android:radius="16dp"/>
 </shape>

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Orange when pressed or selected, muted silver otherwise -->
+<!-- v2.9.14: website green when pressed or selected, muted grey otherwise -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:state_pressed="true"  android:color="#FF9800"/>
-    <item android:state_selected="true" android:color="#FF9800"/>
+    <item android:state_pressed="true"  android:color="#00FF66"/>
+    <item android:state_selected="true" android:color="#00FF66"/>
     <item android:color="#8E8E93"/>
 </selector>

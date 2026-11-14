@@ -253,8 +253,6 @@
     <string name="fn_info_net">أهمية الاتصال بالإنترنت\n\nيحتاج التتبع المباشر إلى اتصال بالإنترنت. يستخدم Thieves Trap وسيطاً آمناً عبر Cloudflare (جسر Cloudflare) بين الهواتف المرتبطة.\n\nوبالإضافة إلى التتبع المباشر، يقوم هذا الجسر بإرسال صور المتسلل (أمر SELFIE) فوراً إلى تطبيق المراقبة العائلي، دون تطبيقات خارجية أو بوتات أو إعدادات يدوية.\n\nهذه الشاشة معاينة فقط. الخدمة الفعلية ستصل في الإصدار v3.0.0.</string>
     <string name="sms_selfie_trap_on">تم تفعيل فخ الحركة. تُلتقط صورة (8 كحد أقصى، كل 30 ثانية) عند كل تشغيل للشاشة.</string>
     <string name="sms_selfie_trap_off">تم إيقاف فخ الحركة.</string>
-    <string name="poweroff_selfie_label">صورة عند محاولة إيقاف التشغيل</string>
-    <string name="poweroff_selfie_sub">صورة صامتة عبر تيليجرام عند محاولة إيقاف التشغيل</string>
 
 
     <!-- v2.9.9.6 Premium screen redesign -->
@@ -285,4 +283,8 @@
     <string name="copy_device_id_btn">نسخ Device ID</string>
     <string name="activate_now_btn">تفعيل الاشتراك الآن</string>
     <string name="tech_support_btn">الدعم الفني</string>
+    <string name="cmd_limit_section">تنبيه المحاولات الخاطئة</string>
+    <string name="cmd_limit_desc">يحدد عدد محاولات فتح القفل الخاطئة التي تُطلق التنبيه: من 1 إلى 5. أرسله من جهة اتصال الطوارئ.</string>
+    <string name="cmd_limit_off_desc">يوقف تنبيه المحاولات الخاطئة.</string>
+    <string name="cmd_limit_pin_desc">الأمر نفسه من أي هاتف: أضف رمز PIN الخاص بالتطبيق (الخطة ب)، مثال: LIMIT 2 1234.</string>
 </resources>

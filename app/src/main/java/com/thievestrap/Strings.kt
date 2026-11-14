@@ -147,6 +147,9 @@ object Strings {
         "sms_info" to "Full device information.",
         "sms_ping" to "Auto ping every %d min. Active.",
         "sms_ping_stopped" to "Auto pings stopped.",
+        "sms_limit_set" to "Wrong-attempt alert limit set to %d.",
+        "sms_limit_off" to "Wrong-attempt alert turned OFF (LIMIT 0).",
+        "sms_limit_usage" to "Usage: LIMIT <0-5> (0 = off). From another phone: LIMIT <0-5> <PIN>.",
         "sms_alarm_on" to "ALARM ACTIVATED! Loud sound playing.",
         "sms_alarm_off" to "Alarm stopped.",
         "sms_locked" to "Phone screen locked.",
@@ -204,7 +207,7 @@ object Strings {
         // Settings
         "settings_title" to "Settings",
         "back_btn" to "Back",
-        "sms_selfie_retired" to "The SELFIE remote command has been retired. Silent selfie capture now happens automatically on a power-off attempt if you enable it in Settings.",
+        "sms_selfie_retired" to "The SELFIE remote command has been retired.",
         "sms_selfie_trap_on" to "Motion trap ON. A photo is taken (max 8, 30s apart) every time the screen turns on.",
         "sms_selfie_trap_off" to "Motion trap OFF.",
         "oem_title" to "One more step for this phone",
@@ -281,7 +284,7 @@ object Strings {
         "consent_and" to " and ",
         "consent_terms_link" to "Terms of Use.",
         "get_started" to "GET STARTED",
-        "sms_help" to "THIEVES TRAP COMMANDS:\nWHERE - GPS location\nINFO - Full device info\nSTATUS - Quick status\nBATTERY - Battery level\nSIM - SIM details\nIMEI - Device IMEI\nHISTORY - Last 5 locations\nALARM - Loud alarm\nSTOP ALARM - Silence alarm\nLOCK - Lock screen\nSELFIE - Take 1 photo\nPING [n] - Auto ping every n min\nSTOP PING - Stop pings\nACTIVE - Activate theft mode\nDEACTIVATE - Deactivate\nDISARM [PIN] - Stop monitoring"
+        "sms_help" to "THIEVES TRAP COMMANDS:\nWHERE - GPS location\nINFO - Full device info\nSTATUS - Quick status\nBATTERY - Battery level\nSIM - SIM details\nIMEI - Device IMEI\nHISTORY - Last 5 locations\nALARM - Loud alarm\nSTOP ALARM - Silence alarm\nLOCK - Lock screen\nLIMIT [0-5] - Wrong-attempt alert limit (0 = off)\nPING [n] - Auto ping every n min\nSTOP PING - Stop pings\nACTIVE - Activate theft mode\nDEACTIVATE - Deactivate\nDISARM [PIN] - Stop monitoring"
     )
 
     val FR = mapOf(
@@ -405,6 +408,9 @@ object Strings {
         "sms_info" to "Informations complètes de l'appareil.",
         "sms_ping" to "Ping automatique toutes les %d min. Actif.",
         "sms_ping_stopped" to "Pings automatiques arrêtés.",
+        "sms_limit_set" to "Limite d'alerte de tentatives erronées réglée sur %d.",
+        "sms_limit_off" to "Alerte de tentatives erronées désactivée (LIMIT 0).",
+        "sms_limit_usage" to "Utilisation : LIMIT <0-5> (0 = désactivé). Depuis un autre téléphone : LIMIT <0-5> <PIN>.",
         "sms_alarm_on" to "ALARME ACTIVÉE ! Son fort en cours.",
         "sms_alarm_off" to "Alarme arrêtée.",
         "sms_locked" to "Écran verrouillé.",
@@ -462,7 +468,7 @@ object Strings {
         // Settings
         "settings_title" to "Paramètres",
         "back_btn" to "Retour",
-        "sms_selfie_retired" to "La commande SELFIE a ete retiree. La capture silencieuse se declenche desormais automatiquement lors d'une tentative d'extinction si vous l'activez dans les Parametres.",
+        "sms_selfie_retired" to "La commande SELFIE a ete retiree.",
         "sms_selfie_trap_on" to "Piege photo ACTIVE. Une photo est prise (8 max, 30s d'ecart) a chaque allumage de l'ecran.",
         "sms_selfie_trap_off" to "Piege photo DESACTIVE.",
         "oem_title" to "Une derniere etape pour ce telephone",
@@ -539,7 +545,7 @@ object Strings {
         "consent_and" to " et les ",
         "consent_terms_link" to "Conditions d'utilisation.",
         "get_started" to "COMMENCER",
-        "sms_help" to "COMMANDES PIÈGE À VOLEURS :\nWHERE - Position GPS\nINFO - Infos complètes\nSTATUS - Statut rapide\nBATTERY - Batterie\nSIM - Détails SIM\nIMEI - IMEI appareil\nHISTORY - 5 dernières positions\nALARM - Alarme forte\nSTOP ALARM - Arrêter alarme\nLOCK - Verrouiller écran\nSELFIE - 1 photo\nPING [n] - Ping auto\nSTOP PING - Arrêter pings\nACTIVE - Activer mode vol\nDEACTIVATE - Désactiver\nDISARM [PIN] - Arrêter surveillance"
+        "sms_help" to "COMMANDES PIÈGE À VOLEURS :\nWHERE - Position GPS\nINFO - Infos complètes\nSTATUS - Statut rapide\nBATTERY - Batterie\nSIM - Détails SIM\nIMEI - IMEI appareil\nHISTORY - 5 dernières positions\nALARM - Alarme forte\nSTOP ALARM - Arrêter alarme\nLOCK - Verrouiller écran\nLIMIT [0-5] - Limite tentatives erronées (0 = off)\nPING [n] - Ping auto\nSTOP PING - Arrêter pings\nACTIVE - Activer mode vol\nDEACTIVATE - Désactiver\nDISARM [PIN] - Arrêter surveillance"
     )
 
     val AR = mapOf(
@@ -663,6 +669,9 @@ object Strings {
         "sms_info" to "معلومات كاملة عن الجهاز.",
         "sms_ping" to "إرسال الموقع تلقائياً كل %d دقيقة. مفعّل.",
         "sms_ping_stopped" to "تم إيقاف الإرسال التلقائي.",
+        "sms_limit_set" to "تم ضبط حد تنبيه المحاولات الخاطئة على %d.",
+        "sms_limit_off" to "تم إيقاف تنبيه المحاولات الخاطئة (LIMIT 0).",
+        "sms_limit_usage" to "الاستخدام: LIMIT <0-5> (0 = إيقاف). من هاتف آخر: LIMIT <0-5> <PIN>.",
         "sms_alarm_on" to "تم تفعيل الإنذار! صوت عالٍ يعمل.",
         "sms_alarm_off" to "تم إيقاف الإنذار.",
         "sms_locked" to "تم قفل شاشة الهاتف.",
@@ -720,7 +729,7 @@ object Strings {
         // Settings
         "settings_title" to "الإعدادات",
         "back_btn" to "رجوع",
-        "sms_selfie_retired" to "تم إيقاف أمر SELFIE عن بعد. الآن يتم التقاط صورة صامتة تلقائياً عند محاولة إيقاف تشغيل الهاتف إذا فعّلت ذلك من الإعدادات.",
+        "sms_selfie_retired" to "تم إيقاف أمر SELFIE عن بعد.",
         "sms_selfie_trap_on" to "تم تفعيل فخ الحركة. تُلتقط صورة (8 كحد أقصى، كل 30 ثانية) عند كل تشغيل للشاشة.",
         "sms_selfie_trap_off" to "تم إيقاف فخ الحركة.",
         "oem_title" to "خطوة أخيرة لهذا الهاتف",
@@ -797,6 +806,6 @@ object Strings {
         "consent_and" to " و",
         "consent_terms_link" to "شروط الاستخدام.",
         "get_started" to "ابدأ الآن",
-        "sms_help" to "أوامر فخ اللصوص:\nWHERE - الموقع\nINFO - معلومات كاملة\nSTATUS - حالة سريعة\nBATTERY - البطارية\nSIM - تفاصيل SIM\nIMEI - رقم IMEI\nHISTORY - آخر 5 مواقع\nALARM - إنذار صوتي\nSTOP ALARM - إيقاف الإنذار\nLOCK - قفل الشاشة\nSELFIE - صورة واحدة\nPING [n] - إرسال تلقائي\nSTOP PING - إيقاف\nACTIVE - تفعيل وضع السرقة\nDEACTIVATE - إلغاء التفعيل\nDISARM [PIN] - إيقاف المراقبة"
+        "sms_help" to "أوامر فخ اللصوص:\nWHERE - الموقع\nINFO - معلومات كاملة\nSTATUS - حالة سريعة\nBATTERY - البطارية\nSIM - تفاصيل SIM\nIMEI - رقم IMEI\nHISTORY - آخر 5 مواقع\nALARM - إنذار صوتي\nSTOP ALARM - إيقاف الإنذار\nLOCK - قفل الشاشة\nLIMIT [0-5] - حد المحاولات الخاطئة (0 = إيقاف)\nPING [n] - إرسال تلقائي\nSTOP PING - إيقاف\nACTIVE - تفعيل وضع السرقة\nDEACTIVATE - إلغاء التفعيل\nDISARM [PIN] - إيقاف المراقبة"
     )
 }

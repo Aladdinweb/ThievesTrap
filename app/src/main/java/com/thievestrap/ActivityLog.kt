@@ -9,7 +9,7 @@ import java.util.Locale
  * v2.9.12: the on-screen Activity Log shows ONLY core security events:
  *   REMOTE CMD    a real remote SMS command (accepted or refused), PINs masked
  *   WRONG UNLOCK  a wrong screen-lock / PIN attempt caught by Device Admin
- *   SELFIE        an intruder selfie (or power-off attempt selfie) was captured
+ *   SELFIE        an intruder selfie was captured
  * Everything else (ARM/DISARM, SMS delivery diagnostics, carrier or promo texts that
  * merely arrived) is kept OUT of this list. Unrelated SMS bodies are never stored at all.
  * Old entries written by earlier versions have no category prefix and are filtered out
@@ -35,7 +35,7 @@ object ActivityLog {
     private val COMMANDS = setOf(
         "WHERE", "LOCATION", "LOC", "FIND", "INFO", "DEVICE", "STATUS", "BATTERY", "BAT",
         "SIM", "IMEI", "HISTORY", "ALARM", "RING", "SILENCE", "LOCK", "SELFIE", "PHOTO",
-        "PICTURE", "PING", "ACTIVE", "ACTIVATE", "DEACTIVATE", "DISARM", "HELP", "COMMANDS", "?"
+        "PICTURE", "PING", "ACTIVE", "ACTIVATE", "DEACTIVATE", "DISARM", "HELP", "COMMANDS", "LIMIT", "?"
     )
 
     /** True only for "<COMMAND>" or "STOP ALARM|PING", optionally followed by digits (PIN or minutes). */

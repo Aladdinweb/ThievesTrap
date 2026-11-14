@@ -2,6 +2,7 @@
 // Bindings required:  KV namespace  LICENSES   (shared with the separate admin Worker, see admin_worker/)
 // Secrets required:   SIGNING_KEY (base64 of the PKCS8 DER of the P-256 private key)
 //
+// Visitor feedback (POST /feedback, stored in KV as f:* entries, reviewed and deleted in the admin Worker).
 // Public website (GET):   /  /terms  /privacy  (site.js)   /download (redirect to the latest APK)
 //                         /version  ->  {min_version_code, latest_version_code, latest_version_name, key_fp}
 // License API (POST):     /activate  (binds an UNBOUND key to the phone; a DIFFERENT phone gets key_in_use)
@@ -233,6 +234,58 @@ async function versionInfo(env) {
   }), { headers: { "content-type": "application/json", "cache-control": "public, max-age=60" } });
 }
 
+// ---------------------------------------------------------------- visitor feedback (public form -> KV)
+// Entry "f:<9999999999999 - ms>:<rand>" (a plain list returns the NEWEST first). The full text is the value; a short
+// summary is in KV metadata so the admin list needs no extra reads. Entries expire after one year or when the admin
+// deletes them. Limits: 3 per visitor per hour (anonymous hashed counter that lives one hour), 100 per day in total
+// (protects the KV write budget used by licensing), 4 KB request, message 5..1000 characters, hidden honeypot field.
+const FB_MAX_BODY = 4096;
+const FB_TTL = 365 * 86400;
+const FB_PER_HOUR = 3;
+const FB_PER_DAY = 100;
+
+const fbClean = (v, n) => String(v === undefined || v === null ? "" : v)
+  .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u200B-\u200F\u202A-\u202E\u2066-\u2069]/g, "") // control and bidi-override characters
+  .trim().slice(0, n);
+
+async function fbHash(ip) {
+  const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("tt-fb|" + ip));
+  return Array.from(new Uint8Array(d).slice(0, 8)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function feedback(req, env) {
+  const origin = req.headers.get("origin");
+  if (origin) { try { if (new URL(origin).host !== new URL(req.url).host) return json({ error: "forbidden" }, 403); } catch (e) { return json({ error: "forbidden" }, 403); } }
+  const raw = await req.text();
+  if (raw.length > FB_MAX_BODY) return json({ error: "too_large" }, 413);
+  let b; try { b = JSON.parse(raw); } catch (e) { return json({ error: "bad_request" }, 400); }
+  if (!b || typeof b !== "object") return json({ error: "bad_request" }, 400);
+  if (b.website) return json({ ok: true });                       // honeypot filled: pretend success, store nothing
+
+  const message = fbClean(b.message, 1000);
+  const name = fbClean(b.name, 60).replace(/\s+/g, " ");
+  const contact = fbClean(b.contact, 100).replace(/\s+/g, " ");
+  const rating = Number.isInteger(b.rating) && b.rating >= 1 && b.rating <= 5 ? b.rating : 0;
+  if (message.length < 5) return json({ error: "message_too_short" }, 400);
+
+  const rl = "fr:" + await fbHash(req.headers.get("cf-connecting-ip") || "unknown");
+  const used = parseInt(await env.LICENSES.get(rl), 10) || 0;
+  if (used >= FB_PER_HOUR) return json({ error: "rate_limited" }, 429);
+  const dayKey = "fg:" + new Date().toISOString().slice(0, 10);
+  const today = parseInt(await env.LICENSES.get(dayKey), 10) || 0;
+  if (today >= FB_PER_DAY) return json({ error: "busy" }, 429);
+
+  const t = Date.now();
+  const id = "f:" + String(9999999999999 - t).padStart(13, "0") + ":" + toB64(crypto.getRandomValues(new Uint8Array(3))).replace(/[^A-Za-z0-9]/g, "x");
+  const meta = { t, r: rating, n: name.slice(0, 30), c: contact.slice(0, 40), p: message.replace(/\s+/g, " ").slice(0, 160) };
+  const size = () => new TextEncoder().encode(JSON.stringify(meta)).length;
+  while (size() > 900 && meta.p.length > 20) meta.p = meta.p.slice(0, meta.p.length - 20);  // KV metadata limit is 1024 bytes
+  await env.LICENSES.put(id, JSON.stringify({ t, name, contact, rating, message }), { expirationTtl: FB_TTL, metadata: meta });
+  await env.LICENSES.put(rl, String(used + 1), { expirationTtl: 3600 });
+  await env.LICENSES.put(dayKey, String(today + 1), { expirationTtl: 172800 });
+  return json({ ok: true });
+}
+
 // ---------------------------------------------------------------- router
 
 export default {
@@ -249,6 +302,11 @@ export default {
       return notFound();
     }
     if (req.method !== "POST") return json({ error: "not_found" }, 404);
+
+    // Feedback reads its own raw body, so it must be dispatched BEFORE the JSON parsing below consumes it.
+    if (path === "/feedback") {
+      try { return await feedback(req, env); } catch (e) { return json({ error: "server" }, 500); }
+    }
 
     let body;
     try { body = await req.json(); } catch { body = null; }

@@ -9,7 +9,7 @@
 //
 // GET  /              dashboard page (useless without the token, noindex)
 // POST /admin/ping | generate | list | info | renew | suspend | resume | revoke | restore | unbind | delete | purge | audit |
-//      minversion | diagnostics   (Bearer ADMIN_TOKEN)
+//      minversion | diagnostics | feedback_list | feedback_get | feedback_delete   (Bearer ADMIN_TOKEN)
 
 const ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no 0/O/1/I/L
 const PLAN_DAYS = { monthly: 30, "3months": 90, annual: 365, lifetime: 0 };
@@ -152,6 +152,27 @@ async function admin(path, body, env) {
     if (v === 0) await env.LICENSES.delete("cfg:min_version"); else await env.LICENSES.put("cfg:min_version", String(v));
     await audit(env, "force_update", "", "minimum versionCode " + before + " -> " + v);
     return json({ ok: true, min_version_code: v });
+  }
+
+  // Visitor feedback written by the public Worker (KV "f:" entries). Review and delete only; nothing here can edit them.
+  const FB_ID = /^f:[0-9]{13}:[A-Za-z0-9]{1,12}$/;
+  if (path === "/admin/feedback_list") {
+    const limit = Math.min(Math.max(parseInt(body.limit || 50, 10) || 50, 1), MAX_AUDIT_LIST);
+    const res = await env.LICENSES.list({ prefix: "f:", limit, cursor: body.cursor || undefined });
+    return json({ ok: true, items: res.keys.map((k) => ({ id: k.name, ...(k.metadata || {}) })), cursor: res.list_complete ? null : res.cursor });
+  }
+  if (path === "/admin/feedback_get") {
+    if (!FB_ID.test(String(body.id || ""))) return json({ error: "bad_id" }, 400);
+    const v = await env.LICENSES.get(body.id);
+    if (!v) return json({ error: "not_found" }, 404);
+    let o = {}; try { o = JSON.parse(v); } catch (e) {}
+    return json({ ok: true, id: body.id, t: o.t || 0, name: o.name || "", contact: o.contact || "", rating: o.rating || 0, message: o.message || "" });
+  }
+  if (path === "/admin/feedback_delete") {
+    if (!FB_ID.test(String(body.id || ""))) return json({ error: "bad_id" }, 400);
+    await env.LICENSES.delete(body.id);
+    await audit(env, "feedback_delete", "", "one visitor feedback entry removed");
+    return json({ ok: true, deleted: true });
   }
 
   // Delete revoked keys in small batches (call again while "remaining" > 0). One log entry per batch.
@@ -299,10 +320,11 @@ code,.mono{font-family:ui-monospace,Menlo,Consolas,monospace}
 .top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;padding:10px 16px;padding-top:max(10px,env(safe-area-inset-top,0px));background:rgba(8,8,10,.93);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
 .brand{font-weight:800;letter-spacing:.05em}.brand span{color:var(--grn);font-weight:700}
 .grow{flex:1;min-width:0}
-.tabs{position:fixed;inset-inline:0;bottom:0;z-index:30;display:grid;grid-template-columns:repeat(5,1fr);background:rgba(12,12,15,.97);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
-.tabs button{min-height:58px;background:none;border:0;border-radius:0;color:var(--mu);font-size:11.5px;font-weight:600;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;padding:6px 2px}
+.tabs{position:fixed;inset-inline:0;bottom:0;z-index:30;display:grid;grid-template-columns:repeat(6,1fr);background:rgba(12,12,15,.97);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs button{position:relative;min-height:58px;background:none;border:0;border-radius:0;color:var(--mu);font-size:11.5px;font-weight:600;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;padding:6px 2px}
 .tabs button svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .tabs button.on{color:var(--grn)}
+.bdg{position:absolute;top:5px;inset-inline-start:calc(50% + 6px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--red);color:#fff;font-size:11px;font-weight:800;display:grid;place-items:center;font-style:normal}
 .tabs button:active{background:rgba(0,255,102,.08)}
 .wrap{max-width:1100px;margin:0 auto;padding:16px}
 .tab{display:none}
@@ -369,6 +391,13 @@ button.sm{min-height:36px;padding:4px 12px;font-size:13px}
 .e-suspend{color:var(--amb);border-color:rgba(245,165,36,.5)}
 .e-revoke,.e-delete,.e-purge_revoked{color:var(--red);border-color:rgba(255,69,69,.5)}
 .e-unbind{color:var(--blu);border-color:rgba(90,169,255,.5)}
+.e-feedback_delete{color:var(--red);border-color:rgba(255,69,69,.5)}
+.fb{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:12px;margin-top:10px;min-width:0}
+.fbhead{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
+.stars{color:var(--gold);letter-spacing:2px;font-size:16px}
+.fbwho{font-weight:700;overflow-wrap:anywhere}
+.fbtime{font-size:12px;color:var(--mu);margin-inline-start:auto}
+.fbmsg{margin:8px 0 2px;white-space:pre-wrap;overflow-wrap:anywhere;unicode-bidi:plaintext}
 .evk{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px}
 .evd{grid-column:2;font-size:13px;color:var(--mu);overflow-wrap:anywhere}
 .diagbox{white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.55;background:#0c0c0f;border:1px solid var(--line);border-radius:12px;padding:12px;overflow-wrap:anywhere}
@@ -380,11 +409,12 @@ body{padding-bottom:24px}
 .stats{grid-template-columns:repeat(6,minmax(0,1fr))}
 .cols{grid-template-columns:repeat(2,minmax(0,1fr))}
 .klist{grid-template-columns:repeat(2,minmax(0,1fr))}
-.tabs{position:sticky;top:var(--topH,58px);bottom:auto;grid-template-columns:repeat(5,auto);justify-content:start;gap:4px;padding:8px 16px;border-top:0;border-bottom:1px solid var(--line);background:rgba(8,8,10,.95)}
+.tabs{position:sticky;top:var(--topH,58px);bottom:auto;grid-template-columns:repeat(6,auto);justify-content:start;gap:4px;padding:8px 16px;border-top:0;border-bottom:1px solid var(--line);background:rgba(8,8,10,.95)}
 .tabs button{flex-direction:row;gap:8px;min-height:40px;padding:0 16px;border-radius:10px;font-size:14px}
 .tabs button.on{background:rgba(0,255,102,.1)}
 }
-@media(max-width:380px){.acts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(min-width:900px){.bdg{top:7px;inset-inline-start:auto;inset-inline-end:3px}}
+@media(max-width:380px){.tabs button{font-size:10.5px}.acts{grid-template-columns:repeat(2,minmax(0,1fr))}}
 #printArea{display:none}
 .ticket{box-sizing:border-box;width:94mm;height:50mm;border:0.3mm dashed #888;border-radius:3mm;overflow:hidden;display:flex;flex-direction:column;background:#fff;color:#111;break-inside:avoid;page-break-inside:avoid;font-family:system-ui,Arial,sans-serif}
 .tk-head{background:#0a0a0b;color:#d4af37;padding:1.6mm 3mm;display:flex;justify-content:space-between;align-items:baseline;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -429,6 +459,7 @@ body>*:not(#printArea){display:none!important}
     <button type="button" data-tab="keys"><svg viewBox="0 0 24 24"><circle cx="8" cy="12" r="4"/><path d="M12 12h9M18 12v4M15 12v3"/></svg><span>Keys</span></button>
     <button type="button" data-tab="generate"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>Generate</span></button>
     <button type="button" data-tab="activity"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span>Activity</span></button>
+    <button type="button" data-tab="feedback"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg><span>Feedback</span><i class="bdg" id="fbBadge" hidden></i></button>
     <button type="button" data-tab="system"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg><span>System</span></button>
   </nav>
 
@@ -520,6 +551,18 @@ body>*:not(#printArea){display:none!important}
       </div>
     </section>
 
+    <section id="tab-feedback" class="tab">
+      <div class="card">
+        <div class="row">
+          <div class="f"><h2>Visitor feedback</h2><div class="small">Messages sent from the website. Read them here and delete the ones you have handled. Entries are also removed automatically after one year.</div></div>
+          <button type="button" class="sec" id="btnFbRefresh">Refresh</button>
+        </div>
+        <div id="fbList"></div>
+        <div class="mt"><button type="button" class="sec" id="btnFbMore" hidden>Load older</button></div>
+        <div id="fbMsg" class="msg"></div>
+      </div>
+    </section>
+
     <section id="tab-system" class="tab">
       <div class="cols">
         <div class="card">
@@ -557,7 +600,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   var selected = {}, lastShown = [], lastGen = null, renewOpen = null;
   var PLAN = { monthly: "Monthly", "3months": "3 Months", annual: "Annual", lifetime: "Lifetime", trial: "Trial" };
   var EVENT = { generate: "Generated", renew: "Renewed", suspend: "Suspended", resume: "Resumed", revoke: "Revoked", restore: "Restored",
-                unbind: "Unbound", "delete": "Deleted", purge_revoked: "Purged revoked", force_update: "Force Update" };
+                unbind: "Unbound", "delete": "Deleted", purge_revoked: "Purged revoked", force_update: "Force Update", feedback_delete: "Feedback deleted" };
   var STATUSES = ["Active", "Unused", "Expired", "Suspended", "Revoked"];
 
   function $(id) { return document.getElementById(id); }
@@ -648,13 +691,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
 
   /* ---------- navigation ---------- */
-  var TABS = ["overview", "keys", "generate", "activity", "system"];
+  var TABS = ["overview", "keys", "generate", "activity", "feedback", "system"];
   function setTab(name, push) {
     if (TABS.indexOf(name) < 0) name = "overview";
     TABS.forEach(function (t) { $("tab-" + t).classList.toggle("on", t === name); });
     Array.prototype.forEach.call($("tabs").querySelectorAll("button"), function (b) { b.classList.toggle("on", b.getAttribute("data-tab") === name); });
     if (push !== false && location.hash !== "#" + name) { try { history.replaceState(null, "", "#" + name); } catch (e) {} }
     if (name === "activity" && !auditLoaded) loadAudit(true);
+    if (name === "feedback") { if (!fbLoaded) loadFeedback(true).then(markFbSeen); else markFbSeen(); }
     window.scrollTo(0, 0);
   }
   Array.prototype.forEach.call(document.querySelectorAll("[data-tab]"), function (b) {
@@ -938,6 +982,70 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   $("btnAuditRefresh").addEventListener("click", function () { loadAudit(true); });
   $("btnAuditMore").addEventListener("click", function () { loadAudit(false); });
 
+  /* ---------- feedback ---------- */
+  var fbItems = [], fbCursor = null, fbLoaded = false, FB_SEEN = "tt_fb_seen";
+  function stars(n) { var s = ""; for (var i = 1; i <= 5; i++) s += i <= n ? "★" : "☆"; return s; }
+  function seenTime() { try { return Number(localStorage.getItem(FB_SEEN) || 0); } catch (e) { return 0; } }
+  function updateFbBadge() {
+    var seen = seenTime(), n = fbItems.filter(function (x) { return x.t > seen; }).length, b = $("fbBadge");
+    b.hidden = n === 0; b.textContent = n > 9 ? "9+" : String(n);
+  }
+  function markFbSeen() {
+    if (fbItems.length) { try { localStorage.setItem(FB_SEEN, String(Math.max.apply(null, fbItems.map(function (x) { return x.t; })))); } catch (e) {} }
+    var b = $("fbBadge"); b.hidden = true;
+  }
+  function feedbackRow(it) {
+    var d = el("div", "fb");
+    var head = el("div", "fbhead");
+    head.appendChild(el("span", "stars", it.r ? stars(it.r) : "no rating"));
+    head.appendChild(el("span", "fbwho", [it.n || "Anonymous", it.c || ""].filter(Boolean).join("  |  ")));
+    head.appendChild(el("span", "fbtime", fmtTime(it.t)));
+    d.appendChild(head);
+    var msg = el("div", "fbmsg", it.p || "");
+    d.appendChild(msg);
+    var acts = el("div", "btns mt2");
+    var read = btn("Read full message", "sec sm", function () {
+      read.disabled = true;
+      api("/admin/feedback_get", { id: it.id }).then(function (r) {
+        read.disabled = false;
+        if (r.status !== 200) { $("fbMsg").textContent = "Could not load it (" + (r.data.error || r.status) + ")."; return; }
+        msg.textContent = r.data.message;
+        head.querySelector(".fbwho").textContent = [r.data.name || "Anonymous", r.data.contact || ""].filter(Boolean).join("  |  ");
+        read.hidden = true;
+      });
+    });
+    acts.appendChild(read);
+    acts.appendChild(btn("Delete", "dan sm", function () {
+      if (!window.confirm("Delete this feedback permanently?")) return;
+      api("/admin/feedback_delete", { id: it.id }).then(function (r) {
+        if (r.status !== 200) { $("fbMsg").textContent = "Error: " + (r.data.error || r.status); return; }
+        fbItems = fbItems.filter(function (x) { return x.id !== it.id; });
+        pushAudit("feedback_delete", "", "one visitor feedback entry removed");
+        renderFeedback(); updateFbBadge();
+      });
+    }));
+    d.appendChild(acts);
+    return d;
+  }
+  function renderFeedback() {
+    var box = $("fbList"); box.textContent = "";
+    if (!fbItems.length) box.appendChild(el("div", "small mt", fbLoaded ? "No feedback yet." : "Loading..."));
+    fbItems.forEach(function (it) { box.appendChild(feedbackRow(it)); });
+    $("btnFbMore").hidden = !fbCursor;
+  }
+  function loadFeedback(reset) {
+    $("fbMsg").textContent = "";
+    return api("/admin/feedback_list", { limit: 50, cursor: reset ? undefined : fbCursor }).then(function (r) {
+      if (r.status === 401) { logout("Session expired. Sign in again."); return; }
+      if (r.status !== 200) { $("fbMsg").textContent = "Error " + r.status; return; }
+      fbItems = reset ? (r.data.items || []) : fbItems.concat(r.data.items || []);
+      fbCursor = r.data.cursor || null; fbLoaded = true;
+      renderFeedback(); updateFbBadge();
+    }).catch(function () { $("fbMsg").textContent = "Network error."; });
+  }
+  $("btnFbRefresh").addEventListener("click", function () { loadFeedback(true).then(markFbSeen); });
+  $("btnFbMore").addEventListener("click", function () { loadFeedback(false); });
+
   /* ---------- system ---------- */
   function loadMin() {
     api("/admin/minversion").then(function (r) {
@@ -987,7 +1095,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (on) { measureTop(); setTab(location.hash.slice(1), false); }
   }
   function logout(msg) {
-    token = ""; sessionStorage.removeItem("tt_admin"); items = []; audit = []; auditLoaded = false; selected = {};
+    token = ""; sessionStorage.removeItem("tt_admin"); items = []; audit = []; auditLoaded = false; selected = {}; fbItems = []; fbLoaded = false;
     showApp(false); $("loginMsg").textContent = msg || "";
   }
   function login() {
@@ -999,7 +1107,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       else { token = ""; sessionStorage.removeItem("tt_admin"); $("loginMsg").textContent = "Wrong token."; }
     }).catch(function () { $("loginMsg").textContent = "Network error."; });
   }
-  function start() { showApp(true); loadKeys(); loadAudit(true); loadMin(); }
+  function start() { showApp(true); loadKeys(); loadAudit(true); loadMin(); loadFeedback(true); }
   $("btnLogin").addEventListener("click", login);
   $("tok").addEventListener("keydown", function (e) { if (e.key === "Enter") login(); });
   $("btnOut").addEventListener("click", function () { logout(""); });

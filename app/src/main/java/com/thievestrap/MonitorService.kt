@@ -157,34 +157,18 @@ class MonitorService : Service() {
             "SELFIE_SAVED" -> {
                 val path   = intent.getStringExtra("path") ?: ""
                 val count  = intent.getIntExtra("count", 1)
-                val reason = intent.getStringExtra("reason") ?: "intruder" // v2.9.9.3
                 if (path.isNotBlank()) {
                     val photoFile = java.io.File(path)
-                    val label = if (reason == "poweroff") "Power-off attempt selfie" else "Intruder selfie #$count"
+                    val label = "Intruder selfie #$count"
                     recordAlert(label)
                     ActivityLog.selfie(this, label) // v2.9.12
                     prefs().edit().putString("last_selfie_path", path).apply()
                     if (LicenseManager.isPremium(this) && photoFile.exists() &&
                         photoFile.length() > 0) {
-                        val headline = if (reason == "poweroff")
-                            "\uD83D\uDD0C THIEVES TRAP \u2014 POWER-OFF ATTEMPT PHOTO"
-                        else "\uD83D\uDEA8 THIEVES TRAP \u2014 INTRUDER PHOTO #$count"
+                        val headline = "\uD83D\uDEA8 THIEVES TRAP \u2014 INTRUDER PHOTO #$count"
                         val caption = "$headline\nTime: ${ts()} | Battery: ${bat()}%\n${locStr()}"
                         TelegramUploader.enqueuePhoto(this, photoFile, caption)
                     }
-                }
-                return START_STICKY
-            }
-            "POWEROFF_SELFIE" -> {
-                // v2.9.9.3: fired by PowerOffSelfieReceiver on ACTION_SHUTDOWN.
-                // Best-effort: the device is already shutting down, so capture
-                // and the SMS/Telegram sends below race the power-off itself
-                // -- same reliability class as a "last known location" ping
-                // in Find My Device-style apps, not a guarantee.
-                if (LicenseManager.isPremium(this) && prefs().getBoolean("poweroff_selfie_enabled", false)
-                    && prefs().getBoolean("running", false)) {
-                    SelfieService.takePhoto(this, 1, reason = "poweroff")
-                    smsAll("\u26A0\uFE0F ${s("app_name")}: Power-off attempt detected\n${locStr()}")
                 }
                 return START_STICKY
             }
@@ -375,7 +359,7 @@ class MonitorService : Service() {
                 "HISTORY", "ALARM", "RING", "STOP ALARM", "SILENCE", "LOCK",
                 "SELFIE", "PHOTO", "PICTURE",
                 "PING", "ACTIVE", "ACTIVATE", "DEACTIVATE", "DISARM",
-                "HELP", "COMMANDS", "?", "STOP PING"
+                "HELP", "COMMANDS", "?", "STOP PING", "LIMIT"
             )
             val isKnownCmd = knownCommands.any {
                 body == it || body.startsWith("$it ") ||
@@ -423,6 +407,8 @@ class MonitorService : Service() {
         } catch (e: Exception) { false }
         val sb = StringBuilder("${s("app_name")}: Armed=${prefs().getBoolean("running", false)}" +
             " | Premium=${LicenseManager.isPremium(this)} | Admin=$adminOk")
+        val th = prefs().getInt("failed_threshold", 3)
+        sb.append(" | WrongPinLimit=").append(if (th == -1) "off" else th.toString())
         val log = ActivityLog.recent(this, 6)
         if (log.isNotEmpty()) sb.append("\nRecent:\n").append(log.joinToString("\n"))
         return sb.toString()
@@ -455,6 +441,9 @@ class MonitorService : Service() {
         // could START the alarm with a PIN but never stop it.
         if (parts.size == 3 && parts[0] == "STOP" && parts[1] == "ALARM" && parts[2].isNotBlank())
             return "STOP ALARM" to parts[2]
+        // v2.9.14: "LIMIT <0-5> <PIN>" has three words
+        if (parts.size == 3 && parts[0] == "LIMIT" && parts[1].length == 1 && parts[1][0] in '0'..'5' && parts[2].isNotBlank())
+            return "LIMIT ${parts[1]}" to parts[2]
         if (parts.size != 2) return null
         val cmd = parts[0]; val pin = parts[1]
         val planBCommands = setOf(
@@ -478,8 +467,7 @@ class MonitorService : Service() {
                     Intent(this, AlarmService::class.java).apply { action = "START_ALARM" })
                 sms(sender, "\uD83D\uDEA8 ${s("app_name")}: ${s("sms_alarm_on")} (Plan B)")
             }
-            // v2.9.9.3: SELFIE remote command retired -- power-off attempt
-            // capture (Settings toggle) replaces it. See STATE.md.
+            // SELFIE remote command retired (see STATE.md).
             "SELFIE","PHOTO","PICTURE" ->
                 sms(sender, "${s("app_name")}: ${s("sms_selfie_retired")} (Plan B)")
             "INFO","DEVICE"  -> sms(sender, buildFullInfo("\uD83D\uDCF1", s("sms_info")))
@@ -497,6 +485,7 @@ class MonitorService : Service() {
                 if (lockDeviceSafely()) sms(sender, "${s("app_name")}: ${s("sms_locked")} (Plan B)")
                 else sms(sender, "${s("app_name")}: LOCK failed - Device Admin is not active.")
             }
+            else -> if (cmd.startsWith("LIMIT ")) applyWrongPinLimit(cmd.removePrefix("LIMIT ").trim(), sender, " (Plan B)")
         }
         recordAlert("Plan B '$cmd' from $sender")
     }
@@ -774,6 +763,13 @@ class MonitorService : Service() {
             }
         }
 
+        // v2.9.14: LIMIT <0-5> changes the free "Alert after N failed attempts" setting remotely
+        // (0 = alert off). Registered senders only reach this point; other phones use "LIMIT <n> <PIN>" (Plan B).
+        if (cmd == "LIMIT" || cmd.startsWith("LIMIT ")) {
+            applyWrongPinLimit(cmd.removePrefix("LIMIT").trim(), sender, "")
+            return
+        }
+
         if (!LicenseManager.isPremium(this)) return
 
         if (cmd == "ACTIVE" || cmd == "ACTIVATE") {
@@ -877,6 +873,20 @@ class MonitorService : Service() {
     }
 
     // ── Ping ──────────────────────────────────────────────────────
+
+    /**
+     * v2.9.14: remote "LIMIT <n>": n = 1..5 wrong screen-lock attempts before the alert fires; 0 = alert off
+     * (stored as -1, exactly what the "None" choice of the Settings spinner stores). The counter restarts.
+     * The sender gets the result by SMS and Telegram. Anything else gets a one-line usage reply.
+     */
+    private fun applyWrongPinLimit(arg: String, sender: String, via: String) {
+        val n = if (arg.length == 1 && arg[0] in '0'..'5') arg.toInt() else -1
+        if (n < 0) { reply(sender, "${s("app_name")}: ${s("sms_limit_usage")}$via"); return }
+        prefs().edit().putInt("failed_threshold", if (n == 0) -1 else n).putInt("wrong_pin_count", 0).apply()
+        sendBroadcast(Intent("com.thievestrap.SETTINGS_REFRESH"))
+        val msg = if (n == 0) s("sms_limit_off") else String.format(s("sms_limit_set"), n)
+        reply(sender, "${s("app_name")}: $msg$via")
+    }
 
     private fun schedulePing(intervalMins: Int) {
         currentPingInterval = intervalMins

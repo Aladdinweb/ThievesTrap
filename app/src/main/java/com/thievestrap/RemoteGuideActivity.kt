@@ -56,14 +56,16 @@ class RemoteGuideActivity : AppCompatActivity() {
         setCmd(R.id.cmd_alarm,      "ALARM",        "Trigger loud alarm — forces phone out of silent mode")
         setCmd(R.id.cmd_stop_alarm, "STOP ALARM",   "Stop the alarm remotely")
         setCmd(R.id.cmd_lock,       "LOCK",         "Lock the screen immediately (Premium)")
-        // v2.9.9.3: SELFIE remote command retired -- selfie capture on a
-        // power-off attempt is now a toggle in Settings, not a command.
         setCmd(R.id.cmd_ping2,      "PING 2",       "Send GPS location every 2 minutes (Premium)")
         setCmd(R.id.cmd_ping5,      "PING 5",       "Send GPS location every 5 minutes (Premium)")
         setCmd(R.id.cmd_stop_ping,  "STOP PING",    "Stop periodic location updates (Premium)")
         setCmd(R.id.cmd_active,     "ACTIVE",       "Enable Full Protection / Theft Mode (Premium)")
         setCmd(R.id.cmd_deactivate, "DEACTIVATE",   "Disable all theft alerts remotely (Premium)")
         setCmd(R.id.cmd_disarm,     "DISARM [PIN]", "Remotely stop monitoring (Premium)")
+        // v2.9.14: wrong-attempt limit (descriptions come from strings.xml so they follow the app language)
+        setCmd(R.id.cmd_limit,      "LIMIT 3",       getString(R.string.cmd_limit_desc))
+        setCmd(R.id.cmd_limit_off,  "LIMIT 0",       getString(R.string.cmd_limit_off_desc))
+        setCmd(R.id.cmd_limit_pin,  "LIMIT 3 [PIN]", getString(R.string.cmd_limit_pin_desc))
     }
 
     private fun setCmd(rowId: Int, command: String, description: String) {

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent" android:layout_height="match_parent"
-    android:orientation="vertical" android:background="#050508">
+    android:orientation="vertical" android:background="#050505">
 
     <!-- Header -->
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
@@ -102,6 +102,16 @@
             <include layout="@layout/item_command" android:id="@+id/cmd_active"/>
             <include layout="@layout/item_command" android:id="@+id/cmd_deactivate"/>
             <include layout="@layout/item_command" android:id="@+id/cmd_disarm"/>
+
+            <TextView android:text="@string/cmd_limit_section"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textSize="10sp" android:textColor="#CC0000" android:textStyle="bold"
+                android:letterSpacing="0.1" android:layout_marginTop="12dp"
+                android:layout_marginBottom="8dp"/>
+
+            <include layout="@layout/item_command" android:id="@+id/cmd_limit"/>
+            <include layout="@layout/item_command" android:id="@+id/cmd_limit_off"/>
+            <include layout="@layout/item_command" android:id="@+id/cmd_limit_pin"/>
 
         </LinearLayout>
     </ScrollView>

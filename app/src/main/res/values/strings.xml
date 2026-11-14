@@ -256,8 +256,6 @@ Automatically sends your GPS location if you do not confirm your safety before t
     <string name="fn_info_net">WHY THE INTERNET CONNECTION MATTERS\n\nLive tracking needs an internet connection. Thieves Trap uses a secure Cloudflare relay (the Cloudflare Bridge) between paired phones.\n\nBeyond live tracking, the same bridge delivers intruder selfies (SELFIE command) instantly to the family monitor app, with no third-party apps, bots or manual setup.\n\nThis screen is a preview. The live service arrives in v3.0.0.</string>
     <string name="sms_selfie_trap_on">Motion trap ON. A photo is taken (max 8, 30s apart) every time the screen turns on.</string>
     <string name="sms_selfie_trap_off">Motion trap OFF.</string>
-    <string name="poweroff_selfie_label">Power-off attempt selfie</string>
-    <string name="poweroff_selfie_sub">Silent photo via Telegram on power menu attempt</string>
 
 
     <!-- v2.9.9.6 Premium screen redesign -->
@@ -288,4 +286,8 @@ Automatically sends your GPS location if you do not confirm your safety before t
     <string name="copy_device_id_btn">Copy Device ID</string>
     <string name="activate_now_btn">Activate Subscription Now</string>
     <string name="tech_support_btn">Technical Support</string>
+    <string name="cmd_limit_section">WRONG-ATTEMPT ALERT</string>
+    <string name="cmd_limit_desc">Set how many wrong screen-lock attempts trigger the alert: 1 to 5. Send it from an emergency contact.</string>
+    <string name="cmd_limit_off_desc">Turn the wrong-attempt alert off.</string>
+    <string name="cmd_limit_pin_desc">Same command from ANY phone: add your app PIN (Plan B), for example LIMIT 2 1234.</string>
 </resources>

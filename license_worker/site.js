@@ -171,7 +171,18 @@ const FR = {
  "Each permission is used only for its protection feature: Device Administrator (detect failed unlock attempts and lock the screen), Camera (intruder selfies), Location (GPS position in alerts), SMS (send alerts and receive your remote commands), Bluetooth (Watch Tether).": "Chaque autorisation n’est utilisée que pour sa fonction de protection : Administrateur de l’appareil (détecter les tentatives de déverrouillage échouées et verrouiller l’écran), Caméra (selfies d’intrus), Localisation (position GPS dans les alertes), SMS (envoyer les alertes et recevoir vos commandes à distance), Bluetooth (Watch Tether).",
  "7. Retention and deletion": "7. Conservation et suppression",
  "License records are kept while the key exists. To have a record deleted, contact support. Data on your phone is yours to delete at any time from the app or by uninstalling it.": "Les enregistrements de licence sont conservés tant que la clé existe. Pour faire supprimer un enregistrement, contactez l’assistance. Les données de votre téléphone vous appartiennent : vous pouvez les supprimer à tout moment depuis l’application ou en la désinstallant.",
- "8. Changes and contact": "8. Modifications et contact"
+ "Feedback": "Avis",
+ "Your feedback": "Votre avis",
+ "Tell us what works and what does not. We read every message.": "Dites-nous ce qui fonctionne et ce qui ne va pas. Nous lisons chaque message.",
+ "How would you rate Thieves Trap? (optional)": "Comment noteriez-vous Thieves Trap ? (facultatif)",
+ "Name (optional)": "Nom (facultatif)",
+ "Email or phone, if you want an answer (optional)": "E-mail ou téléphone si vous souhaitez une réponse (facultatif)",
+ "Your message": "Votre message",
+ "Send feedback": "Envoyer",
+ "Please do not include passwords or other sensitive information.": "N’indiquez ni mot de passe ni information sensible.",
+ "8. Feedback": "8. Avis",
+ "If you send feedback through this website, we store the message and the optional name, contact and rating you type, so that we can read and answer it. We delete it on request and in any case after one year. To limit spam we keep an anonymous counter, derived from your IP address, for one hour. Please do not include sensitive information.": "Si vous envoyez un avis via ce site, nous conservons le message ainsi que le nom, le contact et la note facultatifs que vous saisissez, afin de le lire et d’y répondre. Nous le supprimons sur demande et, dans tous les cas, après un an. Pour limiter le spam, nous conservons pendant une heure un compteur anonyme dérivé de votre adresse IP. N’y indiquez aucune information sensible.",
+ "9. Changes and contact": "9. Modifications et contact"
 };
 
 const ICON = {
@@ -181,8 +192,13 @@ const ICON = {
   install: '<path d="M12 3v12m-5-5 5 5 5-5M4 20h16"/>',
   support: '<path d="M4 5h16v11H9l-5 4z"/>',
   terms: '<path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7"/>',
+  feedback: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
   privacy: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
 };
+const GLOBE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.7 4 5.7 4 9s-1.4 6.3-4 9c-2.6-2.7-4-5.7-4-9s1.4-6.3 4-9z"/></svg>';
+const CHEV = '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+// Language picker: a globe button that opens a small menu (English / Français / العربية).
+const langDropdown = () => `<div class="langdd"><button type="button" class="langbtn" aria-haspopup="true" aria-expanded="false" aria-label="Language" title="Language"><span class="gl">${GLOBE}</span><span class="langcur">EN</span>${CHEV}</button><ul class="langmenu" role="menu" hidden><li role="none"><button type="button" role="menuitemradio" aria-checked="true" data-set="en">English</button></li><li role="none"><button type="button" role="menuitemradio" aria-checked="false" data-set="fr">Français</button></li><li role="none"><button type="button" role="menuitemradio" aria-checked="false" data-set="ar" lang="ar" dir="rtl">العربية</button></li></ul></div>`;
 const ico = (n) => `<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]}</svg>`;
 
 const CSS = `
@@ -214,10 +230,19 @@ html[dir="rtl"] .menu a.on{background:linear-gradient(270deg,rgba(0,255,102,.14)
 .menu a.on::before{content:"";position:absolute;inset-block:8px;inset-inline-start:0;width:3px;border-radius:3px;background:var(--grn);box-shadow:0 0 12px var(--grn)}
 .menu a.on .ico{color:var(--grn)}
 .sfoot{margin-top:auto;display:flex;flex-direction:column;gap:10px;padding:0 6px}
-.lang{display:flex;gap:4px}
-.lang button{min-height:36px;background:var(--card);color:var(--mu);border:1px solid var(--line);border-radius:10px;padding:6px 14px;font-weight:600;font-size:13px;cursor:pointer;transition:all .2s}
-.lang button:hover{border-color:#3a3a44;color:var(--tx)}
-.lang button[aria-pressed="true"]{color:#03140a;background:var(--grn);border-color:var(--grn);box-shadow:0 0 14px rgba(0,255,102,.45)}
+.langdd{position:relative;flex:none}
+.langbtn{display:flex;align-items:center;gap:7px;min-height:44px;padding:0 12px;background:var(--card);color:var(--tx);border:1px solid var(--line);border-radius:12px;font-weight:700;font-size:13px;cursor:pointer;transition:border-color .2s,background .2s}
+.langbtn:hover,.langbtn[aria-expanded="true"]{border-color:#3a3a44;background:var(--card2)}
+.langbtn .gl svg{display:block;width:20px;height:20px;color:var(--grn)}
+.langbtn .chev{width:14px;height:14px;color:var(--mu);transition:transform .2s}
+.langbtn[aria-expanded="true"] .chev{transform:rotate(180deg)}
+.langmenu{position:absolute;z-index:60;inset-block-start:calc(100% + 6px);inset-inline-end:0;min-width:160px;margin:0;padding:6px;list-style:none;background:#0D0D10;border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 32px rgba(0,0,0,.6);animation:rise .18s ease-out}
+.langmenu button{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:44px;padding:8px 12px;background:transparent;border:0;border-radius:10px;color:var(--mu);font-weight:600;font-size:14px;text-align:start;cursor:pointer;transition:background .15s,color .15s}
+.langmenu button:hover,.langmenu button:focus-visible{background:rgba(255,255,255,.06);color:var(--tx);outline:none}
+.langmenu button[aria-checked="true"]{color:var(--grn)}
+.langmenu button[aria-checked="true"]::after{content:"";width:7px;height:12px;border-inline-end:2px solid var(--grn);border-bottom:2px solid var(--grn);transform:rotate(45deg) translateY(-2px)}
+.sfoot .langmenu{inset-block-start:auto;inset-block-end:calc(100% + 6px);inset-inline-start:0;inset-inline-end:auto}
+.brand span{white-space:nowrap}
 .mbar{display:none}
 .scrim{display:none}
 .main{min-width:0;padding:clamp(18px,4vw,34px) clamp(14px,4vw,48px) clamp(20px,3vw,30px);max-width:980px;width:100%;margin-inline:auto}
@@ -338,6 +363,20 @@ h2.sec{margin-top:26px;font-size:clamp(18px,2vw + 10px,20px)}
 .xall{min-height:44px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;color:var(--mu);margin-bottom:14px;transition:all .2s}
 .xall:hover,.xall:active{color:var(--tx);border-color:var(--gold);box-shadow:0 0 16px rgba(212,175,55,.25)}
 html:not(.js) .xall{display:none}
+.fbcard label{display:block;margin:16px 0 6px;font-size:14px;color:var(--mu)}
+.fbcard input[type=text],.fbcard textarea{display:block;width:100%;min-height:48px;padding:12px 14px;background:#0A0A0C;border:1px solid var(--line);border-radius:12px;color:var(--tx);font:inherit;transition:border-color .2s,box-shadow .2s}
+.fbcard textarea{min-height:130px;resize:vertical}
+.fbcard input:focus,.fbcard textarea:focus{outline:none;border-color:rgba(0,255,102,.6);box-shadow:0 0 0 3px rgba(0,255,102,.12)}
+.stars{display:flex;gap:8px;flex-wrap:wrap}
+.star{width:48px;height:48px;padding:0;background:var(--card2);border:1px solid var(--line);border-radius:12px;color:#3a3a44;font-size:26px;line-height:1;cursor:pointer;position:relative;overflow:hidden;transition:color .2s,border-color .2s,transform .12s}
+.star:hover{color:#6a6a74}
+.star:active{transform:scale(.94)}
+.star.on{color:var(--gold);border-color:rgba(212,175,55,.55)}
+.fbcount{font-size:12px;color:var(--mu);text-align:end;margin-top:4px}
+.hp{position:absolute;inset-inline-start:-9999px;width:1px;height:1px;opacity:0;pointer-events:none}
+.fbst{margin-top:12px;min-height:1.4em}
+.fbst.good{color:var(--grn)}
+.fbst.bad{color:var(--red2)}
 .copy{position:relative;z-index:1;text-align:center;color:var(--mu);font-size:14px;padding:22px 16px calc(26px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line)}
 @media(max-width:1100px){:root{--side:220px}}
 @media(max-width:980px){
@@ -349,8 +388,8 @@ html:not(.js) .xall{display:none}
 @media(max-width:860px){
 .shell{grid-template-columns:minmax(0,1fr)}
 .mbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:12px;padding:10px 14px;padding-top:max(10px,env(safe-area-inset-top,0px));background:rgba(5,5,5,.92);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
-.mbar .brand{padding:0;min-width:0;font-size:15px}.mbar .brand svg{width:30px;height:30px}
-.mbar .lang{margin-inline-start:auto}
+.mbar .brand{padding:0;min-width:0;flex:0 1 auto;white-space:nowrap}.mbar .brand span{font-size:clamp(13px,4vw,15px);letter-spacing:.04em}.mbar .brand svg{width:30px;height:30px}
+.mbar .langdd{margin-inline-start:auto}
 .burger{flex:none;width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;cursor:pointer;transition:box-shadow .2s,border-color .2s}
 .burger:active{border-color:var(--grn);box-shadow:0 0 16px rgba(0,255,102,.4)}
 .burger span,.burger span::before,.burger span::after{display:block;width:18px;height:2px;background:var(--tx);border-radius:2px;content:"";position:relative;transition:transform .25s,background .25s}
@@ -360,7 +399,7 @@ html:not(.js) .xall{display:none}
 .burger[aria-expanded="true"] span::after{top:0;transform:rotate(-45deg)}
 .side{position:fixed;z-index:40;inset-block:0;inset-inline-start:0;height:100vh;height:100dvh;width:min(84vw,300px);padding-top:max(20px,env(safe-area-inset-top,0px));transform:translateX(var(--off));visibility:hidden;transition:transform .32s cubic-bezier(.2,.8,.2,1),visibility 0s linear .32s;background:rgba(8,8,10,.98)}
 .side.open{transform:none;visibility:visible;transition:transform .32s cubic-bezier(.2,.8,.2,1),visibility 0s;box-shadow:0 0 60px rgba(0,0,0,.85)}
-.side .brand,.side .lang{display:none}
+.side .brand,.side .langdd{display:none}
 .scrim{display:block;position:fixed;inset:0;z-index:35;background:rgba(0,0,0,.62);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);opacity:0;visibility:hidden;transition:opacity .3s,visibility 0s linear .3s}
 .scrim.open{opacity:1;visibility:visible;transition:opacity .3s,visibility 0s}
 .hero{grid-template-columns:minmax(0,1fr)}
@@ -376,26 +415,44 @@ html:not(.js) .xall{display:none}
 }
 @media(max-width:360px){
 .ftabs .seg button{flex-basis:100%}
-.mbar .brand span{font-size:13px;letter-spacing:.03em}
+.mbar .brand span{font-size:13px;letter-spacing:.02em}.langbtn{padding:0 9px;gap:5px}.langbtn .chev{display:none}
 }
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.feed li{opacity:1}.rip{display:none}}
 `;
 
 const HEAD_JS = `(function(){var l="";try{l=localStorage.getItem("tt_lang")||""}catch(e){}if(l!=="ar"&&l!=="en"&&l!=="fr"){var n=(navigator.language||"").slice(0,2);l=n==="ar"?"ar":n==="fr"?"fr":"en"}var h=document.documentElement;h.setAttribute("data-l",l);h.lang=l;h.dir=l==="ar"?"rtl":"ltr";h.className+=" js"})();`;
 
+const FBM = {
+  en: { sending: "Sending…", ok: "Thank you! Your feedback was sent.", short: "Please write a message of at least 5 characters.", limit: "Too many messages from your connection. Please try again later.", busy: "We are receiving a lot of messages right now. Please try again later.", error: "Could not send it. Check your connection and try again." },
+  fr: { sending: "Envoi en cours…", ok: "Merci ! Votre avis a bien été envoyé.", short: "Veuillez écrire un message d’au moins 5 caractères.", limit: "Trop de messages depuis votre connexion. Réessayez plus tard.", busy: "Nous recevons beaucoup de messages en ce moment. Réessayez plus tard.", error: "Envoi impossible. Vérifiez votre connexion et réessayez." },
+  ar: { sending: "جارٍ الإرسال…", ok: "شكرًا لك! تم إرسال ملاحظاتك.", short: "يرجى كتابة رسالة من 5 أحرف على الأقل.", limit: "عدد الرسائل من اتصالك كبير. حاول لاحقًا.", busy: "نستقبل رسائل كثيرة الآن. حاول لاحقًا.", error: "تعذّر الإرسال. تحقق من اتصالك وحاول مرة أخرى." },
+};
+
 const BODY_JS = `(function(){
 var d=document,h=d.documentElement;
 function $$(s,r){return Array.prototype.slice.call((r||d).querySelectorAll(s))}
 /* language */
-function mark(l){$$(".lang button").forEach(function(b){b.setAttribute("aria-pressed",b.getAttribute("data-set")===l?"true":"false")})}
+function mark(l){$$(".langcur").forEach(function(e){e.textContent=l.toUpperCase()});$$(".langmenu button").forEach(function(b){b.setAttribute("aria-checked",b.getAttribute("data-set")===l?"true":"false")})}
 mark(h.getAttribute("data-l"));
-$$(".lang button").forEach(function(b){b.addEventListener("click",function(){var l=b.getAttribute("data-set");h.setAttribute("data-l",l);h.lang=l;h.dir=l==="ar"?"rtl":"ltr";mark(l);try{localStorage.setItem("tt_lang",l)}catch(e){}})});
+function ddClose(){$$(".langdd").forEach(function(dd){dd.querySelector(".langmenu").hidden=true;dd.querySelector(".langbtn").setAttribute("aria-expanded","false")})}
+$$(".langdd").forEach(function(dd){
+  var bt=dd.querySelector(".langbtn"),menu=dd.querySelector(".langmenu"),items=$$("button[data-set]",menu);
+  bt.addEventListener("click",function(e){e.stopPropagation();var wasHidden=menu.hidden;ddClose();if(wasHidden){menu.hidden=false;bt.setAttribute("aria-expanded","true");var cur=menu.querySelector('[aria-checked="true"]');if(cur)cur.focus()}});
+  menu.addEventListener("keydown",function(e){
+    var i=items.indexOf(d.activeElement);
+    if(e.key==="ArrowDown"){e.preventDefault();items[(i+1)%items.length].focus()}
+    else if(e.key==="ArrowUp"){e.preventDefault();items[(i+items.length-1)%items.length].focus()}
+    else if(e.key==="Escape"){e.stopPropagation();ddClose();bt.focus()}
+  });
+  items.forEach(function(b){b.addEventListener("click",function(){var l=b.getAttribute("data-set");h.setAttribute("data-l",l);h.lang=l;h.dir=l==="ar"?"rtl":"ltr";mark(l);try{localStorage.setItem("tt_lang",l)}catch(e){}ddClose();bt.focus()})});
+});
+d.addEventListener("click",function(e){if(!e.target.closest||!e.target.closest(".langdd"))ddClose()});
 /* drawer */
 var side=d.getElementById("side"),scrim=d.getElementById("scrim"),burger=d.getElementById("burger");
 function drawer(o){side.classList.toggle("open",o);scrim.classList.toggle("open",o);h.classList.toggle("nos",o);burger.setAttribute("aria-expanded",o?"true":"false")}
 burger.addEventListener("click",function(){drawer(!side.classList.contains("open"))});
 scrim.addEventListener("click",function(){drawer(false)});
-d.addEventListener("keydown",function(e){if(e.key==="Escape")drawer(false)});
+d.addEventListener("keydown",function(e){if(e.key==="Escape"){drawer(false);ddClose()}});
 $$(".menu a").forEach(function(a){a.addEventListener("click",function(){drawer(false)})});
 var sx=0,sy=0;
 side.addEventListener("touchstart",function(e){var t=e.touches[0];sx=t.clientX;sy=t.clientY},{passive:true});
@@ -453,6 +510,32 @@ d.addEventListener("pointerdown",function(e){
   s.style.setProperty("--rs",String(Math.max(6,Math.ceil(Math.max(r.width,r.height)*2/12))));
   b.appendChild(s);setTimeout(function(){if(s.parentNode)s.parentNode.removeChild(s)},700);
 });
+/* feedback form */
+var FBM=${JSON.stringify(FBM)};
+var fb=d.getElementById("fbform");
+if(fb){
+  var stars=$$(".star",fb),rating=0,msgEl=d.getElementById("fbmsg"),cnt=d.getElementById("fbcount"),st=d.getElementById("fbstatus"),send=d.getElementById("fbsend"),busy=false;
+  function setRating(n){rating=n;stars.forEach(function(s,i){s.classList.toggle("on",i<n);s.setAttribute("aria-checked",(i+1)===n?"true":"false")})}
+  stars.forEach(function(s){s.addEventListener("click",function(){var v=Number(s.getAttribute("data-v"));setRating(v===rating?0:v)})});
+  msgEl.addEventListener("input",function(){cnt.textContent=msgEl.value.length+" / 1000"});
+  function say(k){var l=h.getAttribute("data-l");st.textContent=(FBM[l]||FBM.en)[k];st.className="note fbst "+(k==="ok"?"good":k==="sending"?"":"bad")}
+  fb.addEventListener("submit",function(e){
+    e.preventDefault();if(busy)return;
+    var msg=msgEl.value.trim();
+    if(msg.length<5){say("short");msgEl.focus();return}
+    busy=true;send.disabled=true;say("sending");
+    fetch("/feedback",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name:d.getElementById("fbname").value,contact:d.getElementById("fbcontact").value,rating:rating,message:msg,website:d.getElementById("fbweb").value})})
+    .then(function(r){return r.json().catch(function(){return {}}).then(function(j){return {s:r.status,j:j}})})
+    .then(function(x){
+      busy=false;send.disabled=false;
+      if(x.s===200&&x.j.ok){say("ok");fb.reset();setRating(0);cnt.textContent="0 / 1000"}
+      else if(x.s===429)say(x.j.error==="busy"?"busy":"limit");
+      else if(x.s===400)say("short");
+      else say("error");
+    })
+    .catch(function(){busy=false;send.disabled=false;say("error")});
+  });
+}
 /* latest version label */
 var v=d.getElementById("ver");
 if(v){fetch("/version").then(function(r){return r.json()}).then(function(j){if(j&&j.latest_version_name){v.textContent="v"+j.latest_version_name}}).catch(function(){})}
@@ -469,11 +552,12 @@ ${item("features", "features", "Features", "المزايا", "/#features")}
 ${item("plans", "plans", "Plans", "الباقات", "/#plans")}
 ${item("install", "install", "Install", "التثبيت", "/#install")}
 ${item("support", "support", "Support", "الدعم", "/#support")}
+${item("feedback", "feedback", "Feedback", "ملاحظاتك", "/#feedback")}
 <hr>
 ${item("terms", "terms", "Terms of Use", "شروط الاستخدام", "/terms")}
 ${item("privacy", "privacy", "Privacy Policy", "سياسة الخصوصية", "/privacy")}
 </nav>
-<div class="sfoot"><div class="lang"><button type="button" data-set="en" aria-pressed="true">EN</button><button type="button" data-set="fr" aria-pressed="false">FR</button><button type="button" data-set="ar" aria-pressed="false">عربي</button></div></div>
+<div class="sfoot">${langDropdown()}</div>
 </aside>`;
 }
 
@@ -493,7 +577,7 @@ function shell(title, desc, active, content, n) {
 <style nonce="${n}">${CSS}</style>
 </head><body>
 <div class="spot" aria-hidden="true"></div>
-<header class="mbar"><button class="burger" id="burger" type="button" aria-label="Menu" aria-expanded="false"><span></span></button><a class="brand" href="/">${SHIELD}<span>THIEVES TRAP</span></a><div class="lang"><button type="button" data-set="en" aria-pressed="true">EN</button><button type="button" data-set="fr" aria-pressed="false">FR</button><button type="button" data-set="ar" aria-pressed="false">عربي</button></div></header>
+<header class="mbar"><button class="burger" id="burger" type="button" aria-label="Menu" aria-expanded="false"><span></span></button><a class="brand" href="/">${SHIELD}<span>THIEVES TRAP</span></a>${langDropdown()}</header>
 <div class="shell">
 ${sidebar(active)}
 <div class="scrim" id="scrim"></div>
@@ -631,6 +715,29 @@ ${bi("h2", "Frequently asked questions", "الأسئلة الشائعة", "sec s
 </section>`;
 }
 
+function feedbackPanel() {
+  const stars = [1, 2, 3, 4, 5].map((n) => `<button type="button" class="star" data-v="${n}" role="radio" aria-checked="false" aria-label="${n} / 5">★</button>`).join("");
+  return `<section class="panel" id="feedback">
+${bi("h2", "Your feedback", "رأيك يهمنا", "st")}
+${bi("p", "Tell us what works and what does not. We read every message.", "أخبرنا بما يعجبك وما لا يعجبك. نقرأ كل رسالة.", "sub st")}
+<form id="fbform" class="card gl g fbcard st" novalidate autocomplete="off">
+<label>${sp("How would you rate Thieves Trap? (optional)", "كيف تقيّم Thieves Trap؟ (اختياري)")}</label>
+<div class="stars" role="radiogroup">${stars}</div>
+<label for="fbname">${sp("Name (optional)", "الاسم (اختياري)")}</label>
+<input id="fbname" type="text" maxlength="60" dir="auto" autocomplete="off">
+<label for="fbcontact">${sp("Email or phone, if you want an answer (optional)", "البريد أو الهاتف إذا أردت ردًا (اختياري)")}</label>
+<input id="fbcontact" type="text" maxlength="100" dir="auto" autocomplete="off">
+<label for="fbmsg">${sp("Your message", "رسالتك")}</label>
+<textarea id="fbmsg" maxlength="1000" dir="auto"></textarea>
+<div class="fbcount"><bdi dir="ltr" id="fbcount">0 / 1000</bdi></div>
+<input class="hp" id="fbweb" name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+<div class="cta"><button type="submit" class="btn btn-dl" id="fbsend">${sp("Send feedback", "إرسال")}</button></div>
+<p class="note fbst" id="fbstatus" role="status"></p>
+${bi("p", "Please do not include passwords or other sensitive information.", "يرجى عدم كتابة كلمات مرور أو معلومات حساسة.", "note")}
+</form>
+</section>`;
+}
+
 function landingContent() {
   return `<section class="panel on" id="home">
 <div class="hero">
@@ -663,7 +770,8 @@ ${bi("p", "If someone steals your phone or tries to unlock it, Thieves Trap aler
 ${featuresPanel()}
 ${plansPanel()}
 ${installPanel()}
-${supportPanel()}`;
+${supportPanel()}
+${feedbackPanel()}`;
 }
 
 // ---------------------------------------------------------------- legal pages (accordions)
@@ -725,7 +833,9 @@ function privacyContent() {
       "يُستخدم كل إذن لميزة الحماية الخاصة به فقط: مشرف الجهاز (رصد محاولات الفتح الفاشلة وقفل الشاشة)، الكاميرا (صور المتسللين)، الموقع (موقع GPS في التنبيهات)، الرسائل (إرسال التنبيهات واستقبال أوامرك عن بُعد)، البلوتوث (ربط الساعة الذكية)."],
     ["7. Retention and deletion", "7. الاحتفاظ والحذف", "License records are kept while the key exists. To have a record deleted, contact support. Data on your phone is yours to delete at any time from the app or by uninstalling it.",
       "تُحفظ سجلات التراخيص ما دام المفتاح قائماً. لطلب حذف سجل تواصل مع الدعم. أما البيانات على هاتفك فهي لك، يمكنك حذفها في أي وقت من التطبيق أو بحذفه."],
-    ["8. Changes and contact", "8. التعديلات والتواصل", "We may update this policy; the date above shows the latest revision. " + contactEn,
+    ["8. Feedback", "8. الملاحظات", "If you send feedback through this website, we store the message and the optional name, contact and rating you type, so that we can read and answer it. We delete it on request and in any case after one year. To limit spam we keep an anonymous counter, derived from your IP address, for one hour. Please do not include sensitive information.",
+      "إذا أرسلت ملاحظات عبر هذا الموقع فإننا نخزّن الرسالة والاسم ووسيلة التواصل والتقييم الاختيارية التي تكتبها، لنقرأها ونرد عليها. نحذفها عند الطلب وفي كل الأحوال بعد سنة. وللحد من الرسائل المزعجة نحتفظ لمدة ساعة بعدّاد مجهول مشتق من عنوان IP الخاص بك. يرجى عدم كتابة معلومات حساسة."],
+    ["9. Changes and contact", "9. التعديلات والتواصل", "We may update this policy; the date above shows the latest revision. " + contactEn,
       "قد نحدّث هذه السياسة، ويبيّن التاريخ أعلاه آخر مراجعة. " + contactAr,
       "Nous pouvons modifier cette politique ; la date ci-dessus indique la dernière révision. " + contactFr],
   ]);

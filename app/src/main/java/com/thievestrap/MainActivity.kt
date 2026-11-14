@@ -47,6 +47,9 @@ class MainActivity : AppCompatActivity() {
         dpm = getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager
         adminComponent = ComponentName(this, DeviceAdminReceiver::class.java)
         drawerLayout = findViewById(R.id.drawer_layout)
+        setupDrawerIsolation()
+        // v2.9.14: the power-off selfie feature was removed; forget its stored switch
+        prefs.edit().remove("poweroff_selfie_enabled").apply()
         // FIX 2026-09-04: second safety net alongside PackageReplacedReceiver
         // (MY_PACKAGE_REPLACED) for premium-state reconciliation after an
         // app update, in case that broadcast doesn't fire reliably on some
@@ -152,6 +155,58 @@ class MainActivity : AppCompatActivity() {
         super.onPause()
         try { settingsRefreshReceiver?.let { unregisterReceiver(it) } } catch (e: Exception) {}
         settingsRefreshReceiver = null
+    }
+
+    // ── v2.9.14: drawer isolation ───────────────────────────────────────────
+    private var shieldGesture = false
+
+    /** Near-opaque scrim in the app background colour, and the screen behind the drawer hidden from TalkBack while it is open. */
+    private fun setupDrawerIsolation() {
+        drawerLayout.setScrimColor(0xEB050505.toInt())
+        drawerLayout.addDrawerListener(object : DrawerLayout.SimpleDrawerListener() {
+            private fun hideBackground(hide: Boolean) {
+                val content = drawerLayout.getChildAt(0) ?: return
+                content.importantForAccessibility =
+                    if (hide) android.view.View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+                    else android.view.View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
+            }
+            override fun onDrawerSlide(drawerView: android.view.View, slideOffset: Float) { hideBackground(slideOffset > 0f) }
+            override fun onDrawerClosed(drawerView: android.view.View) { hideBackground(false) }
+        })
+    }
+
+    /**
+     * While the navigation drawer is open (or still sliding) NO touch may reach the screen behind it.
+     * A touch that starts outside the drawer is swallowed here; lifting the finger closes the drawer.
+     */
+    override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
+        if (::drawerLayout.isInitialized) {
+            if (ev.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
+                shieldGesture = drawerLayout.isDrawerVisible(android.view.Gravity.END) && !touchInsideDrawer(ev)
+            }
+            if (shieldGesture) {
+                if (ev.actionMasked == android.view.MotionEvent.ACTION_UP) drawerLayout.closeDrawer(android.view.Gravity.END)
+                if (ev.actionMasked == android.view.MotionEvent.ACTION_UP || ev.actionMasked == android.view.MotionEvent.ACTION_CANCEL) shieldGesture = false
+                return true
+            }
+        }
+        return super.dispatchTouchEvent(ev)
+    }
+
+    private fun touchInsideDrawer(ev: android.view.MotionEvent): Boolean {
+        val d = findViewById<android.view.View>(R.id.nav_drawer) ?: return false
+        val loc = IntArray(2)
+        d.getLocationOnScreen(loc)
+        return ev.rawX >= loc[0] && ev.rawX <= loc[0] + d.width && ev.rawY >= loc[1] && ev.rawY <= loc[1] + d.height
+    }
+
+    /** Back closes an open drawer first instead of leaving the app. */
+    override fun onBackPressed() {
+        if (::drawerLayout.isInitialized && drawerLayout.isDrawerOpen(android.view.Gravity.END)) {
+            drawerLayout.closeDrawer(android.view.Gravity.END)
+            return
+        }
+        super.onBackPressed()
     }
 
     override fun onDestroy() {

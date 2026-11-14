@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent" android:layout_height="match_parent"
-    android:orientation="vertical" android:background="#050508">
+    android:orientation="vertical" android:background="#050505">
 
     <!-- Header: title, info icon, back -->
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
@@ -57,7 +57,7 @@
                     android:text="TRAP-8921" android:textSize="30sp" android:textStyle="bold"
                     android:textColor="#FFFFFF" android:letterSpacing="0.1"
                     android:gravity="center" android:padding="14dp"
-                    android:background="#14141A" android:layout_marginTop="8dp"/>
+                    android:background="#0D0D10" android:layout_marginTop="8dp"/>
                 <TextView android:text="@string/fn_code_hint"
                     android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:textSize="11sp" android:textColor="#555555"
@@ -78,7 +78,7 @@
                         android:maxLength="12" android:maxLines="1"
                         android:textColor="#FFFFFF" android:textColorHint="#444444"
                         android:textSize="15sp" android:paddingStart="12dp"
-                        android:paddingEnd="12dp" android:background="#14141A"/>
+                        android:paddingEnd="12dp" android:background="#0D0D10"/>
                     <Button android:id="@+id/btn_family_connect"
                         android:layout_width="wrap_content" android:layout_height="48dp"
                         android:layout_marginStart="8dp"

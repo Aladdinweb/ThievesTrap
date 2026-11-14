@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="#14141A"/>
-    <stroke android:width="1dp" android:color="#8E8E93"/>
-    <corners android:radius="8dp"/>
-</shape>
+<!-- v2.9.14: tap ripple, no glow. Mask keeps the ripple inside the rounded shape. -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="#26FFFFFF">
+    <item android:id="@android:id/mask">
+        <shape android:shape="rectangle"><solid android:color="#FFFFFFFF"/><corners android:radius="8dp"/></shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle"><solid android:color="#0D0D10"/><stroke android:width="1dp" android:color="#2C2C35"/><corners android:radius="8dp"/></shape>
+    </item>
+</ripple>

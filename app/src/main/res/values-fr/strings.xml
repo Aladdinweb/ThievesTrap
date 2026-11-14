@@ -253,8 +253,6 @@ Elle envoie une alerte automatique avec votre position GPS si vous ne confirmez 
     <string name="fn_info_net">POURQUOI LA CONNEXION INTERNET COMPTE\n\nLe suivi en direct nécessite une connexion internet. Thieves Trap utilise un relais Cloudflare sécurisé (le Cloudflare Bridge) entre les téléphones jumelés.\n\nAu-delà du suivi en direct, ce même relais envoie instantanément les selfies d\'intrus (commande SELFIE) à l\'application de surveillance familiale, sans application tierce, sans bot et sans configuration manuelle.\n\nCet écran est un aperçu. Le service actif arrive dans la v3.0.0.</string>
     <string name="sms_selfie_trap_on">Piège photo ACTIVÉ. Une photo est prise (8 max, 30s d\'écart) à chaque allumage de l\'écran.</string>
     <string name="sms_selfie_trap_off">Piège photo DÉSACTIVÉ.</string>
-    <string name="poweroff_selfie_label">Selfie a la tentative d\'extinction</string>
-    <string name="poweroff_selfie_sub">Photo silencieuse via Telegram lors d\'une tentative d\'extinction</string>
 
 
     <!-- v2.9.9.6 Premium screen redesign -->
@@ -285,4 +283,8 @@ Elle envoie une alerte automatique avec votre position GPS si vous ne confirmez 
     <string name="copy_device_id_btn">Copier l\'ID</string>
     <string name="activate_now_btn">Activer l\'abonnement maintenant</string>
     <string name="tech_support_btn">Support technique</string>
+    <string name="cmd_limit_section">ALERTE TENTATIVES ERRONEES</string>
+    <string name="cmd_limit_desc">Definit combien de tentatives de deverrouillage erronees declenchent l\'alerte : de 1 a 5. A envoyer depuis un contact d\'urgence.</string>
+    <string name="cmd_limit_off_desc">Desactive l\'alerte de tentatives erronees.</string>
+    <string name="cmd_limit_pin_desc">Meme commande depuis N\'IMPORTE QUEL telephone : ajoutez le PIN de l\'application (Plan B), par exemple LIMIT 2 1234.</string>
 </resources>
