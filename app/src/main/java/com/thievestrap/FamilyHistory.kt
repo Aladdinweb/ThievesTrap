@@ -56,7 +56,7 @@ object FamilyHistory {
 
     @Synchronized
     fun setAddress(ctx: Context, pid: String, ts: Long, address: String) {
-        val fl = file(ctx)
+        val fl = file(ctx, pid)
         if (!fl.exists()) return
         val out = fl.readLines().map {
             try { val o = JSONObject(it); if (o.getLong("ts") == ts) o.put("ad", address).toString() else it } catch (e: Exception) { it }
