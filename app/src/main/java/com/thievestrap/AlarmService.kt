@@ -22,6 +22,7 @@ class AlarmService : Service() {
     private var originalVolume = 0
     private var originalRingerMode = AudioManager.RINGER_MODE_NORMAL
     @Volatile private var alarmActive = false
+    private var reqFrom: String? = null     // v2.9.17: family member who asked for the ring
 
     // Volume enforcement runnable — forces alarm volume back to max if lowered
     private val volumeEnforcer = object : Runnable {
@@ -45,7 +46,7 @@ class AlarmService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            "START_ALARM" -> startAlarm()
+            "START_ALARM" -> { reqFrom = intent.getStringExtra("from"); startAlarm() }
             "STOP_ALARM"  -> stopAlarm()
         }
         return START_STICKY  // Restart if killed
@@ -156,7 +157,7 @@ class AlarmService : Service() {
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("ALARM — THIEVES TRAP")
-            .setContentText("Intruder alert! Tap Stop to silence.")
+            .setContentText(if (reqFrom != null) Strings.get(this, "fam_alarm_from").format(reqFrom) else "Intruder alert! Tap Stop to silence.")
             .setSmallIcon(android.R.drawable.ic_lock_lock)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_MAX)
@@ -180,9 +181,12 @@ class AlarmService : Service() {
     }
 
     companion object {
-        fun start(context: Context) {
+        fun start(context: Context, from: String? = null) {
             ContextCompat.startForegroundService(context,
-                Intent(context, AlarmService::class.java).apply { action = "START_ALARM" })
+                Intent(context, AlarmService::class.java).apply {
+                    action = "START_ALARM"
+                    if (from != null) putExtra("from", from)
+                })
         }
         fun stop(context: Context) {
             context.startService(Intent(context, AlarmService::class.java)

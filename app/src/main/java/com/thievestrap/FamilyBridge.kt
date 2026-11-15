@@ -192,6 +192,66 @@ object FamilyBridge {
         return gone
     }
 
+    // ------------------------------------------------------------------ relay (v2.9.17)
+
+    class Incoming(val msgs: List<String>, val photos: List<String>)
+
+    /** AES-256-GCM with the pair key; output is base64(iv + ciphertext + tag). `aad` binds the context. */
+    fun seal(key: ByteArray, aad: String, plain: ByteArray): String {
+        val iv = ByteArray(12).also { SecureRandom().nextBytes(it) }
+        val c = Cipher.getInstance("AES/GCM/NoPadding")
+        c.init(Cipher.ENCRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(128, iv))
+        c.updateAAD(aad.toByteArray())
+        return b64(iv + c.doFinal(plain))
+    }
+
+    /** Null when the data was not produced with this key and context (tampered, wrong pair, wrong id). */
+    fun open(key: ByteArray, aad: String, data: String): ByteArray? = try {
+        val raw = Base64.decode(data, Base64.NO_WRAP)
+        if (raw.size < 29) null else {
+            val c = Cipher.getInstance("AES/GCM/NoPadding")
+            c.init(Cipher.DECRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(128, raw.copyOfRange(0, 12)))
+            c.updateAAD(aad.toByteArray())
+            c.doFinal(raw, 12, raw.size - 12)
+        }
+    } catch (e: Exception) { null }
+
+    /** Same photo always gets the same id, so a retried upload is recognised by the server. */
+    fun photoId(pid: String, name: String): String =
+        MessageDigest.getInstance("SHA-256").digest("$pid|$name".toByteArray()).joinToString("") { "%02x".format(it) }.take(16)
+
+    /** Sends an end-to-end encrypted command ("ring" / "stop") to the other phone. Returns "sent" or an error code. */
+    fun sendCommand(ctx: Context, pair: FamilyPair, type: String): String {
+        val key = pairKey(ctx, pair) ?: return "no_key"
+        val plain = JSONObject().put("t", type).put("ts", System.currentTimeMillis() / 1000)
+            .put("n", b64(ByteArray(9).also { SecureRandom().nextBytes(it) })).toString()
+        val r = post("/room/send", JSONObject().put("pid", pair.pid).put("ct", seal(key, "cmd|" + pair.pid, plain.toByteArray())))
+        return if (r.ok) "sent" else r.error.ifEmpty { "error" }
+    }
+
+    /** Commands and photo ids waiting for this phone, or null on any failure (including an unpaired room). */
+    fun pollRoom(pid: String): Incoming? {
+        val r = post("/room/poll", JSONObject().put("pid", pid))
+        if (!r.ok) return null
+        val msgs = r.json!!.optJSONArray("msgs") ?: JSONArray()
+        val photos = r.json.optJSONArray("photos") ?: JSONArray()
+        return Incoming((0 until msgs.length()).map { msgs.getJSONObject(it).optString("ct") },
+            (0 until photos.length()).map { photos.getJSONObject(it).optString("id") })
+    }
+
+    fun putPhoto(pid: String, id: String, ct: String): String {
+        val r = post("/photo/put", JSONObject().put("pid", pid).put("id", id).put("ct", ct))
+        return if (r.ok) "ok" else r.error.ifEmpty { "error" }
+    }
+
+    fun getPhoto(pid: String, id: String): String? {
+        val r = post("/photo/get", JSONObject().put("pid", pid).put("id", id))
+        return if (r.ok) r.json!!.optString("ct") else null
+    }
+
+    /** Tells the server the photo arrived safely: it is permanently deleted there right away. */
+    fun ackPhoto(pid: String, id: String): Boolean = post("/photo/ack", JSONObject().put("pid", pid).put("id", id)).ok
+
     // ------------------------------------------------------------------ crypto
 
     private class Eph(val private: java.security.PrivateKey, val public: java.security.PublicKey)
@@ -276,7 +336,7 @@ object FamilyBridge {
         val r = readInt(); val s = readInt(); return r + s
     }
 
-    private fun post(path: String, body: JSONObject): Reply {
+    internal fun post(path: String, body: JSONObject): Reply {
         val kp = signingKey() ?: return Reply(0, JSONObject().put("ok", false).put("error", "no_device_key"))
         var conn: HttpURLConnection? = null
         return try {

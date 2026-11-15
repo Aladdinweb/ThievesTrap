@@ -88,6 +88,15 @@ class MonitorService : Service() {
         createChannel()
         createSilentGraceChannel()
         cacheDeviceIdentifiers()
+        // v2.9.17: while the phone is armed, look for family commands (ring) and photos every 20 s
+        serviceScope.launch {
+            while (isActive) {
+                try {
+                    if (prefs().getBoolean("running", false)) FamilyRelay.pollOnce(this@MonitorService)
+                } catch (e: Exception) { Log.w(TAG, "family poll failed: ${e.message}") }
+                delay(FamilyRelay.POLL_MS)
+            }
+        }
         if (prefs().getBoolean("SIM_CHANGED_PENDING_ALERT", false)) {
             registerSimTrapNetworkListener()
         }
@@ -166,6 +175,10 @@ class MonitorService : Service() {
                         val headline = "\uD83D\uDEA8 THIEVES TRAP \u2014 INTRUDER PHOTO #$count"
                         val caption = "$headline\nTime: ${ts()} | Battery: ${bat()}%\n${locStr()}"
                         TelegramUploader.enqueuePhoto(this, photoFile, caption)
+                    }
+                    // v2.9.17: encrypted copy for paired family phones that were granted selfies
+                    if (photoFile.exists() && photoFile.length() > 0) {
+                        try { FamilyRelay.enqueueSelfie(this, photoFile) } catch (e: Exception) { Log.w(TAG, "family selfie queue failed", e) }
                     }
                 }
                 return START_STICKY

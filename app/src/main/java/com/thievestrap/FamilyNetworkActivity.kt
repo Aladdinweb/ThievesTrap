@@ -65,8 +65,9 @@ class FamilyNetworkActivity : AppCompatActivity() {
         tvStatus.setOnClickListener { showManage() }
 
         val comingSoon = View.OnClickListener { showComingSoon() }
-        intArrayOf(R.id.btn_family_start, R.id.btn_family_stop, R.id.btn_family_alarm, R.id.card_family_history)
+        intArrayOf(R.id.btn_family_start, R.id.btn_family_stop, R.id.card_family_history)
             .forEach { findViewById<View>(it).setOnClickListener(comingSoon) }
+        findViewById<View>(R.id.btn_family_alarm).setOnClickListener { chooseTarget { showRing(it) } }
         renderStatus()
     }
 
@@ -186,6 +187,7 @@ class FamilyNetworkActivity : AppCompatActivity() {
         val pair = FamilyBridge.pairs(this).maxByOrNull { it.created }
         endSession()
         renderStatus()
+        FamilyRelay.schedule(this)
         toast(String.format(s("fam_paired_ok"), peer))
         if (pair != null) showGrants(pair)
     }
@@ -228,9 +230,33 @@ class FamilyNetworkActivity : AppCompatActivity() {
         AlertDialog.Builder(this).setTitle(String.format(s("fam_unpair_title"), pair.name))
             .setMessage(s("fam_unpair_msg"))
             .setPositiveButton(s("fam_unpair")) { _, _ ->
-                Thread { FamilyBridge.unpair(this, pair.pid); runOnUiThread { renderStatus() } }.start()
+                Thread { FamilyBridge.unpair(this, pair.pid); runOnUiThread { renderStatus(); FamilyRelay.schedule(this) } }.start()
             }
             .setNegativeButton(s("cancel"), null).show()
+    }
+
+    // ------------------------------------------------------------------ ring (v2.9.17)
+
+    private fun chooseTarget(then: (FamilyBridge.FamilyPair) -> Unit) {
+        val list = FamilyBridge.pairs(this)
+        when {
+            list.isEmpty() -> toast(s("fam_no_pairs"))
+            list.size == 1 -> then(list[0])
+            else -> AlertDialog.Builder(this).setTitle(s("fam_manage_title"))
+                .setItems(list.map { it.name }.toTypedArray()) { _, i -> then(list[i]) }
+                .setNegativeButton(s("cancel"), null).show()
+        }
+    }
+
+    private fun showRing(pair: FamilyBridge.FamilyPair) {
+        AlertDialog.Builder(this).setTitle(String.format(s("fam_ring_title"), pair.name))
+            .setItems(arrayOf(s("fam_ring_now"), s("fam_ring_stop"))) { _, i ->
+                val type = if (i == 0) "ring" else "stop"
+                Thread {
+                    val r = FamilyBridge.sendCommand(this, pair, type)
+                    runOnUiThread { toast(if (r == "sent") (if (i == 0) s("fam_ring_sent") else s("fam_ring_stop_sent")) else errText(r)) }
+                }.start()
+            }.setNegativeButton(s("cancel"), null).show()
     }
 
     // ------------------------------------------------------------------ helpers

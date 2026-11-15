@@ -11,6 +11,12 @@
 //   message  TF1|<METHOD>|<path>|<ts>|<nonce>|<sha256 hex of the body text>
 
 const MAX_BODY = 4096;
+const MAX_PHOTO_BODY = 700000;      // base64 ciphertext of a photo of at most ~450 KB
+const CMD_TTL_MS = 5 * 60 * 1000;   // an undelivered command is dropped after 5 minutes
+const PHOTO_TTL_MS = 24 * 60 * 60 * 1000;   // a photo nobody picked up is deleted after 24 hours
+const MAX_PENDING_PHOTOS = 5;       // per recipient
+const MAX_MSGS = 10;
+const CHUNK = 100000;               // characters per stored piece (DO values stay far below the limit)
 const TS_WINDOW = 300;            // seconds
 const CODE_TTL_MS = 10 * 60 * 1000;
 const DONE_TTL_MS = 2 * 60 * 1000;
@@ -70,12 +76,14 @@ export default {
     if (request.method === 'GET' && path === '/') return json({ ok: true, service: 'tt-family', v: 1 });
     if (request.method !== 'POST') return err('not_found', 404);
     const routes = ['/pair/open', '/pair/join', '/pair/poll', '/pair/decide', '/pair/info', '/pair/unpair'];
-    if (!routes.includes(path)) return err('not_found', 404);
+    const roomOps = { '/room/send': '/send', '/room/poll': '/poll', '/photo/put': '/photo/put', '/photo/get': '/photo/get', '/photo/ack': '/photo/ack' };
+    if (!routes.includes(path) && !roomOps[path]) return err('not_found', 404);
 
+    const limit = path === '/photo/put' ? MAX_PHOTO_BODY : MAX_BODY;
     const len = parseInt(request.headers.get('content-length') || '0', 10);
-    if (len > MAX_BODY) return err('too_large', 413);
+    if (len > limit) return err('too_large', 413);
     const bodyText = await request.text();
-    if (bodyText.length > MAX_BODY) return err('too_large', 413);
+    if (bodyText.length > limit) return err('too_large', 413);
     let body;
     try { body = bodyText ? JSON.parse(bodyText) : {}; } catch (e) { return err('bad_request'); }
     if (typeof body !== 'object' || body === null) return err('bad_request');
@@ -127,6 +135,26 @@ export default {
         return json({ ok: true, status: 'approved', pid });
       }
       return json(r, r.ok ? 200 : 400);
+    }
+
+    // ---- v2.9.17: commands and photos between the two members of a pair
+    if (roomOps[path]) {
+      if (!PID_RE.test(String(body.pid || ''))) return err('bad_request');
+      const payload = { did: who.did };
+      if (path === '/room/send') {
+        if (!okB64(body.ct, 2000)) return err('bad_request');
+        if (!(await rateLimit(env, 'dev-send:' + who.did, 60, 600))) return err('rate_limited', 429);
+        payload.ct = body.ct;
+      } else if (path === '/photo/put') {
+        if (!/^[0-9a-f]{16}$/.test(String(body.id || '')) || !okB64(body.ct, MAX_PHOTO_BODY - 200)) return err('bad_request');
+        if (!(await rateLimit(env, 'dev-photo:' + who.did, 30, 600))) return err('rate_limited', 429);
+        payload.id = body.id; payload.ct = body.ct;
+      } else if (path === '/photo/get' || path === '/photo/ack') {
+        if (!/^[0-9a-f]{16}$/.test(String(body.id || ''))) return err('bad_request');
+        payload.id = body.id;
+      }
+      const r = await callDO(env.ROOMS, body.pid, roomOps[path], payload);
+      return json(r, r.ok ? 200 : (r.error === 'not_found' ? 404 : 400));
     }
 
     // /pair/info and /pair/unpair
@@ -216,9 +244,48 @@ export class Rendezvous {
   async alarm() { await this.ctx.storage.deleteAll(); }
 }
 
-// One per pair (named by a random 128-bit id). Holds only the two members.
+// One per pair (named by a random 128-bit id). Holds the two members, plus short-lived relay data:
+//   i:<did>        commands waiting for that member (delivered once, dropped after CMD_TTL)
+//   pm:<id>        metadata of an encrypted photo waiting for its recipient
+//   pc:<id>:<n>    the ciphertext pieces of that photo
+// Photos are deleted the moment the recipient acknowledges them, or after PHOTO_TTL at the latest.
+// Everything stored here is ciphertext the server cannot read.
 export class PairRoom {
   constructor(ctx, env) { this.ctx = ctx; this.env = env; }
+
+  cmdTtl() { return Number(this.env.CMD_TTL_MS) || CMD_TTL_MS; }
+  photoTtl() { return Number(this.env.PHOTO_TTL_MS) || PHOTO_TTL_MS; }
+
+  async dropPhoto(id, n) {
+    const keys = ['pm:' + id];
+    for (let k = 0; k < n; k++) keys.push('pc:' + id + ':' + k);
+    await this.ctx.storage.delete(keys);
+  }
+
+  // Deletes everything expired and arms the alarm for the next expiry (if anything is left).
+  async sweep() {
+    const now = Date.now();
+    let next = 0;
+    const pm = await this.ctx.storage.list({ prefix: 'pm:' });
+    for (const [k, v] of pm) {
+      if (now - v.ts >= this.photoTtl()) await this.dropPhoto(k.slice(3), v.n);
+      else next = next ? Math.min(next, v.ts + this.photoTtl()) : v.ts + this.photoTtl();
+    }
+    const inb = await this.ctx.storage.list({ prefix: 'i:' });
+    for (const [k, arr] of inb) {
+      const fresh = arr.filter((m) => now - m.ts < this.cmdTtl());
+      if (fresh.length === 0) await this.ctx.storage.delete(k);
+      else {
+        if (fresh.length !== arr.length) await this.ctx.storage.put(k, fresh);
+        const t = fresh[0].ts + this.cmdTtl();
+        next = next ? Math.min(next, t) : t;
+      }
+    }
+    if (next) await this.ctx.storage.setAlarm(Math.max(next, now + 1000));
+    else await this.ctx.storage.deleteAlarm();
+  }
+
+  async alarm() { await this.sweep(); }
 
   async fetch(request) {
     const path = new URL(request.url).pathname;
@@ -229,14 +296,60 @@ export class PairRoom {
       await this.ctx.storage.put('m', { members: b.members, created: Date.now() });
       return out({ ok: true });
     }
+    if (path === '/_count' && this.env.TEST_MODE === '1') return out({ keys: [...(await this.ctx.storage.list()).keys()].length });   // tests only
     const m = await this.ctx.storage.get('m');
     if (!m || !m.members.some((x) => x.did === b.did)) return out({ ok: false, error: 'not_found' });
+    const peer = m.members.find((x) => x.did !== b.did);
+    const now = Date.now();
+
     if (path === '/info') {
       return out({ ok: true, members: m.members.map((x) => ({ did: x.did, name: x.name })), created: m.created });
     }
     if (path === '/unpair') {
+      await this.ctx.storage.deleteAlarm();
       await this.ctx.storage.deleteAll();
       return out({ ok: true });
+    }
+    if (path === '/send') {
+      const key = 'i:' + peer.did;
+      const arr = ((await this.ctx.storage.get(key)) || []).filter((x) => now - x.ts < this.cmdTtl());
+      arr.push({ id: hex(crypto.getRandomValues(new Uint8Array(6))), ts: now, ct: b.ct });
+      await this.ctx.storage.put(key, arr.slice(-MAX_MSGS));
+      await this.sweep();
+      return out({ ok: true });
+    }
+    if (path === '/poll') {
+      const key = 'i:' + b.did;
+      const arr = ((await this.ctx.storage.get(key)) || []).filter((x) => now - x.ts < this.cmdTtl());
+      if (arr.length) await this.ctx.storage.delete(key);        // delivered once
+      const photos = [];
+      for (const [k, v] of await this.ctx.storage.list({ prefix: 'pm:' })) {
+        if (v.to === b.did && now - v.ts < this.photoTtl()) photos.push({ id: k.slice(3), ts: v.ts, size: v.size });
+      }
+      return out({ ok: true, msgs: arr.map((x) => ({ id: x.id, ts: x.ts, ct: x.ct })), photos });
+    }
+    if (path === '/photo/put') {
+      if (await this.ctx.storage.get('pm:' + b.id)) return out({ ok: true, dup: true });   // retry of the same upload
+      let pending = 0;
+      for (const [, v] of await this.ctx.storage.list({ prefix: 'pm:' })) if (v.to === peer.did) pending++;
+      if (pending >= MAX_PENDING_PHOTOS) return out({ ok: false, error: 'full' });
+      const n = Math.ceil(b.ct.length / CHUNK);
+      for (let k = 0; k < n; k++) await this.ctx.storage.put('pc:' + b.id + ':' + k, b.ct.slice(k * CHUNK, (k + 1) * CHUNK));
+      await this.ctx.storage.put('pm:' + b.id, { to: peer.did, ts: now, size: b.ct.length, n });
+      await this.sweep();
+      return out({ ok: true });
+    }
+    if (path === '/photo/get') {
+      const meta = await this.ctx.storage.get('pm:' + b.id);
+      if (!meta || meta.to !== b.did || now - meta.ts >= this.photoTtl()) return out({ ok: false, error: 'not_found' });
+      let ct = '';
+      for (let k = 0; k < meta.n; k++) ct += (await this.ctx.storage.get('pc:' + b.id + ':' + k)) || '';
+      return out({ ok: true, ct });
+    }
+    if (path === '/photo/ack') {
+      const meta = await this.ctx.storage.get('pm:' + b.id);
+      if (meta && meta.to === b.did) { await this.dropPhoto(b.id, meta.n); await this.sweep(); }
+      return out({ ok: true });                                    // idempotent
     }
     return out({ ok: false, error: 'not_found' });
   }

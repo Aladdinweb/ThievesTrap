@@ -57,6 +57,7 @@ class MainActivity : AppCompatActivity() {
             finish(); return
         }
         setupButtons()
+        try { FamilyRelay.schedule(this) } catch (e: Exception) {}      // v2.9.17: fallback poll job if paired
         // v2.9.15: remote SMS commands that need a PIN stay refused until a REMOTE PIN exists
         window.decorView.post { if (!RemotePin.isSet(this)) showRemotePinDialog(firstTime = true) }
     }
