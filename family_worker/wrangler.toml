@@ -1,0 +1,23 @@
+# Thieves Trap FAMILY Worker (pairing now; selfie relay, ring and live map in later steps).
+# Deployed by .github/workflows/deploy-family-worker.yml. No secrets and no KV: Durable Objects only.
+name = "thievestrap-family"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+workers_dev = true
+
+[[durable_objects.bindings]]
+name = "RENDEZVOUS"
+class_name = "Rendezvous"
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "PairRoom"
+
+[[durable_objects.bindings]]
+name = "LIMITER"
+class_name = "Limiter"
+
+# Free plan needs SQLite-backed classes.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Rendezvous", "PairRoom", "Limiter"]

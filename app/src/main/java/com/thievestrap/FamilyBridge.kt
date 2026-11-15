@@ -1,0 +1,309 @@
+package com.thievestrap
+
+import android.content.Context
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
+import android.util.Base64
+import org.json.JSONArray
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+import java.security.KeyFactory
+import java.security.KeyPair
+import java.security.KeyPairGenerator
+import java.security.KeyStore
+import java.security.MessageDigest
+import java.security.SecureRandom
+import java.security.Signature
+import java.security.spec.ECGenParameterSpec
+import java.security.spec.X509EncodedKeySpec
+import javax.crypto.Cipher
+import javax.crypto.KeyAgreement
+import javax.crypto.Mac
+import javax.crypto.spec.GCMParameterSpec
+import javax.crypto.spec.SecretKeySpec
+
+/**
+ * v3.0.0 step 1: Family Bridge client (pairing only).
+ *
+ * - Own Keystore signing key `tt_family_dev_v1` (separate from the license key); every request is signed.
+ * - Pairing: ephemeral ECDH P-256 keys travel through the Worker; both phones derive the SAME pair key and
+ *   the SAME 6-digit verification code (SAS) from them. The user compares the codes on both screens, so a
+ *   Worker (or anyone relaying) that swapped keys would produce different codes.
+ * - The pair key is wrapped by a non-exportable Keystore AES key before it is stored.
+ * - Permissions (what the other phone may do here) are stored locally; later steps refuse any command the
+ *   peer was not granted.
+ * All network functions are BLOCKING: call them off the main thread.
+ */
+object FamilyBridge {
+
+    const val API_URL = "https://thievestrap-family.ferakalaaeddine.workers.dev"
+    private const val TAG = "FamilyBridge"
+    private const val SIGN_ALIAS = "tt_family_dev_v1"
+    private const val WRAP_ALIAS = "tt_family_wrap_v1"
+    private const val PREFS = "tt_family"
+    const val MAX_PAIRS = 5
+
+    class FamilyPair(
+        val pid: String, val name: String, val keyWrapped: String,
+        var ring: Boolean, var selfie: Boolean, var location: Boolean, val created: Long
+    )
+
+    /** In-memory state of one pairing in progress (lost if the process dies: just start again). */
+    class Session(
+        val owner: Boolean, val code: String, val ephPriv: java.security.PrivateKey, val ephPub: String,
+        val myName: String
+    ) {
+        var peerEpk: String? = null
+        var peerName: String? = null
+        @Volatile var sas: String? = null
+        var done: Boolean = false
+    }
+    @Volatile var session: Session? = null
+
+    class Reply(val http: Int, val json: JSONObject?) {
+        val ok get() = json?.optBoolean("ok", false) == true
+        val error get() = json?.optString("error", "") ?: if (http == 0) "offline" else "http_$http"
+    }
+
+    // ------------------------------------------------------------------ names and storage
+
+    private fun p(ctx: Context) = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+    fun myName(ctx: Context): String = p(ctx).getString("my_name", "") ?: ""
+    fun setMyName(ctx: Context, n: String) { p(ctx).edit().putString("my_name", n.trim().take(24)).apply() }
+
+    fun pairs(ctx: Context): List<FamilyPair> {
+        val arr = try { JSONArray(p(ctx).getString("pairs", "[]")) } catch (e: Exception) { JSONArray() }
+        return (0 until arr.length()).mapNotNull {
+            val o = arr.optJSONObject(it) ?: return@mapNotNull null
+            FamilyPair(o.optString("pid"), o.optString("name"), o.optString("key"),
+                o.optBoolean("ring", true), o.optBoolean("selfie", true), o.optBoolean("loc", true), o.optLong("t"))
+        }
+    }
+
+    private fun savePairs(ctx: Context, list: List<FamilyPair>) {
+        val arr = JSONArray()
+        list.forEach {
+            arr.put(JSONObject().put("pid", it.pid).put("name", it.name).put("key", it.keyWrapped)
+                .put("ring", it.ring).put("selfie", it.selfie).put("loc", it.location).put("t", it.created))
+        }
+        p(ctx).edit().putString("pairs", arr.toString()).apply()
+    }
+
+    fun setGrants(ctx: Context, pid: String, ring: Boolean, selfie: Boolean, location: Boolean) {
+        val l = pairs(ctx)
+        l.firstOrNull { it.pid == pid }?.let { it.ring = ring; it.selfie = selfie; it.location = location }
+        savePairs(ctx, l)
+    }
+
+    private fun removeLocal(ctx: Context, pid: String) = savePairs(ctx, pairs(ctx).filter { it.pid != pid })
+
+    /** The raw 32-byte pair key (used by later steps to encrypt selfies and locations). */
+    fun pairKey(ctx: Context, pair: FamilyPair): ByteArray? = try { unwrap(pair.keyWrapped) } catch (e: Exception) { null }
+
+    // ------------------------------------------------------------------ pairing flow
+
+    /** Phone that SHOWS a code. Returns the 4-digit code or an error. */
+    fun openCode(ctx: Context): Reply {
+        val eph = newEphemeral()
+        val name = myName(ctx)
+        val r = post("/pair/open", JSONObject().put("epk", b64(eph.public.encoded)).put("name", name))
+        if (r.ok) session = Session(true, r.json!!.optString("code"), eph.private, b64(eph.public.encoded), name)
+        return r
+    }
+
+    /** Phone that TYPES a code. On success the verification code is ready in session.sas. */
+    fun join(ctx: Context, codeText: String): Reply {
+        val code = codeText.trim().uppercase().removePrefix("TRAP-").trim()
+        val eph = newEphemeral()
+        val name = myName(ctx)
+        val r = post("/pair/join", JSONObject().put("code", code).put("epk", b64(eph.public.encoded)).put("name", name))
+        if (r.ok) {
+            val s = Session(false, code, eph.private, b64(eph.public.encoded), name)
+            val peer = r.json!!.optJSONObject("peer")
+            s.peerEpk = peer?.optString("epk"); s.peerName = peer?.optString("name")
+            s.sas = sas(s.ephPub, s.peerEpk ?: "")
+            session = s
+        }
+        return r
+    }
+
+    /** Polls the rendezvous. Returns the status string: pending, approved, denied, or an error code. */
+    fun poll(ctx: Context): String {
+        val s = session ?: return "no_session"
+        val r = post("/pair/poll", JSONObject().put("code", s.code))
+        if (!r.ok) return r.error.ifEmpty { "error" }
+        val status = r.json!!.optString("status")
+        val peer = r.json.optJSONObject("peer")
+        if (peer != null && s.peerEpk == null) {
+            s.peerEpk = peer.optString("epk"); s.peerName = peer.optString("name")
+            s.sas = sas(s.ephPub, s.peerEpk ?: "")
+        }
+        if (status == "approved" && !s.done) {
+            val pid = r.json.optString("pid")
+            if (pid.isNotEmpty() && finish(ctx, s, pid)) { s.done = true } else return "error"
+        }
+        return status
+    }
+
+    /** Owner only: allow or deny the pending request. */
+    fun decide(ctx: Context, accept: Boolean): String {
+        val s = session ?: return "no_session"
+        val r = post("/pair/decide", JSONObject().put("code", s.code).put("accept", accept))
+        if (!r.ok) return r.error.ifEmpty { "error" }
+        if (accept) {
+            val pid = r.json!!.optString("pid")
+            if (pid.isEmpty() || !finish(ctx, s, pid)) return "error"
+            s.done = true
+            return "approved"
+        }
+        return "denied"
+    }
+
+    fun cancelSession() { session = null }
+
+    private fun finish(ctx: Context, s: Session, pid: String): Boolean {
+        return try {
+            val peerEpk = s.peerEpk ?: return false
+            if (pairs(ctx).size >= MAX_PAIRS) return false
+            val key = deriveKey(s.ephPriv, peerEpk, s.ephPub)
+            val l = pairs(ctx).filter { it.pid != pid }.toMutableList()
+            l.add(FamilyPair(pid, (s.peerName ?: "").ifEmpty { "Phone" }, wrap(key), true, true, true, System.currentTimeMillis()))
+            savePairs(ctx, l)
+            true
+        } catch (e: Exception) { android.util.Log.w(TAG, "finish failed", e); false }
+    }
+
+    /** Ends a pairing on the server (best effort) and ALWAYS removes it locally. */
+    fun unpair(ctx: Context, pid: String): Boolean {
+        val r = post("/pair/unpair", JSONObject().put("pid", pid))
+        removeLocal(ctx, pid)
+        return r.ok || r.http == 404
+    }
+
+    /** Drops local pairs that the other side ended (server answers not_found). Returns pids removed. */
+    fun refresh(ctx: Context): List<String> {
+        val gone = mutableListOf<String>()
+        for (pr in pairs(ctx)) {
+            val r = post("/pair/info", JSONObject().put("pid", pr.pid))
+            if (r.http == 404) { removeLocal(ctx, pr.pid); gone.add(pr.pid) }
+        }
+        return gone
+    }
+
+    // ------------------------------------------------------------------ crypto
+
+    private class Eph(val private: java.security.PrivateKey, val public: java.security.PublicKey)
+
+    private fun newEphemeral(): Eph {
+        val g = KeyPairGenerator.getInstance("EC")
+        g.initialize(ECGenParameterSpec("secp256r1"), SecureRandom())
+        val kp: KeyPair = g.generateKeyPair()
+        return Eph(kp.private, kp.public)
+    }
+
+    /** ECDH + HKDF-SHA256. Both phones sort the two ephemeral public keys, so the result is identical. */
+    private fun deriveKey(myPriv: java.security.PrivateKey, peerEpkB64: String, myEpkB64: String): ByteArray {
+        val peerPub = KeyFactory.getInstance("EC").generatePublic(X509EncodedKeySpec(Base64.decode(peerEpkB64, Base64.NO_WRAP)))
+        val ka = KeyAgreement.getInstance("ECDH"); ka.init(myPriv); ka.doPhase(peerPub, true)
+        val secret = ka.generateSecret()
+        val salt = MessageDigest.getInstance("SHA-256").digest(sortedJoin(myEpkB64, peerEpkB64).toByteArray())
+        val prk = hmac(salt, secret)
+        return hmac(prk, "TT-family-v1".toByteArray() + byteArrayOf(1))   // HKDF-Expand, one 32-byte block
+    }
+
+    /** 6 digits both users read aloud or compare: derived from the two public keys only. */
+    private fun sas(myEpk: String, peerEpk: String): String {
+        val d = MessageDigest.getInstance("SHA-256").digest(("TT-SAS|" + sortedJoin(myEpk, peerEpk)).toByteArray())
+        val n = ((d[0].toLong() and 0xff) shl 24 or ((d[1].toLong() and 0xff) shl 16) or
+                ((d[2].toLong() and 0xff) shl 8) or (d[3].toLong() and 0xff)) % 1_000_000L
+        return String.format("%06d", n).let { it.substring(0, 3) + " " + it.substring(3) }
+    }
+
+    private fun sortedJoin(a: String, b: String) = if (a <= b) "$a|$b" else "$b|$a"
+
+    private fun hmac(key: ByteArray, data: ByteArray): ByteArray {
+        val m = Mac.getInstance("HmacSHA256"); m.init(SecretKeySpec(key, "HmacSHA256")); return m.doFinal(data)
+    }
+
+    private fun wrapKey(): javax.crypto.SecretKey {
+        val ks = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        (ks.getKey(WRAP_ALIAS, null) as? javax.crypto.SecretKey)?.let { return it }
+        val g = javax.crypto.KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
+        g.init(KeyGenParameterSpec.Builder(WRAP_ALIAS, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
+            .setBlockModes(KeyProperties.BLOCK_MODE_GCM).setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+            .setKeySize(256).build())
+        return g.generateKey()
+    }
+
+    private fun wrap(raw: ByteArray): String {
+        val c = Cipher.getInstance("AES/GCM/NoPadding"); c.init(Cipher.ENCRYPT_MODE, wrapKey())
+        return b64(c.iv) + ":" + b64(c.doFinal(raw))
+    }
+
+    private fun unwrap(s: String): ByteArray {
+        val (iv, ct) = s.split(":")
+        val c = Cipher.getInstance("AES/GCM/NoPadding")
+        c.init(Cipher.DECRYPT_MODE, wrapKey(), GCMParameterSpec(128, Base64.decode(iv, Base64.NO_WRAP)))
+        return c.doFinal(Base64.decode(ct, Base64.NO_WRAP))
+    }
+
+    // ------------------------------------------------------------------ signed HTTP
+
+    private fun b64(b: ByteArray) = Base64.encodeToString(b, Base64.NO_WRAP)
+
+    private fun signingKey(): KeyPair? = try {
+        val ks = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        if (!ks.containsAlias(SIGN_ALIAS)) {
+            val g = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_EC, "AndroidKeyStore")
+            g.initialize(KeyGenParameterSpec.Builder(SIGN_ALIAS, KeyProperties.PURPOSE_SIGN)
+                .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
+                .setDigests(KeyProperties.DIGEST_SHA256).build())
+            g.generateKeyPair()
+        }
+        KeyPair(ks.getCertificate(SIGN_ALIAS).publicKey, ks.getKey(SIGN_ALIAS, null) as java.security.PrivateKey)
+    } catch (e: Exception) { android.util.Log.w(TAG, "signing key unavailable", e); null }
+
+    /** ASN.1 DER ECDSA signature -> raw r||s (64 bytes), which is what WebCrypto verifies. */
+    private fun derToRaw(der: ByteArray): ByteArray {
+        var i = 2; if (der[1].toInt() and 0x80 != 0) i += (der[1].toInt() and 0x7f)
+        fun readInt(): ByteArray {
+            val len = der[i + 1].toInt() and 0xff; val v = der.copyOfRange(i + 2, i + 2 + len); i += 2 + len
+            val t = v.dropWhile { it == 0.toByte() }.toByteArray()
+            return ByteArray(32 - t.size) + t
+        }
+        val r = readInt(); val s = readInt(); return r + s
+    }
+
+    private fun post(path: String, body: JSONObject): Reply {
+        val kp = signingKey() ?: return Reply(0, JSONObject().put("ok", false).put("error", "no_device_key"))
+        var conn: HttpURLConnection? = null
+        return try {
+            val text = body.toString()
+            val ts = System.currentTimeMillis() / 1000
+            val nonce = Base64.encodeToString(ByteArray(9).also { SecureRandom().nextBytes(it) },
+                Base64.NO_WRAP or Base64.URL_SAFE or Base64.NO_PADDING)
+            val bodyHash = MessageDigest.getInstance("SHA-256").digest(text.toByteArray())
+                .joinToString("") { "%02x".format(it) }
+            val sg = Signature.getInstance("SHA256withECDSA"); sg.initSign(kp.private)
+            sg.update("TF1|POST|$path|$ts|$nonce|$bodyHash".toByteArray())
+            conn = (URL(API_URL + path).openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"; connectTimeout = 10000; readTimeout = 15000; doOutput = true
+                setRequestProperty("content-type", "application/json")
+                setRequestProperty("x-tt-pub", b64(kp.public.encoded))
+                setRequestProperty("x-tt-ts", ts.toString())
+                setRequestProperty("x-tt-nonce", nonce)
+                setRequestProperty("x-tt-sig", b64(derToRaw(sg.sign())))
+            }
+            conn.outputStream.use { it.write(text.toByteArray()) }
+            val code = conn.responseCode
+            val stream = if (code in 200..299) conn.inputStream else conn.errorStream
+            val txt = stream?.bufferedReader()?.use { it.readText() } ?: ""
+            Reply(code, try { JSONObject(txt) } catch (e: Exception) { null })
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "network error on $path: ${e.message}")
+            Reply(0, null)
+        } finally { conn?.disconnect() }
+    }
+}
