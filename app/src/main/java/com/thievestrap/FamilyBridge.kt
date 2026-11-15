@@ -353,6 +353,19 @@ object FamilyBridge {
         val r = readInt(); val s = readInt(); return r + s
     }
 
+    /** Signed headers for a request that is not a JSON POST (the WebSocket upgrade). Null without a device key. */
+    internal fun signedHeaders(method: String, path: String, bodyText: String): Map<String, String>? {
+        val kp = signingKey() ?: return null
+        return try {
+            val ts = System.currentTimeMillis() / 1000
+            val nonce = Base64.encodeToString(ByteArray(9).also { SecureRandom().nextBytes(it) }, Base64.NO_WRAP or Base64.URL_SAFE or Base64.NO_PADDING)
+            val bodyHash = MessageDigest.getInstance("SHA-256").digest(bodyText.toByteArray()).joinToString("") { "%02x".format(it) }
+            val sg = Signature.getInstance("SHA256withECDSA"); sg.initSign(kp.private)
+            sg.update("TF1|$method|$path|$ts|$nonce|$bodyHash".toByteArray())
+            mapOf("x-tt-pub" to b64(kp.public.encoded), "x-tt-ts" to ts.toString(), "x-tt-nonce" to nonce, "x-tt-sig" to b64(derToRaw(sg.sign())))
+        } catch (e: Exception) { null }
+    }
+
     internal fun post(path: String, body: JSONObject): Reply {
         val kp = signingKey() ?: return Reply(0, JSONObject().put("ok", false).put("error", "no_device_key"))
         var conn: HttpURLConnection? = null

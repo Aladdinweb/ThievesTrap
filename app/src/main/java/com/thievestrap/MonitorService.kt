@@ -90,9 +90,11 @@ class MonitorService : Service() {
         cacheDeviceIdentifiers()
         FamilyTracker.resumeIfNeeded(this)     // v2.9.18: continue (or end) a location-sharing session
         // v2.9.17: while the phone is armed, look for family commands (ring) and photos every 20 s
+        try { FamilySocket.acquire(this) } catch (e: Exception) { Log.w(TAG, "family socket failed: ${e.message}") }   // v2.9.19: instant push
         serviceScope.launch {
             while (isActive) {
                 try {
+                    FamilySocket.ensure(this@MonitorService)
                     if (prefs().getBoolean("running", false)) FamilyRelay.pollOnce(this@MonitorService)
                 } catch (e: Exception) { Log.w(TAG, "family poll failed: ${e.message}") }
                 delay(FamilyRelay.POLL_MS)
@@ -234,6 +236,7 @@ class MonitorService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         try { FamilyTracker.pause(this) } catch (e: Exception) {}
+        try { FamilySocket.release() } catch (e: Exception) {}
         try { wakeLock?.release() } catch (e: Exception) {}
         fusedClient.removeLocationUpdates(locationCallback)
         pingRunnable?.let { handler.removeCallbacks(it) }

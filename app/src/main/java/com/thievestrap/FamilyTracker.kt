@@ -16,6 +16,7 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -59,9 +60,18 @@ object FamilyTracker {
         val app = ctx.applicationContext
         sp(app).edit().putString("trk_pid", pr.pid).putLong("trk_until", System.currentTimeMillis() + minutes * 60_000L).apply()
         still = 0; last = null
+        FamilyAudit.add(app, "track_on", pr.name)
         begin(app, FAST_MS)
         notifyActive(app, pr.name)
-        status(app, pr.pid, "started")
+        // tell the watcher if this phone only allows location "while the app is in use" (tracking can then stop after a restart)
+        status(app, pr.pid, if (BackgroundLocation.isGranted(app)) "started" else "started_limited")
+        // v2.9.19: do not wait for the first scheduled fix: send the freshest known position right away
+        try {
+            val c = LocationServices.getFusedLocationProviderClient(app)
+            c.lastLocation.addOnSuccessListener { l -> if (l != null && System.currentTimeMillis() - l.time < 120_000L) onFix(app, l) }
+            c.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, CancellationTokenSource().token)
+                .addOnSuccessListener { l -> if (l != null) onFix(app, l) }
+        } catch (e: SecurityException) { Log.w(TAG, "no location permission for the immediate fix") }
     }
 
     /** Ends the session. `reason` is told to the other phone (stopped / expired / disarmed / revoked); null = silent cleanup. */
@@ -72,6 +82,7 @@ object FamilyTracker {
         pause(app)
         sp(app).edit().remove("trk_pid").remove("trk_until").apply()
         if (pid.isNotEmpty()) {
+            FamilyAudit.add(app, "track_off", FamilyBridge.pairs(app).firstOrNull { it.pid == pid }?.name ?: "?", reason ?: "ended")
             if (reason != null) status(app, pid, reason) else io.execute { FamilyBridge.clearLoc(pid) }
         }
     }

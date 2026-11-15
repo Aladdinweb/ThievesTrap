@@ -67,6 +67,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        // v2.9.19: a phone that lets family see its location needs "Allow all the time" to keep sharing after restarts
+        try { if (FamilyBridge.pairs(this).any { it.location }) BackgroundLocation.promptIfNeeded(this) } catch (e: Exception) {}
         // v2.9.7.1: silent, automatic check -- once per process lifetime, not
         // on every onResume (switching screens and coming back would otherwise
         // re-prompt). UpdateManager shows the dialog itself only if newer.

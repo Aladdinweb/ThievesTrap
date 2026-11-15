@@ -1,7 +1,21 @@
 package com.thievestrap
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
-import android.location.Geocoder
+import android.graphics.Paint
+import android.graphics.drawable.BitmapDrawable
+import android.text.SpannableString
+import android.text.style.ForegroundColorSpan
+import androidx.core.content.ContextCompat
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import org.osmdroid.util.BoundingBox
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -57,6 +71,14 @@ class FamilyNetworkActivity : AppCompatActivity() {
     private var sessionStartSec = 0L
     private var lastFix: JSONObject? = null
     private var firstCentred = false
+    private var ownMarker: Marker? = null
+    private var ownCb: LocationCallback? = null
+    private var ownPoint: GeoPoint? = null
+    private var fitted = false
+    private var limitedShown = false
+    private lateinit var tvMapTitle: TextView
+    private val RED = Color.parseColor("#E53935")      // the tracked (target / stolen) phone
+    private val GREEN = Color.parseColor("#1DB954")    // this (monitor) phone
 
     private fun s(key: String) = Strings.get(this, key)
 
@@ -103,8 +125,12 @@ class FamilyNetworkActivity : AppCompatActivity() {
         tvCode.textSize = 22f
         tvMapCaption = findViewById(R.id.tv_map_caption)
         findViewById<TextView>(R.id.tv_preview_note).text = s("fam_live_note")
-        findViewById<TextView>(R.id.tv_map_title).text = s("fam_map_title")
+        tvMapTitle = findViewById(R.id.tv_map_title)
+        tvMapTitle.text = s("fam_map_title")
         initMap()
+        findViewById<TextView>(R.id.tv_family_notice).text = s("fam_notice_line")
+        findViewById<TextView>(R.id.tv_family_privacy_log).apply { text = s("fam_log_row"); setOnClickListener { openPrivacyLog() } }
+        if (!getSharedPreferences("tt_family", MODE_PRIVATE).getBoolean("notice_ok", false)) showNotice()
 
         findViewById<Button>(R.id.btn_back_family).setOnClickListener { finish() }
         findViewById<View>(R.id.btn_family_info).setOnClickListener { showInfoDialog() }
@@ -135,6 +161,12 @@ class FamilyNetworkActivity : AppCompatActivity() {
         if (FamilyBridge.session != null) handler.post(pollTask)
         mapView?.onResume()
         if (viewPair != null) handler.post(locTask)
+        // live channel: commands, locations and photo notices arrive at once; this screen shows pushed locations
+        FamilySocket.acquire(this)
+        FamilySocket.locListener = { pid, plain ->
+            runOnUiThread { val pr = viewPair; if (pr != null && pr.pid == pid && processLoc(pr, plain)) refreshCaption() }
+        }
+        startOwnLocation()
     }
 
     override fun onPause() {
@@ -142,6 +174,9 @@ class FamilyNetworkActivity : AppCompatActivity() {
         handler.removeCallbacks(pollTask)
         handler.removeCallbacks(locTask)
         mapView?.onPause()
+        FamilySocket.locListener = null
+        FamilySocket.release()
+        stopOwnLocation()
         super.onPause()
     }
 
@@ -182,7 +217,9 @@ class FamilyNetworkActivity : AppCompatActivity() {
                 if (r != "sent") { toast(errText(r)); return@runOnUiThread }
                 viewPair = pair
                 sessionStartSec = System.currentTimeMillis() / 1000
-                lastFix = null; firstCentred = false
+                lastFix = null; firstCentred = false; fitted = false; limitedShown = false
+                FamilyAudit.add(this, "i_track", pair.name)
+                updateLegend()
                 trailPts.clear(); trail?.setPoints(trailPts)
                 toast(String.format(s("fam_track_sent"), pair.name))
                 refreshCaption()
@@ -202,25 +239,104 @@ class FamilyNetworkActivity : AppCompatActivity() {
     private fun endViewing() {
         handler.removeCallbacks(locTask)
         viewPair = null
+        updateLegend()
         refreshCaption()
+    }
+
+    // ------------------------------------------------------------------ markers and own position (v2.9.19)
+
+    /** Round pin: white ring + colour. Red = the tracked phone, green = this phone. */
+    private fun pinIcon(color: Int): BitmapDrawable {
+        val d = resources.displayMetrics.density
+        val size = (30 * d).toInt()
+        val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val c = Canvas(bmp)
+        val p = Paint(Paint.ANTI_ALIAS_FLAG)
+        p.color = Color.WHITE; c.drawCircle(size / 2f, size / 2f, size / 2f - 1f, p)
+        p.color = color; c.drawCircle(size / 2f, size / 2f, size / 2f - 4f * d, p)
+        return BitmapDrawable(resources, bmp)
+    }
+
+    private fun updateLegend() {
+        val name = viewPair?.name
+        if (name == null) { tvMapTitle.text = s("fam_map_title"); return }
+        val txt = "\u25CF $name   \u25CF ${s("fam_you")}"
+        val sp = SpannableString(txt)
+        sp.setSpan(ForegroundColorSpan(RED), 0, 1, 0)
+        val i = txt.indexOf("   \u25CF") + 3
+        sp.setSpan(ForegroundColorSpan(GREEN), i, i + 1, 0)
+        tvMapTitle.text = sp
+    }
+
+    /** This phone's own position (green). It stays on this phone: nothing about it is ever sent. */
+    private fun startOwnLocation() {
+        if (ownCb != null) return
+        val ok = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                 ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        if (!ok) return
+        val client = LocationServices.getFusedLocationProviderClient(this)
+        val cb = object : LocationCallback() {
+            override fun onLocationResult(r: LocationResult) { r.lastLocation?.let { setOwn(it) } }
+        }
+        ownCb = cb
+        try {
+            client.lastLocation.addOnSuccessListener { l -> if (l != null) setOwn(l) }
+            client.requestLocationUpdates(LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 10_000L).build(), cb, Looper.getMainLooper())
+        } catch (e: SecurityException) { ownCb = null }
+    }
+
+    private fun stopOwnLocation() {
+        ownCb?.let { try { LocationServices.getFusedLocationProviderClient(this).removeLocationUpdates(it) } catch (e: Exception) {} }
+        ownCb = null
+    }
+
+    private fun setOwn(l: android.location.Location) {
+        val mv = mapView ?: return
+        val gp = GeoPoint(l.latitude, l.longitude)
+        ownPoint = gp
+        val mk = ownMarker ?: Marker(mv).apply { setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER); title = s("fam_you"); icon = pinIcon(GREEN) }
+            .also { ownMarker = it; mv.overlays.add(it) }
+        mk.position = gp
+        mv.invalidate()
+        maybeFit()
+    }
+
+    /** Once, when both phones are known: zoom so both markers are visible. */
+    private fun maybeFit() {
+        val mv = mapView ?: return
+        val t = lastFix?.let { GeoPoint(it.optDouble("la"), it.optDouble("lo")) } ?: return
+        val me = ownPoint ?: return
+        if (fitted) return
+        fitted = true
+        mv.post { try { mv.zoomToBoundingBox(BoundingBox.fromGeoPoints(listOf(t, me)).increaseByScale(1.6f), true) } catch (e: Exception) { } }
     }
 
     private fun onLoc(json: String?) {
         val pr = viewPair ?: return
-        if (json != null) {
-            try {
-                val o = JSONObject(json)
-                val ts = o.optLong("ts", 0L)
-                if (ts >= sessionStartSec - 60) {                 // ignore leftovers of an earlier session
-                    if (o.has("st")) {
-                        val msg = statusText(o.optString("st"), pr.name)
-                        if (msg != null) { toast(msg); endViewing(); return }
-                    } else if (o.has("la")) applyFix(pr, o)
-                }
-            } catch (e: Exception) { /* undecodable: ignore */ }
-        }
+        if (json != null && !processLoc(pr, json)) return
         refreshCaption()
-        handler.postDelayed(locTask, 3000)
+        // right after START poll every second as a fallback to the live channel, then every 3 s
+        handler.postDelayed(locTask, if (System.currentTimeMillis() / 1000 - sessionStartSec < 25) 1000L else 3000L)
+    }
+
+    /** Applies one decrypted location/status message. False when the session is over (message shown). */
+    private fun processLoc(pr: FamilyBridge.FamilyPair, json: String): Boolean {
+        try {
+            val o = JSONObject(json)
+            val ts = o.optLong("ts", 0L)
+            if (ts >= sessionStartSec - 60) {                     // ignore leftovers of an earlier session
+                if (o.has("st")) {
+                    val st = o.optString("st")
+                    if (st == "started_limited") {
+                        if (!limitedShown) { limitedShown = true; toast(String.format(s("fam_st_limited"), pr.name)) }
+                    } else {
+                        val msg = statusText(st, pr.name)
+                        if (msg != null) { toast(msg); endViewing(); return false }
+                    }
+                } else if (o.has("la")) applyFix(pr, o)
+            }
+        } catch (e: Exception) { /* undecodable: ignore */ }
+        return true
     }
 
     /** Null for "started" (keep waiting), otherwise the reason the session is over. */
@@ -239,14 +355,15 @@ class FamilyNetworkActivity : AppCompatActivity() {
         if (lastFix != null && o.optLong("ts") <= lastFix!!.optLong("ts")) return     // already shown
         lastFix = o
         val gp = GeoPoint(o.getDouble("la"), o.getDouble("lo"))
-        val mk = marker ?: Marker(mv).apply { setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM); title = pr.name }
+        val mk = marker ?: Marker(mv).apply { setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER); title = pr.name; icon = pinIcon(RED) }
             .also { marker = it; mv.overlays.add(it) }
         mk.position = gp
         val tr = trail ?: Polyline().apply { outlinePaint.color = Color.RED; outlinePaint.strokeWidth = 6f }
             .also { trail = it; mv.overlays.add(0, it) }
         trailPts.add(gp); tr.setPoints(trailPts)
-        if (!firstCentred) { mv.controller.setZoom(17.0); mv.controller.animateTo(gp); firstCentred = true }
-        else if (!mv.boundingBox.contains(gp)) mv.controller.animateTo(gp)
+        if (!firstCentred) { firstCentred = true; if (ownPoint == null) { mv.controller.setZoom(17.0); mv.controller.animateTo(gp) } }
+        else if (fitted && !mv.boundingBox.contains(gp)) mv.controller.animateTo(gp)
+        maybeFit()
         mv.invalidate()
         FamilyHistory.add(this, pr.pid, FamilyHistory.Fix(o.optLong("ts"), gp.latitude, gp.longitude, o.optDouble("ac", 0.0).toFloat()))
     }
@@ -270,25 +387,82 @@ class FamilyNetworkActivity : AppCompatActivity() {
     // ------------------------------------------------------------------ local history (v2.9.18)
 
     private fun showHistory(pair: FamilyBridge.FamilyPair) {
-        val list = FamilyHistory.load(this, pair.pid, 50).reversed()
-        if (list.isEmpty()) { toast(s("fam_hist_empty")); return }
+        if (FamilyHistory.load(this, pair.pid, 1).isEmpty()) { toast(s("fam_hist_empty")); return }
+        toast(s("fam_hist_loading"))
+        Thread {
+            FamilyHistory.resolveMissing(this, pair.pid, 20)          // street names for points saved while offline
+            val list = FamilyHistory.load(this, pair.pid, 50).reversed()
+            runOnUiThread { if (!isFinishing) showHistoryDialog(pair, list) }
+        }.start()
+    }
+
+    private fun showHistoryDialog(pair: FamilyBridge.FamilyPair, list: List<FamilyHistory.Fix>) {
         val fmt = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
-        val items = list.map { fmt.format(Date(it.ts * 1000)) + String.format(Locale.US, "  %.5f, %.5f", it.la, it.lo) }.toTypedArray()
+        val items = list.map {
+            fmt.format(Date(it.ts * 1000)) + "  " +
+                (if (it.ad.isNotEmpty()) it.ad else String.format(Locale.US, "%.4f, %.4f \u00B7 %s", it.la, it.lo, s("fam_hist_noaddr")))
+        }.toTypedArray()
         AlertDialog.Builder(this).setTitle(String.format(s("fam_hist_title"), pair.name))
             .setItems(items) { _, i -> showHistoryPoint(list[i]) }
             .setNeutralButton(s("fam_hist_clear")) { _, _ -> FamilyHistory.clear(this, pair.pid); toast(s("fam_hist_cleared")) }
             .setNegativeButton(s("cancel"), null).show()
     }
 
-    @Suppress("DEPRECATION")
     private fun showHistoryPoint(f: FamilyHistory.Fix) {
         mapView?.controller?.animateTo(GeoPoint(f.la, f.lo))
-        Thread {
-            val addr = try {
-                if (Geocoder.isPresent()) Geocoder(this, Locale.getDefault()).getFromLocation(f.la, f.lo, 1)?.firstOrNull()?.getAddressLine(0) else null
-            } catch (e: Exception) { null }
-            runOnUiThread { toast(addr ?: s("fam_addr_unknown")) }
-        }.start()
+        toast(if (f.ad.isNotEmpty()) f.ad else s("fam_addr_unknown"))
+    }
+
+    // ------------------------------------------------------------------ notice and privacy log (v2.9.19)
+
+    private fun showNotice() {
+        AlertDialog.Builder(this).setTitle(s("fam_notice_title")).setMessage(s("fam_notice_msg")).setCancelable(false)
+            .setPositiveButton(s("fam_notice_accept")) { _, _ ->
+                getSharedPreferences("tt_family", MODE_PRIVATE).edit().putBoolean("notice_ok", true).apply()
+            }
+            .setNegativeButton(s("fam_notice_leave")) { _, _ -> finish() }.show()
+    }
+
+    /** The log needs the security PIN: a thief holding an unlocked phone cannot read it, and nobody can clear it. */
+    private fun openPrivacyLog() {
+        val et = EditText(this).apply {
+            hint = s("fam_log_pin_title")
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
+            setPadding(48, 32, 48, 16)
+        }
+        AlertDialog.Builder(this).setTitle(s("fam_log_title")).setView(et)
+            .setPositiveButton(s("fam_open")) { _, _ ->
+                val saved = getSharedPreferences("tt_prefs", MODE_PRIVATE).getString("password", "") ?: ""
+                if (saved.isNotEmpty() && et.text.toString().trim() == saved) showPrivacyLog() else toast(s("wrong_pin"))
+            }
+            .setNegativeButton(s("cancel"), null).show()
+    }
+
+    private fun showPrivacyLog() {
+        val list = FamilyAudit.load(this, 100)
+        if (list.isEmpty()) { toast(s("fam_log_empty")); return }
+        val fmt = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
+        val items = list.map { fmt.format(Date(it.ts * 1000)) + "  " + logText(it) }.toTypedArray()
+        AlertDialog.Builder(this).setTitle(s("fam_log_title")).setItems(items, null)
+            .setPositiveButton(s("fam_ok_short"), null).show()
+    }
+
+    private fun reasonText(x: String) = when (x) {
+        "stopped" -> s("fam_rs_stopped"); "expired" -> s("fam_rs_expired"); "disarmed" -> s("fam_rs_disarmed")
+        "revoked" -> s("fam_rs_revoked"); "not_armed" -> s("fam_rs_not_armed"); "not_allowed" -> s("fam_rs_not_allowed")
+        else -> s("fam_rs_ended")
+    }
+
+    private fun logText(e: FamilyAudit.Entry): String = when (e.ev) {
+        "track_on" -> String.format(s("fam_ev_track_on"), e.name)
+        "track_off" -> String.format(s("fam_ev_track_off"), e.name, reasonText(e.x))
+        "track_refused" -> String.format(s("fam_ev_track_refused"), e.name, reasonText(e.x))
+        "ring" -> String.format(s("fam_ev_ring"), e.name)
+        "ring_refused" -> String.format(s("fam_ev_ring_refused"), e.name)
+        "selfie_sent" -> String.format(s("fam_ev_selfie"), e.name)
+        "i_track" -> String.format(s("fam_ev_i_track"), e.name)
+        "i_ring" -> String.format(s("fam_ev_i_ring"), e.name)
+        else -> e.ev
     }
 
     // ------------------------------------------------------------------ pairing
@@ -386,6 +560,7 @@ class FamilyNetworkActivity : AppCompatActivity() {
         endSession()
         renderStatus()
         FamilyRelay.schedule(this)
+        FamilySocket.ensure(this)
         toast(String.format(s("fam_paired_ok"), peer))
         if (pair != null) showGrants(pair)
     }
@@ -405,7 +580,10 @@ class FamilyNetworkActivity : AppCompatActivity() {
         AlertDialog.Builder(this)
             .setTitle(String.format(s("fam_perm_title"), pair.name))
             .setMultiChoiceItems(items, checked) { _, i, c -> checked[i] = c }
-            .setPositiveButton(s("fam_save")) { _, _ -> FamilyBridge.setGrants(this, pair.pid, checked[0], checked[1], checked[2]) }
+            .setPositiveButton(s("fam_save")) { _, _ ->
+                FamilyBridge.setGrants(this, pair.pid, checked[0], checked[1], checked[2])
+                if (checked[2]) BackgroundLocation.promptIfNeeded(this, true)      // "Allow all the time" is needed to keep sharing after restarts
+            }
             .show()
     }
 
@@ -452,6 +630,7 @@ class FamilyNetworkActivity : AppCompatActivity() {
                 val type = if (i == 0) "ring" else "stop"
                 Thread {
                     val r = FamilyBridge.sendCommand(this, pair, type)
+                    if (r == "sent" && i == 0) FamilyAudit.add(this, "i_ring", pair.name)
                     runOnUiThread { toast(if (r == "sent") (if (i == 0) s("fam_ring_sent") else s("fam_ring_stop_sent")) else errText(r)) }
                 }.start()
             }.setNegativeButton(s("cancel"), null).show()

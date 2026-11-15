@@ -75,6 +75,20 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
     if (request.method === 'GET' && path === '/') return json({ ok: true, service: 'tt-family', v: 1 });
+
+    // v2.9.19: live channel. A phone keeps one WebSocket per pair so commands, locations and photo
+    // notices arrive at once instead of at the next poll. Signed like every request (empty body).
+    if (request.method === 'GET' && path === '/ws') {
+      if (request.headers.get('upgrade') !== 'websocket') return err('bad_request');
+      const pid = url.searchParams.get('pid') || '';
+      if (!PID_RE.test(pid)) return err('bad_request');
+      const who = await authenticate(request, '/ws', '');
+      if (!who) return err('bad_signature', 401);
+      if (who.error) return err(who.error, 400);
+      if (!(await rateLimit(env, 'dev-ws:' + who.did, 60, 600))) return err('rate_limited', 429);
+      const stub = env.ROOMS.get(env.ROOMS.idFromName(pid));
+      return stub.fetch('https://do/ws', { headers: { upgrade: 'websocket', 'x-did': who.did } });
+    }
     if (request.method !== 'POST') return err('not_found', 404);
     const routes = ['/pair/open', '/pair/join', '/pair/poll', '/pair/decide', '/pair/info', '/pair/unpair'];
     const roomOps = { '/room/send': '/send', '/room/poll': '/poll', '/photo/put': '/photo/put', '/photo/get': '/photo/get', '/photo/ack': '/photo/ack', '/loc/put': '/loc/put', '/loc/get': '/loc/get', '/loc/clear': '/loc/clear' };
@@ -255,7 +269,21 @@ export class Rendezvous {
 // Photos are deleted the moment the recipient acknowledges them, or after PHOTO_TTL at the latest.
 // Everything stored here is ciphertext the server cannot read.
 export class PairRoom {
-  constructor(ctx, env) { this.ctx = ctx; this.env = env; }
+  constructor(ctx, env) {
+    this.ctx = ctx; this.env = env;
+    // keep-alive pings are answered by the runtime without waking this object
+    this.ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
+  }
+
+  // Sends a small JSON notice to every open socket of that member (ciphertext only, never plaintext).
+  push(did, obj) {
+    const text = JSON.stringify(obj);
+    for (const ws of this.ctx.getWebSockets(did)) { try { ws.send(text); } catch (e) { /* closed */ } }
+  }
+
+  async webSocketMessage(ws, msg) { /* the phones only send the auto-answered ping */ }
+  async webSocketClose(ws, code) { try { ws.close(code && code !== 1005 ? code : 1000, 'bye'); } catch (e) { /* already closed */ } }
+  async webSocketError(ws) { try { ws.close(1011, 'error'); } catch (e) { /* already closed */ } }
 
   cmdTtl() { return Number(this.env.CMD_TTL_MS) || CMD_TTL_MS; }
   photoTtl() { return Number(this.env.PHOTO_TTL_MS) || PHOTO_TTL_MS; }
@@ -298,6 +326,15 @@ export class PairRoom {
 
   async fetch(request) {
     const path = new URL(request.url).pathname;
+    if (path === '/ws') {
+      const did = request.headers.get('x-did') || '';
+      const mem = await this.ctx.storage.get('m');
+      if (!mem || !mem.members.some((x) => x.did === did)) return new Response(JSON.stringify({ ok: false, error: 'not_found' }), { status: 404 });
+      for (const old of this.ctx.getWebSockets(did)) { try { old.close(1000, 'replaced'); } catch (e) { /* ignore */ } }
+      const pair = new WebSocketPair();
+      this.ctx.acceptWebSocket(pair[1], [did]);
+      return new Response(null, { status: 101, webSocket: pair[0] });
+    }
     const b = await request.json();
     const out = (o) => new Response(JSON.stringify(o));
     if (path === '/create') {
@@ -325,6 +362,7 @@ export class PairRoom {
       arr.push({ id: hex(crypto.getRandomValues(new Uint8Array(6))), ts: now, ct: b.ct });
       await this.ctx.storage.put(key, arr.slice(-MAX_MSGS));
       await this.sweep();
+      this.push(peer.did, { t: 'cmd', ts: now, ct: b.ct });
       return out({ ok: true });
     }
     if (path === '/poll') {
@@ -346,6 +384,7 @@ export class PairRoom {
       for (let k = 0; k < n; k++) await this.ctx.storage.put('pc:' + b.id + ':' + k, b.ct.slice(k * CHUNK, (k + 1) * CHUNK));
       await this.ctx.storage.put('pm:' + b.id, { to: peer.did, ts: now, size: b.ct.length, n });
       await this.sweep();
+      this.push(peer.did, { t: 'photo', id: b.id });
       return out({ ok: true });
     }
     if (path === '/photo/get') {
@@ -361,6 +400,7 @@ export class PairRoom {
       await this.ctx.storage.put('l:' + peer.did, { ts: now, ct: b.ct });
       const cur = await this.ctx.storage.getAlarm();
       if (!cur || cur > now + this.locTtl()) await this.ctx.storage.setAlarm(now + this.locTtl());
+      this.push(peer.did, { t: 'loc', ts: now, ct: b.ct });
       return out({ ok: true });
     }
     if (path === '/loc/get') {

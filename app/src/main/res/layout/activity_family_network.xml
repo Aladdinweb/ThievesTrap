@@ -148,6 +148,21 @@
                     android:layout_marginTop="4dp"/>
             </LinearLayout>
 
+            <!-- PRIVACY LOG (opens only with the security PIN) -->
+            <TextView android:id="@+id/tv_family_privacy_log"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:background="#0D0D10" android:padding="16dp"
+                android:textSize="12sp" android:textColor="#8A8A94"
+                android:clickable="true" android:focusable="true"
+                android:foreground="?attr/selectableItemBackground"
+                android:layout_marginBottom="12dp"/>
+
+            <!-- SAFETY NOTICE -->
+            <TextView android:id="@+id/tv_family_notice"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:textSize="11sp" android:textColor="#666670"
+                android:layout_marginBottom="24dp"/>
+
         </LinearLayout>
     </ScrollView>
 </LinearLayout>

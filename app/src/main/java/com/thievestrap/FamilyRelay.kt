@@ -66,7 +66,7 @@ object FamilyRelay {
         }
     }
 
-    private fun handleCommand(ctx: Context, pr: FamilyBridge.FamilyPair, key: ByteArray, ct: String) {
+    internal fun handleCommand(ctx: Context, pr: FamilyBridge.FamilyPair, key: ByteArray, ct: String) {
         val plain = FamilyBridge.open(key, "cmd|" + pr.pid, ct) ?: run { Log.w(TAG, "command failed to decrypt"); return }
         try {
             val o = JSONObject(String(plain))
@@ -77,14 +77,15 @@ object FamilyRelay {
             // MY OWN permission for this pair decides every time (the other phone cannot change it)
             when (type) {
                 "ring" -> {
-                    if (!pr.ring) { Log.i(TAG, "ring refused: not permitted for ${pr.name}"); return }
+                    if (!pr.ring) { Log.i(TAG, "ring refused: not permitted for ${pr.name}"); FamilyAudit.add(ctx, "ring_refused", pr.name); return }
+                    FamilyAudit.add(ctx, "ring", pr.name)
                     try { AlarmService.start(ctx, pr.name) } catch (e: Exception) { Log.w(TAG, "ring could not start: ${e.message}") }
                 }
                 "stop" -> if (pr.ring) try { AlarmService.stop(ctx) } catch (e: Exception) {}
                 "track_start" -> {
-                    if (!pr.location) { FamilyTracker.status(ctx, pr.pid, "not_allowed"); return }
+                    if (!pr.location) { FamilyAudit.add(ctx, "track_refused", pr.name, "not_allowed"); FamilyTracker.status(ctx, pr.pid, "not_allowed"); return }
                     val armed = ctx.getSharedPreferences("tt_prefs", Context.MODE_PRIVATE).getBoolean("running", false)
-                    if (!armed) { FamilyTracker.status(ctx, pr.pid, "not_armed"); return }
+                    if (!armed) { FamilyAudit.add(ctx, "track_refused", pr.name, "not_armed"); FamilyTracker.status(ctx, pr.pid, "not_armed"); return }
                     FamilyTracker.start(ctx, pr, o.optInt("mins", 60).coerceIn(5, 120))
                 }
                 "track_stop" -> if (FamilyTracker.activePid(ctx) == pr.pid) FamilyTracker.stop(ctx, "stopped")
@@ -93,7 +94,8 @@ object FamilyRelay {
     }
 
     /** True the first time a nonce is seen; remembers the last 30. */
-    private fun rememberNonce(ctx: Context, nonce: String): Boolean {
+    @Synchronized
+    private fun rememberNonce(ctx: Context, nonce: String): Boolean {   // push and poll can deliver the same command at once
         val sp = ctx.getSharedPreferences("tt_family", Context.MODE_PRIVATE)
         val seen = (sp.getString("seen_n", "") ?: "").split(",").filter { it.isNotEmpty() }
         if (nonce in seen) return false
@@ -200,7 +202,7 @@ class FamilyPhotoWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, pa
             val id = FamilyBridge.photoId(pr.pid, file.name)
             val ct = FamilyBridge.seal(key, "photo|${pr.pid}|$id", plain)
             when (FamilyBridge.putPhoto(pr.pid, id, ct)) {
-                "ok" -> {}
+                "ok" -> FamilyAudit.add(applicationContext, "selfie_sent", pr.name)
                 "full", "offline", "rate_limited", "error" -> retry = true
                 else -> {}                      // room gone / refused for good: do not retry that pair
             }
