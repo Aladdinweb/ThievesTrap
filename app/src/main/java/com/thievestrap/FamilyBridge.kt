@@ -97,7 +97,11 @@ object FamilyBridge {
         savePairs(ctx, l)
     }
 
-    private fun removeLocal(ctx: Context, pid: String) = savePairs(ctx, pairs(ctx).filter { it.pid != pid })
+    private fun removeLocal(ctx: Context, pid: String) {
+        savePairs(ctx, pairs(ctx).filter { it.pid != pid })
+        FamilyHistory.clear(ctx, pid)                       // unpairing also erases the location history kept here
+        if (p(ctx).getString("trk_pid", "") == pid) FamilyTracker.stop(ctx, null)
+    }
 
     /** The raw 32-byte pair key (used by later steps to encrypt selfies and locations). */
     fun pairKey(ctx: Context, pair: FamilyPair): ByteArray? = try { unwrap(pair.keyWrapped) } catch (e: Exception) { null }
@@ -221,10 +225,12 @@ object FamilyBridge {
         MessageDigest.getInstance("SHA-256").digest("$pid|$name".toByteArray()).joinToString("") { "%02x".format(it) }.take(16)
 
     /** Sends an end-to-end encrypted command ("ring" / "stop") to the other phone. Returns "sent" or an error code. */
-    fun sendCommand(ctx: Context, pair: FamilyPair, type: String): String {
+    fun sendCommand(ctx: Context, pair: FamilyPair, type: String, mins: Int = 0): String {
         val key = pairKey(ctx, pair) ?: return "no_key"
-        val plain = JSONObject().put("t", type).put("ts", System.currentTimeMillis() / 1000)
-            .put("n", b64(ByteArray(9).also { SecureRandom().nextBytes(it) })).toString()
+        val o = JSONObject().put("t", type).put("ts", System.currentTimeMillis() / 1000)
+            .put("n", b64(ByteArray(9).also { SecureRandom().nextBytes(it) }))
+        if (mins > 0) o.put("mins", mins)
+        val plain = o.toString()
         val r = post("/room/send", JSONObject().put("pid", pair.pid).put("ct", seal(key, "cmd|" + pair.pid, plain.toByteArray())))
         return if (r.ok) "sent" else r.error.ifEmpty { "error" }
     }
@@ -248,6 +254,17 @@ object FamilyBridge {
         val r = post("/photo/get", JSONObject().put("pid", pid).put("id", id))
         return if (r.ok) r.json!!.optString("ct") else null
     }
+
+    // v2.9.18: live location. The server keeps ONE encrypted slot per recipient (the latest fix), no history.
+    fun putLoc(pid: String, ct: String): Boolean = post("/loc/put", JSONObject().put("pid", pid).put("ct", ct)).ok
+
+    /** The latest encrypted fix or status for this phone, or null when there is none / on any failure. */
+    fun getLoc(pid: String): String? {
+        val r = post("/loc/get", JSONObject().put("pid", pid))
+        return if (r.ok && !r.json!!.optBoolean("none", false)) r.json.optString("ct").ifEmpty { null } else null
+    }
+
+    fun clearLoc(pid: String): Boolean = post("/loc/clear", JSONObject().put("pid", pid)).ok
 
     /** Tells the server the photo arrived safely: it is permanently deleted there right away. */
     fun ackPhoto(pid: String, id: String): Boolean = post("/photo/ack", JSONObject().put("pid", pid).put("id", id)).ok

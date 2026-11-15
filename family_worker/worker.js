@@ -16,6 +16,7 @@ const CMD_TTL_MS = 5 * 60 * 1000;   // an undelivered command is dropped after 5
 const PHOTO_TTL_MS = 24 * 60 * 60 * 1000;   // a photo nobody picked up is deleted after 24 hours
 const MAX_PENDING_PHOTOS = 5;       // per recipient
 const MAX_MSGS = 10;
+const LOC_TTL_MS = 2 * 60 * 1000;    // the single latest location slot; an old fix is never served
 const CHUNK = 100000;               // characters per stored piece (DO values stay far below the limit)
 const TS_WINDOW = 300;            // seconds
 const CODE_TTL_MS = 10 * 60 * 1000;
@@ -76,7 +77,7 @@ export default {
     if (request.method === 'GET' && path === '/') return json({ ok: true, service: 'tt-family', v: 1 });
     if (request.method !== 'POST') return err('not_found', 404);
     const routes = ['/pair/open', '/pair/join', '/pair/poll', '/pair/decide', '/pair/info', '/pair/unpair'];
-    const roomOps = { '/room/send': '/send', '/room/poll': '/poll', '/photo/put': '/photo/put', '/photo/get': '/photo/get', '/photo/ack': '/photo/ack' };
+    const roomOps = { '/room/send': '/send', '/room/poll': '/poll', '/photo/put': '/photo/put', '/photo/get': '/photo/get', '/photo/ack': '/photo/ack', '/loc/put': '/loc/put', '/loc/get': '/loc/get', '/loc/clear': '/loc/clear' };
     if (!routes.includes(path) && !roomOps[path]) return err('not_found', 404);
 
     const limit = path === '/photo/put' ? MAX_PHOTO_BODY : MAX_BODY;
@@ -149,6 +150,9 @@ export default {
         if (!/^[0-9a-f]{16}$/.test(String(body.id || '')) || !okB64(body.ct, MAX_PHOTO_BODY - 200)) return err('bad_request');
         if (!(await rateLimit(env, 'dev-photo:' + who.did, 30, 600))) return err('rate_limited', 429);
         payload.id = body.id; payload.ct = body.ct;
+      } else if (path === '/loc/put') {
+        if (!okB64(body.ct, 2000)) return err('bad_request');
+        payload.ct = body.ct;
       } else if (path === '/photo/get' || path === '/photo/ack') {
         if (!/^[0-9a-f]{16}$/.test(String(body.id || ''))) return err('bad_request');
         payload.id = body.id;
@@ -255,6 +259,7 @@ export class PairRoom {
 
   cmdTtl() { return Number(this.env.CMD_TTL_MS) || CMD_TTL_MS; }
   photoTtl() { return Number(this.env.PHOTO_TTL_MS) || PHOTO_TTL_MS; }
+  locTtl() { return Number(this.env.LOC_TTL_MS) || LOC_TTL_MS; }
 
   async dropPhoto(id, n) {
     const keys = ['pm:' + id];
@@ -270,6 +275,10 @@ export class PairRoom {
     for (const [k, v] of pm) {
       if (now - v.ts >= this.photoTtl()) await this.dropPhoto(k.slice(3), v.n);
       else next = next ? Math.min(next, v.ts + this.photoTtl()) : v.ts + this.photoTtl();
+    }
+    for (const [k, v] of await this.ctx.storage.list({ prefix: 'l:' })) {
+      if (now - v.ts >= this.locTtl()) await this.ctx.storage.delete(k);
+      else next = next ? Math.min(next, v.ts + this.locTtl()) : v.ts + this.locTtl();
     }
     const inb = await this.ctx.storage.list({ prefix: 'i:' });
     for (const [k, arr] of inb) {
@@ -345,6 +354,23 @@ export class PairRoom {
       let ct = '';
       for (let k = 0; k < meta.n; k++) ct += (await this.ctx.storage.get('pc:' + b.id + ':' + k)) || '';
       return out({ ok: true, ct });
+    }
+    // Live location: ONE slot per recipient holding only the latest encrypted fix, overwritten by the next
+    // one and never kept longer than LOC_TTL. The server therefore has no location history at all.
+    if (path === '/loc/put') {
+      await this.ctx.storage.put('l:' + peer.did, { ts: now, ct: b.ct });
+      const cur = await this.ctx.storage.getAlarm();
+      if (!cur || cur > now + this.locTtl()) await this.ctx.storage.setAlarm(now + this.locTtl());
+      return out({ ok: true });
+    }
+    if (path === '/loc/get') {
+      const rec = await this.ctx.storage.get('l:' + b.did);
+      if (!rec || now - rec.ts >= this.locTtl()) return out({ ok: true, none: true });
+      return out({ ok: true, ts: rec.ts, ct: rec.ct });
+    }
+    if (path === '/loc/clear') {
+      await this.ctx.storage.delete('l:' + peer.did);
+      return out({ ok: true });
     }
     if (path === '/photo/ack') {
       const meta = await this.ctx.storage.get('pm:' + b.id);

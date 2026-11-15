@@ -9,8 +9,8 @@ android {
         applicationId "com.thievestrap"
         minSdk 26
         targetSdk 33
-        versionCode 165
-        versionName "2.9.17"
+        versionCode 166
+        versionName "2.9.18"
 
         // v2.9.7: Telegram bot token comes from the GitHub Secret
         // TELEGRAM_BOT_TOKEN, passed in by build.yml/release.yml as a Gradle
@@ -58,4 +58,5 @@ dependencies {
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
     implementation 'androidx.work:work-runtime-ktx:2.8.1'
     implementation 'com.google.android.gms:play-services-code-scanner:16.1.0'
+    implementation 'org.osmdroid:osmdroid-android:6.1.18'          // v2.9.18: live map (OpenStreetMap, no API key)
 }

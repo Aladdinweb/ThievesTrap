@@ -1,23 +1,43 @@
 package com.thievestrap
 
+import android.graphics.Color
+import android.location.Geocoder
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.text.InputType
+import android.view.MotionEvent
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import org.json.JSONObject
+import org.osmdroid.config.Configuration
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.CopyrightOverlay
+import org.osmdroid.views.overlay.Marker
+import org.osmdroid.views.overlay.Polyline
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * v3.0.0 step 1: real pairing through the Family Worker (see FamilyBridge).
  *
  * Two-way by design: every pair is mutual, and each phone decides separately what the other one may do
- * on it (ring / selfies / location). Live tracking, ring and selfie relay are still "coming soon"
- * (steps 2 to 4), so those buttons keep showing the dialog.
+ * on it (ring / selfies / location).
+ *
+ * v2.9.18: live map (osmdroid + OpenStreetMap tiles, no API key). START asks the other phone, with an
+ * encrypted command, to share its location; it does so only while it is ARMED and allows it. This screen
+ * polls the server's single "latest fix" slot every 3 s while it is open and keeps the history only on
+ * this phone (FamilyHistory).
  */
 class FamilyNetworkActivity : AppCompatActivity() {
 
@@ -28,6 +48,15 @@ class FamilyNetworkActivity : AppCompatActivity() {
     private var dialog: AlertDialog? = null
     private lateinit var tvCode: TextView
     private lateinit var tvStatus: TextView
+    private lateinit var tvMapCaption: TextView
+    private var mapView: MapView? = null
+    private var marker: Marker? = null
+    private var trail: Polyline? = null
+    private val trailPts = ArrayList<GeoPoint>()
+    private var viewPair: FamilyBridge.FamilyPair? = null
+    private var sessionStartSec = 0L
+    private var lastFix: JSONObject? = null
+    private var firstCentred = false
 
     private fun s(key: String) = Strings.get(this, key)
 
@@ -43,15 +72,39 @@ class FamilyNetworkActivity : AppCompatActivity() {
         }
     }
 
+    private val locTask = object : Runnable {
+        override fun run() {
+            val pr = viewPair ?: return
+            if (!resumed) return
+            Thread {
+                val ct = FamilyBridge.getLoc(pr.pid)
+                val key = FamilyBridge.pairKey(this@FamilyNetworkActivity, pr)
+                val plain = if (ct != null && key != null) FamilyBridge.open(key, "loc|" + pr.pid, ct) else null
+                runOnUiThread { onLoc(plain?.let { String(it) }) }
+            }.start()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         LocaleHelper.applyLocale(this)
+        // OpenStreetMap tile policy: identify the app; keep the tile cache inside the app's cache folder
+        Configuration.getInstance().apply {
+            load(applicationContext, getSharedPreferences("osmdroid", MODE_PRIVATE))
+            userAgentValue = packageName
+            osmdroidBasePath = File(cacheDir, "osmdroid")
+            osmdroidTileCache = File(cacheDir, "osmdroid/tiles")
+        }
         setContentView(R.layout.activity_family_network)
 
         tvCode = findViewById(R.id.tv_pair_code)
         tvStatus = findViewById(R.id.tv_family_status)
         tvCode.text = s("fam_tap_code")
         tvCode.textSize = 22f
+        tvMapCaption = findViewById(R.id.tv_map_caption)
+        findViewById<TextView>(R.id.tv_preview_note).text = s("fam_live_note")
+        findViewById<TextView>(R.id.tv_map_title).text = s("fam_map_title")
+        initMap()
 
         findViewById<Button>(R.id.btn_back_family).setOnClickListener { finish() }
         findViewById<View>(R.id.btn_family_info).setOnClickListener { showInfoDialog() }
@@ -64,9 +117,9 @@ class FamilyNetworkActivity : AppCompatActivity() {
         }
         tvStatus.setOnClickListener { showManage() }
 
-        val comingSoon = View.OnClickListener { showComingSoon() }
-        intArrayOf(R.id.btn_family_start, R.id.btn_family_stop, R.id.card_family_history)
-            .forEach { findViewById<View>(it).setOnClickListener(comingSoon) }
+        findViewById<View>(R.id.btn_family_start).setOnClickListener { chooseTarget { startViewing(it) } }
+        findViewById<View>(R.id.btn_family_stop).setOnClickListener { stopViewing() }
+        findViewById<View>(R.id.card_family_history).setOnClickListener { chooseTarget { showHistory(it) } }
         findViewById<View>(R.id.btn_family_alarm).setOnClickListener { chooseTarget { showRing(it) } }
         renderStatus()
     }
@@ -80,17 +133,162 @@ class FamilyNetworkActivity : AppCompatActivity() {
             if (gone.isNotEmpty()) runOnUiThread { toast(s("fam_unpaired_remote")); renderStatus() }
         }.start()
         if (FamilyBridge.session != null) handler.post(pollTask)
+        mapView?.onResume()
+        if (viewPair != null) handler.post(locTask)
     }
 
     override fun onPause() {
         resumed = false
         handler.removeCallbacks(pollTask)
+        handler.removeCallbacks(locTask)
+        mapView?.onPause()
         super.onPause()
     }
 
     override fun onDestroy() {
         dialog?.dismiss()
+        // leaving the screen for good ends the session on the other phone too (no sharing nobody is watching)
+        val pr = viewPair
+        if (isFinishing && pr != null) Thread { FamilyBridge.sendCommand(applicationContext, pr, "track_stop") }.start()
+        mapView?.onDetach()
         super.onDestroy()
+    }
+
+    // ------------------------------------------------------------------ live map (v2.9.18)
+
+    private fun initMap() {
+        val mv = MapView(this)
+        mv.setTileSource(TileSourceFactory.MAPNIK)
+        mv.setMultiTouchControls(true)
+        // the screen scrolls: let the map take its own drags and pinches
+        mv.setOnTouchListener { v, e ->
+            if (e.action == MotionEvent.ACTION_DOWN || e.action == MotionEvent.ACTION_MOVE) v.parent.requestDisallowInterceptTouchEvent(true)
+            false
+        }
+        mv.overlays.add(CopyrightOverlay(this))          // required OpenStreetMap attribution
+        val lastKnown = FamilyBridge.pairs(this).firstNotNullOfOrNull { FamilyHistory.load(this, it.pid, 1).lastOrNull() }
+        if (lastKnown != null) { mv.controller.setZoom(15.0); mv.controller.setCenter(GeoPoint(lastKnown.la, lastKnown.lo)) }
+        else { mv.controller.setZoom(3.0); mv.controller.setCenter(GeoPoint(20.0, 0.0)) }
+        findViewById<FrameLayout>(R.id.map_container).addView(
+            mv, 0, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        mapView = mv
+        refreshCaption()
+    }
+
+    private fun startViewing(pair: FamilyBridge.FamilyPair) {
+        Thread {
+            val r = FamilyBridge.sendCommand(this, pair, "track_start", 60)
+            runOnUiThread {
+                if (r != "sent") { toast(errText(r)); return@runOnUiThread }
+                viewPair = pair
+                sessionStartSec = System.currentTimeMillis() / 1000
+                lastFix = null; firstCentred = false
+                trailPts.clear(); trail?.setPoints(trailPts)
+                toast(String.format(s("fam_track_sent"), pair.name))
+                refreshCaption()
+                handler.removeCallbacks(locTask); handler.post(locTask)
+            }
+        }.start()
+    }
+
+    private fun stopViewing() {
+        val pr = viewPair
+        if (pr == null) { toast(s("fam_map_idle")); return }
+        Thread { FamilyBridge.sendCommand(this, pr, "track_stop") }.start()
+        endViewing()
+        toast(s("fam_track_stopped"))
+    }
+
+    private fun endViewing() {
+        handler.removeCallbacks(locTask)
+        viewPair = null
+        refreshCaption()
+    }
+
+    private fun onLoc(json: String?) {
+        val pr = viewPair ?: return
+        if (json != null) {
+            try {
+                val o = JSONObject(json)
+                val ts = o.optLong("ts", 0L)
+                if (ts >= sessionStartSec - 60) {                 // ignore leftovers of an earlier session
+                    if (o.has("st")) {
+                        val msg = statusText(o.optString("st"), pr.name)
+                        if (msg != null) { toast(msg); endViewing(); return }
+                    } else if (o.has("la")) applyFix(pr, o)
+                }
+            } catch (e: Exception) { /* undecodable: ignore */ }
+        }
+        refreshCaption()
+        handler.postDelayed(locTask, 3000)
+    }
+
+    /** Null for "started" (keep waiting), otherwise the reason the session is over. */
+    private fun statusText(st: String, name: String): String? = when (st) {
+        "not_armed" -> String.format(s("fam_st_not_armed"), name)
+        "not_allowed" -> String.format(s("fam_st_not_allowed"), name)
+        "stopped" -> String.format(s("fam_st_stopped"), name)
+        "expired" -> s("fam_st_expired")
+        "disarmed" -> String.format(s("fam_st_disarmed"), name)
+        "revoked" -> String.format(s("fam_st_revoked"), name)
+        else -> null
+    }
+
+    private fun applyFix(pr: FamilyBridge.FamilyPair, o: JSONObject) {
+        val mv = mapView ?: return
+        if (lastFix != null && o.optLong("ts") <= lastFix!!.optLong("ts")) return     // already shown
+        lastFix = o
+        val gp = GeoPoint(o.getDouble("la"), o.getDouble("lo"))
+        val mk = marker ?: Marker(mv).apply { setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM); title = pr.name }
+            .also { marker = it; mv.overlays.add(it) }
+        mk.position = gp
+        val tr = trail ?: Polyline().apply { outlinePaint.color = Color.RED; outlinePaint.strokeWidth = 6f }
+            .also { trail = it; mv.overlays.add(0, it) }
+        trailPts.add(gp); tr.setPoints(trailPts)
+        if (!firstCentred) { mv.controller.setZoom(17.0); mv.controller.animateTo(gp); firstCentred = true }
+        else if (!mv.boundingBox.contains(gp)) mv.controller.animateTo(gp)
+        mv.invalidate()
+        FamilyHistory.add(this, pr.pid, FamilyHistory.Fix(o.optLong("ts"), gp.latitude, gp.longitude, o.optDouble("ac", 0.0).toFloat()))
+    }
+
+    private fun refreshCaption() {
+        val pr = viewPair
+        val o = lastFix
+        tvMapCaption.text = when {
+            pr == null -> s("fam_map_idle")
+            o == null -> String.format(s("fam_map_waiting"), pr.name)
+            System.currentTimeMillis() / 1000 - o.optLong("ts") > 90 -> s("fam_map_stale")
+            else -> {
+                val ago = (System.currentTimeMillis() / 1000 - o.optLong("ts")).coerceAtLeast(0)
+                val bt = o.optInt("bt", -1)
+                String.format(s("fam_map_updated"), pr.name, ago, o.optDouble("ac", 0.0).toInt(),
+                    if (bt >= 0) "$bt%" else "?", s(if (o.optBoolean("mv")) "fam_moving" else "fam_still"))
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ local history (v2.9.18)
+
+    private fun showHistory(pair: FamilyBridge.FamilyPair) {
+        val list = FamilyHistory.load(this, pair.pid, 50).reversed()
+        if (list.isEmpty()) { toast(s("fam_hist_empty")); return }
+        val fmt = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
+        val items = list.map { fmt.format(Date(it.ts * 1000)) + String.format(Locale.US, "  %.5f, %.5f", it.la, it.lo) }.toTypedArray()
+        AlertDialog.Builder(this).setTitle(String.format(s("fam_hist_title"), pair.name))
+            .setItems(items) { _, i -> showHistoryPoint(list[i]) }
+            .setNeutralButton(s("fam_hist_clear")) { _, _ -> FamilyHistory.clear(this, pair.pid); toast(s("fam_hist_cleared")) }
+            .setNegativeButton(s("cancel"), null).show()
+    }
+
+    @Suppress("DEPRECATION")
+    private fun showHistoryPoint(f: FamilyHistory.Fix) {
+        mapView?.controller?.animateTo(GeoPoint(f.la, f.lo))
+        Thread {
+            val addr = try {
+                if (Geocoder.isPresent()) Geocoder(this, Locale.getDefault()).getFromLocation(f.la, f.lo, 1)?.firstOrNull()?.getAddressLine(0) else null
+            } catch (e: Exception) { null }
+            runOnUiThread { toast(addr ?: s("fam_addr_unknown")) }
+        }.start()
     }
 
     // ------------------------------------------------------------------ pairing
@@ -280,16 +478,8 @@ class FamilyNetworkActivity : AppCompatActivity() {
 
     private fun toast(m: String) = Toast.makeText(this, m, Toast.LENGTH_LONG).show()
 
-    private fun showComingSoon() {
-        AlertDialog.Builder(this)
-            .setTitle(R.string.fn_soon_title)
-            .setMessage(R.string.fn_soon_msg)
-            .setPositiveButton(R.string.fn_ok, null)
-            .show()
-    }
-
     private fun showInfoDialog() {
-        val message = getString(R.string.fn_info_how) + "\n\n" + getString(R.string.fn_info_net)
+        val message = s("fam_info")
         AlertDialog.Builder(this)
             .setTitle(R.string.fn_info_title)
             .setMessage(message)

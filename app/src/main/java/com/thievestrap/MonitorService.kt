@@ -88,6 +88,7 @@ class MonitorService : Service() {
         createChannel()
         createSilentGraceChannel()
         cacheDeviceIdentifiers()
+        FamilyTracker.resumeIfNeeded(this)     // v2.9.18: continue (or end) a location-sharing session
         // v2.9.17: while the phone is armed, look for family commands (ring) and photos every 20 s
         serviceScope.launch {
             while (isActive) {
@@ -124,6 +125,7 @@ class MonitorService : Service() {
         }
 
         when (intent?.action) {
+            "FAMILY_TRACK_STOP" -> { FamilyTracker.stop(this, "stopped"); return START_STICKY }   // Stop button of the sharing notification
             // FIX: static-receiver backup for SIM-change/silent-mode detection.
             // PersistentAlertReceiver (manifest-registered) forwards
             // SIM_STATE_CHANGED / RINGER_MODE_CHANGED here even if this
@@ -231,6 +233,7 @@ class MonitorService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        try { FamilyTracker.pause(this) } catch (e: Exception) {}
         try { wakeLock?.release() } catch (e: Exception) {}
         fusedClient.removeLocationUpdates(locationCallback)
         pingRunnable?.let { handler.removeCallbacks(it) }

@@ -74,10 +74,20 @@ object FamilyRelay {
             val nonce = o.optString("n")
             val age = Math.abs(System.currentTimeMillis() / 1000 - o.optLong("ts", 0L))
             if (age > 120 || nonce.isEmpty() || !rememberNonce(ctx, nonce)) { Log.w(TAG, "stale or replayed command"); return }
-            if (!pr.ring) { Log.i(TAG, "ring refused: not permitted for ${pr.name}"); return }   // my own permission decides
+            // MY OWN permission for this pair decides every time (the other phone cannot change it)
             when (type) {
-                "ring" -> try { AlarmService.start(ctx, pr.name) } catch (e: Exception) { Log.w(TAG, "ring could not start: ${e.message}") }
-                "stop" -> try { AlarmService.stop(ctx) } catch (e: Exception) {}
+                "ring" -> {
+                    if (!pr.ring) { Log.i(TAG, "ring refused: not permitted for ${pr.name}"); return }
+                    try { AlarmService.start(ctx, pr.name) } catch (e: Exception) { Log.w(TAG, "ring could not start: ${e.message}") }
+                }
+                "stop" -> if (pr.ring) try { AlarmService.stop(ctx) } catch (e: Exception) {}
+                "track_start" -> {
+                    if (!pr.location) { FamilyTracker.status(ctx, pr.pid, "not_allowed"); return }
+                    val armed = ctx.getSharedPreferences("tt_prefs", Context.MODE_PRIVATE).getBoolean("running", false)
+                    if (!armed) { FamilyTracker.status(ctx, pr.pid, "not_armed"); return }
+                    FamilyTracker.start(ctx, pr, o.optInt("mins", 60).coerceIn(5, 120))
+                }
+                "track_stop" -> if (FamilyTracker.activePid(ctx) == pr.pid) FamilyTracker.stop(ctx, "stopped")
             }
         } catch (e: Exception) { Log.w(TAG, "bad command", e) }
     }
