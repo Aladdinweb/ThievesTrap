@@ -44,10 +44,13 @@ object FamilyBridge {
     private const val PREFS = "tt_family"
     const val MAX_PAIRS = 5
 
+    /** `peerName` is what the other phone calls itself; `nick` is MY own friendly name for it (v2.9.20). `name` is what we show. */
     class FamilyPair(
-        val pid: String, val name: String, val keyWrapped: String,
-        var ring: Boolean, var selfie: Boolean, var location: Boolean, val created: Long
-    )
+        val pid: String, val peerName: String, val keyWrapped: String,
+        var ring: Boolean, var selfie: Boolean, var location: Boolean, val created: Long, var nick: String = ""
+    ) {
+        val name: String get() = nick.ifEmpty { peerName }
+    }
 
     /** In-memory state of one pairing in progress (lost if the process dies: just start again). */
     class Session(
@@ -78,17 +81,24 @@ object FamilyBridge {
         return (0 until arr.length()).mapNotNull {
             val o = arr.optJSONObject(it) ?: return@mapNotNull null
             FamilyPair(o.optString("pid"), o.optString("name"), o.optString("key"),
-                o.optBoolean("ring", true), o.optBoolean("selfie", true), o.optBoolean("loc", true), o.optLong("t"))
+                o.optBoolean("ring", true), o.optBoolean("selfie", true), o.optBoolean("loc", true), o.optLong("t"), o.optString("nick", ""))
         }
     }
 
     private fun savePairs(ctx: Context, list: List<FamilyPair>) {
         val arr = JSONArray()
         list.forEach {
-            arr.put(JSONObject().put("pid", it.pid).put("name", it.name).put("key", it.keyWrapped)
+            arr.put(JSONObject().put("pid", it.pid).put("name", it.peerName).put("nick", it.nick).put("key", it.keyWrapped)
                 .put("ring", it.ring).put("selfie", it.selfie).put("loc", it.location).put("t", it.created))
         }
         p(ctx).edit().putString("pairs", arr.toString()).apply()
+    }
+
+    /** Saves a custom name for a paired phone (stays on this phone only). Empty = back to the name the other phone chose. */
+    fun setNick(ctx: Context, pid: String, nick: String) {
+        val l = pairs(ctx)
+        l.firstOrNull { it.pid == pid }?.nick = nick.filter { !it.isISOControl() }.trim().take(24)
+        savePairs(ctx, l)
     }
 
     fun setGrants(ctx: Context, pid: String, ring: Boolean, selfie: Boolean, location: Boolean) {

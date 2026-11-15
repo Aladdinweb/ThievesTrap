@@ -597,9 +597,30 @@ class FamilyNetworkActivity : AppCompatActivity() {
 
     private fun managePair(pair: FamilyBridge.FamilyPair) {
         AlertDialog.Builder(this).setTitle(pair.name)
-            .setItems(arrayOf(s("fam_manage_perms"), s("fam_unpair"))) { _, i ->
-                if (i == 0) showGrants(pair) else confirmUnpair(pair)
+            .setItems(arrayOf(s("fam_rename"), s("fam_manage_perms"), s("fam_unpair"))) { _, i ->
+                when (i) { 0 -> showRename(pair); 1 -> showGrants(pair); else -> confirmUnpair(pair) }
             }.setNegativeButton(s("cancel"), null).show()
+    }
+
+    /** Custom friendly name for a paired phone (e.g. "Wife"). Only this phone sees it; empty resets it. */
+    private fun showRename(pair: FamilyBridge.FamilyPair) {
+        val et = EditText(this).apply {
+            setText(pair.name); setSelection(text.length)
+            hint = s("fam_rename_hint"); inputType = InputType.TYPE_CLASS_TEXT; setPadding(48, 32, 48, 16)
+        }
+        AlertDialog.Builder(this).setTitle(s("fam_rename_title")).setView(et)
+            .setPositiveButton(s("fam_save")) { _, _ ->
+                val typed = et.text.toString().trim()
+                // typing the other phone's own name again simply removes the custom name
+                FamilyBridge.setNick(this, pair.pid, if (typed == pair.peerName) "" else typed)
+                val fresh = FamilyBridge.pairs(this).firstOrNull { it.pid == pair.pid }
+                if (fresh != null && viewPair?.pid == pair.pid) {
+                    viewPair = fresh; marker?.title = fresh.name; updateLegend(); refreshCaption()
+                }
+                renderStatus()
+                toast(s("fam_renamed"))
+            }
+            .setNegativeButton(s("cancel"), null).show()
     }
 
     private fun confirmUnpair(pair: FamilyBridge.FamilyPair) {
@@ -641,7 +662,7 @@ class FamilyNetworkActivity : AppCompatActivity() {
     private fun renderStatus() {
         val names = FamilyBridge.pairs(this).joinToString(", ") { it.name }
         tvStatus.text = if (names.isEmpty()) getString(R.string.fn_status_disconnected)
-                        else String.format(s("fam_paired_status"), names)
+                        else String.format(s("fam_paired_status"), names) + "  \u270E"      // pencil: tap to rename / manage
     }
 
     private fun showDialog(b: AlertDialog.Builder) { dialog?.dismiss(); dialog = b.show() }
