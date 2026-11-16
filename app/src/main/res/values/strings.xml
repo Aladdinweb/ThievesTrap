@@ -243,6 +243,7 @@ Automatically sends your GPS location if you do not confirm your safety before t
     <string name="fn_status_disconnected">🔴 DISCONNECTED</string>
     <string name="fn_map_title">LIVE MAP PREVIEW</string>
     <string name="fn_map_caption">No device connected</string>
+    <string name="fn_video_btn">📹 Capture Front Video</string>
     <string name="fn_start">START LIVE TRACKING</string>
     <string name="fn_stop">STOP TRACKING MAPS</string>
     <string name="fn_alarm">📢 TRIGGER ALARM</string>

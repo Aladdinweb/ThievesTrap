@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.drawable.BitmapDrawable
 import android.text.SpannableString
@@ -75,6 +76,9 @@ class FamilyNetworkActivity : AppCompatActivity() {
     private var ownCb: LocationCallback? = null
     private var ownPoint: GeoPoint? = null
     private var fitted = false
+    private var connector: Polyline? = null
+    private var ownAccuracy = 0f
+    private lateinit var tvDistance: TextView
     private var limitedShown = false
     private lateinit var tvMapTitle: TextView
     private val RED = Color.parseColor("#E53935")      // the tracked (target / stolen) phone
@@ -125,6 +129,7 @@ class FamilyNetworkActivity : AppCompatActivity() {
         tvCode.textSize = 22f
         tvMapCaption = findViewById(R.id.tv_map_caption)
         findViewById<TextView>(R.id.tv_preview_note).text = s("fam_live_note")
+        tvDistance = findViewById(R.id.tv_map_distance)
         tvMapTitle = findViewById(R.id.tv_map_title)
         tvMapTitle.text = s("fam_map_title")
         initMap()
@@ -147,6 +152,8 @@ class FamilyNetworkActivity : AppCompatActivity() {
         findViewById<View>(R.id.btn_family_stop).setOnClickListener { stopViewing() }
         findViewById<View>(R.id.card_family_history).setOnClickListener { chooseTarget { showHistory(it) } }
         findViewById<View>(R.id.btn_family_alarm).setOnClickListener { chooseTarget { showRing(it) } }
+        findViewById<Button>(R.id.btn_family_video).text = s("fam_video_btn")
+        findViewById<View>(R.id.btn_family_video).setOnClickListener { chooseTarget { confirmVideo(it) } }
         renderStatus()
     }
 
@@ -218,6 +225,8 @@ class FamilyNetworkActivity : AppCompatActivity() {
                 viewPair = pair
                 sessionStartSec = System.currentTimeMillis() / 1000
                 lastFix = null; firstCentred = false; fitted = false; limitedShown = false
+                connector?.let { mapView?.overlays?.remove(it) }; connector = null
+                tvDistance.visibility = View.GONE
                 FamilyAudit.add(this, "i_track", pair.name)
                 updateLegend()
                 trailPts.clear(); trail?.setPoints(trailPts)
@@ -239,8 +248,34 @@ class FamilyNetworkActivity : AppCompatActivity() {
     private fun endViewing() {
         handler.removeCallbacks(locTask)
         viewPair = null
+        connector?.let { mapView?.overlays?.remove(it) }; connector = null
+        tvDistance.visibility = View.GONE
         updateLegend()
         refreshCaption()
+    }
+
+    // ------------------------------------------------------------------ connector + live distance (v2.9.21)
+
+    /** Dashed line between the two markers, plus the distance, combining both fixes' GPS accuracy. */
+    private fun updateConnector() {
+        val mv = mapView ?: return
+        val me = ownPoint
+        val target = lastFix?.let { GeoPoint(it.optDouble("la"), it.optDouble("lo")) }
+        if (me == null || target == null) { tvDistance.visibility = View.GONE; return }
+        val line = connector ?: Polyline().apply {
+            outlinePaint.color = Color.parseColor("#FFD54A")
+            outlinePaint.strokeWidth = 4f
+            outlinePaint.pathEffect = DashPathEffect(floatArrayOf(18f, 14f), 0f)
+        }.also { connector = it; mv.overlays.add(1, it) }       // under the markers, above the trail
+        line.setPoints(listOf(me, target))
+        val results = FloatArray(1)
+        android.location.Location.distanceBetween(me.latitude, me.longitude, target.latitude, target.longitude, results)
+        val meters = results[0]
+        val acc = (ownAccuracy + (lastFix?.optDouble("ac", 0.0)?.toFloat() ?: 0f))
+        val distTxt = if (meters >= 1000) String.format(Locale.US, "%.1f km", meters / 1000) else "${meters.toInt()} m"
+        tvDistance.text = if (acc > 0f) String.format(s("fam_dist_fmt"), distTxt, acc.toInt()) else distTxt
+        tvDistance.visibility = View.VISIBLE
+        mv.invalidate()
     }
 
     // ------------------------------------------------------------------ markers and own position (v2.9.19)
@@ -294,9 +329,11 @@ class FamilyNetworkActivity : AppCompatActivity() {
         val mv = mapView ?: return
         val gp = GeoPoint(l.latitude, l.longitude)
         ownPoint = gp
+        ownAccuracy = if (l.hasAccuracy()) l.accuracy else 0f
         val mk = ownMarker ?: Marker(mv).apply { setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER); title = s("fam_you"); icon = pinIcon(GREEN) }
             .also { ownMarker = it; mv.overlays.add(it) }
         mk.position = gp
+        updateConnector()
         mv.invalidate()
         maybeFit()
     }
@@ -361,6 +398,7 @@ class FamilyNetworkActivity : AppCompatActivity() {
         val tr = trail ?: Polyline().apply { outlinePaint.color = Color.RED; outlinePaint.strokeWidth = 6f }
             .also { trail = it; mv.overlays.add(0, it) }
         trailPts.add(gp); tr.setPoints(trailPts)
+        updateConnector()
         if (!firstCentred) { firstCentred = true; if (ownPoint == null) { mv.controller.setZoom(17.0); mv.controller.animateTo(gp) } }
         else if (fitted && !mv.boundingBox.contains(gp)) mv.controller.animateTo(gp)
         maybeFit()
@@ -460,6 +498,9 @@ class FamilyNetworkActivity : AppCompatActivity() {
         "ring" -> String.format(s("fam_ev_ring"), e.name)
         "ring_refused" -> String.format(s("fam_ev_ring_refused"), e.name)
         "selfie_sent" -> String.format(s("fam_ev_selfie"), e.name)
+        "video" -> String.format(s("fam_ev_video"), e.name)
+        "video_refused" -> String.format(s("fam_ev_video_refused"), e.name, reasonText(e.x))
+        "i_video" -> String.format(s("fam_ev_i_video"), e.name)
         "i_track" -> String.format(s("fam_ev_i_track"), e.name)
         "i_ring" -> String.format(s("fam_ev_i_ring"), e.name)
         else -> e.ev
@@ -643,6 +684,17 @@ class FamilyNetworkActivity : AppCompatActivity() {
                 .setItems(list.map { it.name }.toTypedArray()) { _, i -> then(list[i]) }
                 .setNegativeButton(s("cancel"), null).show()
         }
+    }
+
+    private fun confirmVideo(pair: FamilyBridge.FamilyPair) {
+        AlertDialog.Builder(this).setTitle(String.format(s("fam_video_title"), pair.name)).setMessage(s("fam_video_msg"))
+            .setPositiveButton(s("fam_video_now")) { _, _ ->
+                Thread {
+                    val r = FamilyBridge.sendCommand(this, pair, "video")
+                    if (r == "sent") FamilyAudit.add(this, "i_video", pair.name)
+                    runOnUiThread { toast(if (r == "sent") s("fam_video_sent") else errText(r)) }
+                }.start()
+            }.setNegativeButton(s("cancel"), null).show()
     }
 
     private fun showRing(pair: FamilyBridge.FamilyPair) {

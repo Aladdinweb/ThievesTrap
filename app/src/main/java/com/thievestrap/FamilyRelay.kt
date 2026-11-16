@@ -89,6 +89,13 @@ object FamilyRelay {
                     FamilyTracker.start(ctx, pr, o.optInt("mins", 60).coerceIn(5, 120))
                 }
                 "track_stop" -> if (FamilyTracker.activePid(ctx) == pr.pid) FamilyTracker.stop(ctx, "stopped")
+                "video" -> {
+                    if (!pr.selfie) { FamilyAudit.add(ctx, "video_refused", pr.name, "not_allowed"); return }
+                    val armed = ctx.getSharedPreferences("tt_prefs", Context.MODE_PRIVATE).getBoolean("running", false)
+                    if (!armed) { FamilyAudit.add(ctx, "video_refused", pr.name, "not_armed"); return }
+                    FamilyAudit.add(ctx, "video", pr.name)
+                    try { VideoCaptureService.start(ctx) } catch (e: Exception) { Log.w(TAG, "video could not start: ${e.message}") }
+                }
             }
         } catch (e: Exception) { Log.w(TAG, "bad command", e) }
     }
@@ -114,26 +121,39 @@ object FamilyRelay {
         if (plain == null) { FamilyBridge.ackPhoto(pr.pid, id); return }        // corrupt or foreign: never retry it, delete it
         try {
             val metaLen = ((plain[0].toInt() and 0xff) shl 8) or (plain[1].toInt() and 0xff)
-            val jpeg = plain.copyOfRange(2 + metaLen, plain.size)
-            if (jpeg.size < 4 || jpeg[0] != 0xFF.toByte() || jpeg[1] != 0xD8.toByte()) { FamilyBridge.ackPhoto(pr.pid, id); return }
+            val meta = try { JSONObject(String(plain.copyOfRange(2, 2 + metaLen))) } catch (e: Exception) { JSONObject() }
+            val media = plain.copyOfRange(2 + metaLen, plain.size)
+            val isClip = meta.optString("kind") == "clip"
             val safe = pr.name.filter { it.isLetterOrDigit() && it.code < 128 }.take(12).ifEmpty { "family" }
-            val file = File(galleryDir(ctx), "family_${safe}_${id.take(8)}.jpg")
-            if (!file.exists()) file.writeBytes(jpeg)
-            if (!file.exists() || file.length() == 0L) return                    // could not save: do NOT acknowledge
-            FamilyBridge.ackPhoto(pr.pid, id)                                    // saved safely: server deletes its copy now
-            notifyPhoto(ctx, pr.name, id)
+            if (isClip) {
+                // MP4: an 'ftyp' box normally starts at byte 4; accept anything with it in the first 16 bytes.
+                val head = String(media.copyOfRange(0, minOf(16, media.size)), Charsets.ISO_8859_1)
+                if (!head.contains("ftyp")) { FamilyBridge.ackPhoto(pr.pid, id); return }
+                val file = File(galleryDir(ctx), "family_${safe}_${id.take(8)}.mp4")
+                if (!file.exists()) file.writeBytes(media)
+                if (!file.exists() || file.length() == 0L) return
+                FamilyBridge.ackPhoto(pr.pid, id)
+                notifyPhoto(ctx, pr.name, id, isClip = true)
+            } else {
+                if (media.size < 4 || media[0] != 0xFF.toByte() || media[1] != 0xD8.toByte()) { FamilyBridge.ackPhoto(pr.pid, id); return }
+                val file = File(galleryDir(ctx), "family_${safe}_${id.take(8)}.jpg")
+                if (!file.exists()) file.writeBytes(media)
+                if (!file.exists() || file.length() == 0L) return                    // could not save: do NOT acknowledge
+                FamilyBridge.ackPhoto(pr.pid, id)                                    // saved safely: server deletes its copy now
+                notifyPhoto(ctx, pr.name, id, isClip = false)
+            }
         } catch (e: Exception) { Log.w(TAG, "receive failed", e) }
     }
 
-    private fun notifyPhoto(ctx: Context, name: String, id: String) {
+    private fun notifyPhoto(ctx: Context, name: String, id: String, isClip: Boolean) {
         val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
             nm.createNotificationChannel(NotificationChannel(CHANNEL, "Family alerts", NotificationManager.IMPORTANCE_HIGH))
         val pi = PendingIntent.getActivity(ctx, 0, Intent(ctx, SelfiesActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         val n = NotificationCompat.Builder(ctx, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
-            .setContentTitle(String.format(Strings.get(ctx, "fam_notif_photo_title"), name))
-            .setContentText(Strings.get(ctx, "fam_notif_photo_text"))
+            .setContentTitle(String.format(Strings.get(ctx, if (isClip) "fam_notif_video_title" else "fam_notif_photo_title"), name))
+            .setContentText(Strings.get(ctx, if (isClip) "fam_notif_video_text" else "fam_notif_photo_text"))
             .setContentIntent(pi).setAutoCancel(true).setPriority(NotificationCompat.PRIORITY_HIGH).build()
         try { nm.notify(NOTIF_BASE + (id.hashCode() and 0xff), n) } catch (e: Exception) {}
     }
@@ -143,12 +163,22 @@ object FamilyRelay {
     /** Queues the upload of a freshly saved intruder photo (only if some pair was granted selfies). */
     fun enqueueSelfie(ctx: Context, file: File) {
         if (FamilyBridge.pairs(ctx).none { it.selfie }) return
+        queue(ctx, file, "intruder")
+    }
+
+    /** Same relay, a short silent video clip instead of a photo; shares the "receive selfies" permission. */
+    fun enqueueClip(ctx: Context, file: File) {
+        if (FamilyBridge.pairs(ctx).none { it.selfie }) { file.delete(); return }
+        queue(ctx, file, "clip")
+    }
+
+    private fun queue(ctx: Context, file: File, kind: String) {
         val req = OneTimeWorkRequestBuilder<FamilyPhotoWorker>()
-            .setInputData(workDataOf("path" to file.absolutePath))
+            .setInputData(workDataOf("path" to file.absolutePath, "kind" to kind))
             .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS).build()
         WorkManager.getInstance(ctx.applicationContext)
-            .enqueueUniqueWork("tt_family_photo_" + file.name, ExistingWorkPolicy.KEEP, req)
+            .enqueueUniqueWork("tt_family_media_" + file.name, ExistingWorkPolicy.KEEP, req)
     }
 
     /** Shrinks to at most 960 px / 450 KB so a photo is small enough to relay quickly. */
@@ -190,12 +220,13 @@ class FamilyPollWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, par
 class FamilyPhotoWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, params) {
     override fun doWork(): Result {
         val file = File(inputData.getString("path") ?: return Result.failure())
+        val kind = inputData.getString("kind") ?: "intruder"
         if (!file.exists() || file.length() == 0L) return Result.failure()
         val targets = FamilyBridge.pairs(applicationContext).filter { it.selfie }
-        if (targets.isEmpty()) return Result.success()
-        val jpeg = FamilyRelay.compress(file) ?: return Result.failure()
-        val meta = JSONObject().put("ts", file.lastModified() / 1000).put("kind", "intruder").toString().toByteArray()
-        val plain = byteArrayOf((meta.size shr 8).toByte(), meta.size.toByte()) + meta + jpeg
+        if (targets.isEmpty()) { if (kind == "clip") file.delete(); return Result.success() }
+        val media = if (kind == "clip") file.readBytes() else (FamilyRelay.compress(file) ?: return Result.failure())
+        val meta = JSONObject().put("ts", file.lastModified() / 1000).put("kind", kind).toString().toByteArray()
+        val plain = byteArrayOf((meta.size shr 8).toByte(), meta.size.toByte()) + meta + media
         var retry = false
         for (pr in targets) {
             val key = FamilyBridge.pairKey(applicationContext, pr) ?: continue

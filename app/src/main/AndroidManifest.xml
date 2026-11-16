@@ -71,6 +71,9 @@
              one core service missing its type declaration. -->
         <service android:name=".SelfieService"          android:exported="false"
             android:foregroundServiceType="camera"/>
+        <!-- v2.9.21: short silent front-camera clip, triggered by a paired family phone -->
+        <service android:name=".VideoCaptureService" android:exported="false"
+            android:foregroundServiceType="camera"/>
         <service android:name=".SurvivalTimerService"   android:exported="false"/>
 
         <!-- Smartwatch Tether service (retained) -->

@@ -113,7 +113,22 @@
                     android:background="#AA000000"
                     android:paddingStart="10dp" android:paddingEnd="10dp"
                     android:paddingTop="4dp" android:paddingBottom="4dp"/>
+                            <!-- v2.9.21: live distance between the two phones -->
+                <TextView android:id="@+id/tv_map_distance"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:layout_gravity="top|end" android:layout_margin="10dp"
+                    android:textSize="11sp" android:textStyle="bold" android:textColor="#FFD54A"
+                    android:background="#AA0B1018" android:visibility="gone"
+                    android:paddingStart="8dp" android:paddingEnd="8dp"
+                    android:paddingTop="4dp" android:paddingBottom="4dp"/>
             </FrameLayout>
+
+            <!-- v2.9.21: silent front video (armed target only) -->
+            <Button android:id="@+id/btn_family_video" style="?android:attr/buttonBarButtonStyle"
+                android:layout_width="match_parent" android:layout_height="52dp"
+                android:text="@string/fn_video_btn" android:textAllCaps="true" android:textStyle="bold"
+                android:textColor="#FFFFFF" android:background="#6A1B9A"
+                android:layout_marginBottom="12dp"/>
 
             <!-- CONTROLS -->
             <Button android:id="@+id/btn_family_start"

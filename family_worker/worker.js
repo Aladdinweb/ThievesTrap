@@ -11,10 +11,10 @@
 //   message  TF1|<METHOD>|<path>|<ts>|<nonce>|<sha256 hex of the body text>
 
 const MAX_BODY = 4096;
-const MAX_PHOTO_BODY = 700000;      // base64 ciphertext of a photo of at most ~450 KB
+const MAX_PHOTO_BODY = 950000;      // base64 ciphertext of a photo or short silent video clip (~650 KB raw)
 const CMD_TTL_MS = 5 * 60 * 1000;   // an undelivered command is dropped after 5 minutes
 const PHOTO_TTL_MS = 24 * 60 * 60 * 1000;   // a photo nobody picked up is deleted after 24 hours
-const MAX_PENDING_PHOTOS = 5;       // per recipient
+const MAX_PENDING_PHOTOS = 5;       // per recipient (photos and video clips share this quota)
 const MAX_MSGS = 10;
 const LOC_TTL_MS = 2 * 60 * 1000;    // the single latest location slot; an old fix is never served
 const CHUNK = 100000;               // characters per stored piece (DO values stay far below the limit)
