@@ -9,8 +9,8 @@ android {
         applicationId "com.thievestrap"
         minSdk 26
         targetSdk 33
-        versionCode 169
-        versionName "2.9.21"
+        versionCode 170
+        versionName "2.9.22"
 
         // v2.9.7: Telegram bot token comes from the GitHub Secret
         // TELEGRAM_BOT_TOKEN, passed in by build.yml/release.yml as a Gradle

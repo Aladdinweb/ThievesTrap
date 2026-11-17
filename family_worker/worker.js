@@ -282,8 +282,29 @@ export class PairRoom {
   }
 
   async webSocketMessage(ws, msg) { /* the phones only send the auto-answered ping */ }
-  async webSocketClose(ws, code) { try { ws.close(code && code !== 1005 ? code : 1000, 'bye'); } catch (e) { /* already closed */ } }
-  async webSocketError(ws) { try { ws.close(1011, 'error'); } catch (e) { /* already closed */ } }
+  async webSocketClose(ws, code) {
+    try { ws.close(code && code !== 1005 ? code : 1000, 'bye'); } catch (e) { /* already closed */ }
+    await this.notifyOffline(ws);
+  }
+  async webSocketError(ws) {
+    try { ws.close(1011, 'error'); } catch (e) { /* already closed */ }
+    await this.notifyOffline(ws);
+  }
+
+  // v2.9.22: tells the peer this device is offline, but only once its LAST socket has actually closed
+  // (a device may briefly hold two sockets while reconnecting).
+  async notifyOffline(ws) {
+    try {
+      const tags = this.ctx.getTags(ws);
+      const did = tags && tags[0];
+      if (!did) return;
+      const remaining = this.ctx.getWebSockets(did).filter((s) => s !== ws);
+      if (remaining.length > 0) return;   // another socket of the same device is still open
+      const mem = await this.ctx.storage.get('m');
+      const peer = mem && mem.members.find((x) => x.did !== did);
+      if (peer) this.push(peer.did, { t: 'presence', online: false });
+    } catch (e) { /* room may be gone (unpaired): nothing to notify */ }
+  }
 
   cmdTtl() { return Number(this.env.CMD_TTL_MS) || CMD_TTL_MS; }
   photoTtl() { return Number(this.env.PHOTO_TTL_MS) || PHOTO_TTL_MS; }
@@ -333,6 +354,11 @@ export class PairRoom {
       for (const old of this.ctx.getWebSockets(did)) { try { old.close(1000, 'replaced'); } catch (e) { /* ignore */ } }
       const pair = new WebSocketPair();
       this.ctx.acceptWebSocket(pair[1], [did]);
+      const peer = mem.members.find((x) => x.did !== did);
+      if (peer) {
+        try { pair[1].send(JSON.stringify({ t: 'presence_init', online: this.ctx.getWebSockets(peer.did).length > 0 })); } catch (e) { /* ignore */ }
+        this.push(peer.did, { t: 'presence', online: true });
+      }
       return new Response(null, { status: 101, webSocket: pair[0] });
     }
     const b = await request.json();
@@ -349,7 +375,11 @@ export class PairRoom {
     const now = Date.now();
 
     if (path === '/info') {
-      return out({ ok: true, members: m.members.map((x) => ({ did: x.did, name: x.name })), created: m.created });
+      return out({
+        ok: true,
+        members: m.members.map((x) => ({ did: x.did, name: x.name, online: this.ctx.getWebSockets(x.did).length > 0 })),
+        created: m.created,
+      });
     }
     if (path === '/unpair') {
       await this.ctx.storage.deleteAlarm();

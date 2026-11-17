@@ -130,16 +130,11 @@
                 android:textColor="#FFFFFF" android:background="#6A1B9A"
                 android:layout_marginBottom="12dp"/>
 
-            <!-- CONTROLS -->
-            <Button android:id="@+id/btn_family_start"
+            <!-- CONTROLS (v2.9.22: single toggle button instead of separate Start/Stop) -->
+            <Button android:id="@+id/btn_family_toggle"
                 android:layout_width="match_parent" android:layout_height="52dp"
                 android:text="@string/fn_start" android:textSize="13sp" android:textStyle="bold"
                 android:backgroundTint="#1B8A3A" android:textColor="#FFFFFF"
-                android:layout_marginBottom="8dp"/>
-            <Button android:id="@+id/btn_family_stop"
-                android:layout_width="match_parent" android:layout_height="52dp"
-                android:text="@string/fn_stop" android:textSize="13sp" android:textStyle="bold"
-                android:backgroundTint="#333344" android:textColor="#FFFFFF"
                 android:layout_marginBottom="8dp"/>
             <Button android:id="@+id/btn_family_alarm"
                 android:layout_width="match_parent" android:layout_height="52dp"

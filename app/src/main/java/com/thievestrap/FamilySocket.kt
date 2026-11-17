@@ -36,6 +36,17 @@ object FamilySocket {
     /** Set by the Family screen: (pid, decrypted location JSON) for the pair being watched. */
     @Volatile var locListener: ((String, String) -> Unit)? = null
 
+    // v2.9.22: whether the PEER of each pair currently has a live socket open (server-reported, real-time).
+    // Unknown until the first presence_init/presence message for that pid arrives; treated as offline until then.
+    private val presence = HashMap<String, Boolean>()
+    @Volatile var presenceListener: (() -> Unit)? = null
+
+    @Synchronized
+    fun isOnline(pid: String): Boolean = presence[pid] == true
+
+    @Synchronized
+    private fun setOnline(pid: String, online: Boolean) { presence[pid] = online }
+
     @Synchronized
     fun acquire(ctx: Context) { holders++; ensure(ctx) }
 
@@ -63,6 +74,7 @@ object FamilySocket {
         val ws = client.newWebSocket(rb.build(), object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 synchronized(FamilySocket) { attempts[pid] = 0 }
+                // a socket that just (re)connected proves nothing about the PEER yet: presence_init settles it
                 // catch up with anything that arrived while the socket was down
                 worker.execute { try { FamilyRelay.pollOnce(app) } catch (e: Exception) { Log.w(TAG, "catch-up failed: ${e.message}") } }
             }
@@ -93,6 +105,7 @@ object FamilySocket {
                 "cmd" -> FamilyRelay.handleCommand(app, pr, key, o.optString("ct"))
                 "photo" -> FamilyRelay.pollOnce(app)                    // downloads, saves, acknowledges
                 "loc" -> FamilyBridge.open(key, "loc|$pid", o.optString("ct"))?.let { locListener?.invoke(pid, String(it)) }
+                "presence", "presence_init" -> { setOnline(pid, o.optBoolean("online", false)); presenceListener?.invoke() }
             }
         } catch (e: Exception) { Log.w(TAG, "bad push: ${e.message}") }
     }

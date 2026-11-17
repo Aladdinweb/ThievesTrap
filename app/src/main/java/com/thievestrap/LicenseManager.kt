@@ -112,6 +112,20 @@ object LicenseManager {
         object NotConfigured : ActivationResult()
     }
 
+    /** Localized (EN/FR/AR, via Strings.kt) one-line message for any ActivationResult. */
+    fun describeError(ctx: Context, r: ActivationResult): String = when (r) {
+        is ActivationResult.Success -> ""
+        ActivationResult.InvalidKey -> Strings.get(ctx, "lic_invalid")
+        ActivationResult.KeyInUse -> Strings.get(ctx, "lic_key_in_use")
+        ActivationResult.Revoked -> Strings.get(ctx, "lic_revoked")
+        ActivationResult.Expired -> Strings.get(ctx, "lic_expired")
+        ActivationResult.BadClock -> Strings.get(ctx, "lic_badclock")
+        ActivationResult.Network -> Strings.get(ctx, "lic_network")
+        is ActivationResult.ServerError -> String.format(Strings.get(ctx, "lic_server_error"), r.detail)
+        is ActivationResult.BadResponse -> String.format(Strings.get(ctx, "lic_bad_response"), r.reason)
+        ActivationResult.NotConfigured -> Strings.get(ctx, "lic_not_configured")
+    }
+
     private class Reply(val code: Int, val error: String, val payload: String, val sig: String)
 
     private fun backup(context: Context): SharedPreferences =

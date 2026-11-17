@@ -9,6 +9,7 @@ import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.drawable.BitmapDrawable
 import android.text.SpannableString
+import android.text.SpannableStringBuilder
 import android.text.style.ForegroundColorSpan
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.LocationCallback
@@ -56,6 +57,44 @@ import java.util.Locale
  */
 class FamilyNetworkActivity : AppCompatActivity() {
 
+    /** Blocks the screen behind an activation dialog for non-premium users; success re-enters onCreate(). */
+    private fun showPremiumGate() {
+        val et = EditText(this).apply {
+            hint = s("fam_lock_hint"); inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
+            setPadding(48, 32, 48, 16)
+        }
+        var activated = false
+        val dialog = AlertDialog.Builder(this).setTitle(s("fam_lock_title")).setMessage(s("fam_lock_msg")).setView(et)
+            .setCancelable(true)
+            .setPositiveButton(s("fam_lock_activate"), null)
+            .setNegativeButton(s("cancel")) { _, _ -> finish() }
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val key = et.text.toString().trim()
+                if (key.isEmpty()) { toast(s("fam_lock_hint")); return@setOnClickListener }
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = false
+                Thread {
+                    val r = LicenseManager.activate(this, key)
+                    runOnUiThread {
+                        if (r is LicenseManager.ActivationResult.Success) {
+                            activated = true
+                            toast(s("fam_lock_ok"))
+                            dialog.dismiss()
+                            recreate()                                  // onCreate runs again; the gate now passes
+                        } else {
+                            dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = true
+                            toast(LicenseManager.describeError(this, r))
+                        }
+                    }
+                }.start()
+            }
+        }
+        dialog.setOnDismissListener { if (!activated && !isFinishing) finish() }
+        dialog.show()
+    }
+
+
     private val handler = Handler(Looper.getMainLooper())
     private var resumed = false
     private var sessionStart = 0L
@@ -81,6 +120,7 @@ class FamilyNetworkActivity : AppCompatActivity() {
     private lateinit var tvDistance: TextView
     private var limitedShown = false
     private lateinit var tvMapTitle: TextView
+    private lateinit var btnToggle: Button
     private val RED = Color.parseColor("#E53935")      // the tracked (target / stolen) phone
     private val GREEN = Color.parseColor("#1DB954")    // this (monitor) phone
 
@@ -114,6 +154,9 @@ class FamilyNetworkActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         LocaleHelper.applyLocale(this)
+        // v2.9.22: Family Network is a premium feature. Free users still see the menu entry and this
+        // screen opens, but an activation key is required before any of it is usable.
+        if (!LicenseManager.isPremium(this)) { showPremiumGate(); return }
         // OpenStreetMap tile policy: identify the app; keep the tile cache inside the app's cache folder
         Configuration.getInstance().apply {
             load(applicationContext, getSharedPreferences("osmdroid", MODE_PRIVATE))
@@ -148,8 +191,9 @@ class FamilyNetworkActivity : AppCompatActivity() {
         }
         tvStatus.setOnClickListener { showManage() }
 
-        findViewById<View>(R.id.btn_family_start).setOnClickListener { chooseTarget { startViewing(it) } }
-        findViewById<View>(R.id.btn_family_stop).setOnClickListener { stopViewing() }
+        btnToggle = findViewById(R.id.btn_family_toggle)
+        btnToggle.setOnClickListener { if (viewPair == null) chooseTarget { startViewing(it) } else stopViewing() }
+        updateToggleButton()
         findViewById<View>(R.id.card_family_history).setOnClickListener { chooseTarget { showHistory(it) } }
         findViewById<View>(R.id.btn_family_alarm).setOnClickListener { chooseTarget { showRing(it) } }
         findViewById<Button>(R.id.btn_family_video).text = s("fam_video_btn")
@@ -173,6 +217,7 @@ class FamilyNetworkActivity : AppCompatActivity() {
         FamilySocket.locListener = { pid, plain ->
             runOnUiThread { val pr = viewPair; if (pr != null && pr.pid == pid && processLoc(pr, plain)) refreshCaption() }
         }
+        FamilySocket.presenceListener = { runOnUiThread { renderStatus() } }
         startOwnLocation()
     }
 
@@ -182,6 +227,7 @@ class FamilyNetworkActivity : AppCompatActivity() {
         handler.removeCallbacks(locTask)
         mapView?.onPause()
         FamilySocket.locListener = null
+        FamilySocket.presenceListener = null
         FamilySocket.release()
         stopOwnLocation()
         super.onPause()
@@ -229,6 +275,7 @@ class FamilyNetworkActivity : AppCompatActivity() {
                 tvDistance.visibility = View.GONE
                 FamilyAudit.add(this, "i_track", pair.name)
                 updateLegend()
+                updateToggleButton()
                 trailPts.clear(); trail?.setPoints(trailPts)
                 toast(String.format(s("fam_track_sent"), pair.name))
                 refreshCaption()
@@ -252,6 +299,16 @@ class FamilyNetworkActivity : AppCompatActivity() {
         tvDistance.visibility = View.GONE
         updateLegend()
         refreshCaption()
+        updateToggleButton()
+    }
+
+    /** Green "Start" when idle, red "Stop" while a session is live (v2.9.22: merged Start/Stop button). */
+    private fun updateToggleButton() {
+        if (viewPair != null) {
+            btnToggle.text = s("fam_stop"); btnToggle.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.parseColor("#C62828"))
+        } else {
+            btnToggle.text = s("fam_start"); btnToggle.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.parseColor("#1B8A3A"))
+        }
     }
 
     // ------------------------------------------------------------------ connector + live distance (v2.9.21)
@@ -632,7 +689,7 @@ class FamilyNetworkActivity : AppCompatActivity() {
         val list = FamilyBridge.pairs(this)
         if (list.isEmpty()) { toast(s("fam_no_pairs")); return }
         AlertDialog.Builder(this).setTitle(s("fam_manage_title"))
-            .setItems(list.map { it.name }.toTypedArray()) { _, i -> managePair(list[i]) }
+            .setItems(colored(list)) { _, i -> managePair(list[i]) }
             .setNegativeButton(s("cancel"), null).show()
     }
 
@@ -642,6 +699,12 @@ class FamilyNetworkActivity : AppCompatActivity() {
                 when (i) { 0 -> showRename(pair); 1 -> showGrants(pair); else -> confirmUnpair(pair) }
             }.setNegativeButton(s("cancel"), null).show()
     }
+
+    /** Names colored by live presence, for a plain AlertDialog list (CharSequence[] accepts spans fine). */
+    private fun colored(list: List<FamilyBridge.FamilyPair>): Array<CharSequence> = list.map {
+        val label = it.name + "  " + (if (FamilySocket.isOnline(it.pid)) s("fam_online") else s("fam_offline"))
+        SpannableString(label).apply { setSpan(ForegroundColorSpan(if (FamilySocket.isOnline(it.pid)) GREEN else RED), 0, it.name.length.coerceAtMost(label.length), 0) }
+    }.toTypedArray()
 
     /** Custom friendly name for a paired phone (e.g. "Wife"). Only this phone sees it; empty resets it. */
     private fun showRename(pair: FamilyBridge.FamilyPair) {
@@ -711,10 +774,20 @@ class FamilyNetworkActivity : AppCompatActivity() {
 
     // ------------------------------------------------------------------ helpers
 
+    /** Each name is colored green (online) or red (offline) from the live WebSocket presence; v2.9.22. */
     private fun renderStatus() {
-        val names = FamilyBridge.pairs(this).joinToString(", ") { it.name }
-        tvStatus.text = if (names.isEmpty()) getString(R.string.fn_status_disconnected)
-                        else String.format(s("fam_paired_status"), names) + "  \u270E"      // pencil: tap to rename / manage
+        val list = FamilyBridge.pairs(this)
+        if (list.isEmpty()) { tvStatus.text = getString(R.string.fn_status_disconnected); return }
+        val sb = SpannableStringBuilder()
+        sb.append(s("fam_paired_label"))
+        list.forEachIndexed { i, pr ->
+            if (i > 0) sb.append(", ")
+            val start = sb.length
+            sb.append(pr.name)
+            sb.setSpan(ForegroundColorSpan(if (FamilySocket.isOnline(pr.pid)) GREEN else RED), start, sb.length, 0)
+        }
+        sb.append("  \u270E")      // pencil: tap to rename / manage
+        tvStatus.text = sb
     }
 
     private fun showDialog(b: AlertDialog.Builder) { dialog?.dismiss(); dialog = b.show() }
