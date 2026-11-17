@@ -16,6 +16,9 @@ const CMD_TTL_MS = 5 * 60 * 1000;   // an undelivered command is dropped after 5
 const PHOTO_TTL_MS = 24 * 60 * 60 * 1000;   // a photo nobody picked up is deleted after 24 hours
 const MAX_PENDING_PHOTOS = 5;       // per recipient (photos and video clips share this quota)
 const MAX_MSGS = 10;
+const BLE_TTL_MS = 24 * 60 * 60 * 1000;      // latest offline beacon per recipient (one slot, overwritten)
+const BLE_RID_TTL_MS = 40 * 60 * 60 * 1000;  // a registered rotating id stays valid this long
+const BLE_MAX_RIDS = 200;                     // per registration call
 const LOC_TTL_MS = 2 * 60 * 1000;    // the single latest location slot; an old fix is never served
 const CHUNK = 100000;               // characters per stored piece (DO values stay far below the limit)
 const TS_WINDOW = 300;            // seconds
@@ -90,8 +93,8 @@ export default {
       return stub.fetch('https://do/ws', { headers: { upgrade: 'websocket', 'x-did': who.did } });
     }
     if (request.method !== 'POST') return err('not_found', 404);
-    const routes = ['/pair/open', '/pair/join', '/pair/poll', '/pair/decide', '/pair/info', '/pair/unpair'];
-    const roomOps = { '/room/send': '/send', '/room/poll': '/poll', '/photo/put': '/photo/put', '/photo/get': '/photo/get', '/photo/ack': '/photo/ack', '/loc/put': '/loc/put', '/loc/get': '/loc/get', '/loc/clear': '/loc/clear' };
+    const routes = ['/pair/open', '/pair/join', '/pair/poll', '/pair/decide', '/pair/info', '/pair/unpair', '/ble/register', '/ble/report'];
+    const roomOps = { '/room/send': '/send', '/room/poll': '/poll', '/photo/put': '/photo/put', '/photo/get': '/photo/get', '/photo/ack': '/photo/ack', '/loc/put': '/loc/put', '/loc/get': '/loc/get', '/loc/clear': '/loc/clear', '/ble/get': '/ble/get' };
     if (!routes.includes(path) && !roomOps[path]) return err('not_found', 404);
 
     const limit = path === '/photo/put' ? MAX_PHOTO_BODY : MAX_BODY;
@@ -150,6 +153,32 @@ export default {
         return json({ ok: true, status: 'approved', pid });
       }
       return json(r, r.ok ? 200 : 400);
+    }
+
+    // ---- v2.9.23: offline BLE mesh
+    // /ble/register: a pair member (the phone that may go offline) registers its upcoming rotating beacon ids.
+    // /ble/report:   ANY phone running the app forwards an opaque beacon it overheard. The server only learns that
+    //                "some phone heard beacon X"; the beacon is ciphertext only the pair can open, and the
+    //                reporter's own location is never sent.
+    if (path === '/ble/register') {
+      if (!PID_RE.test(String(body.pid || '')) || !Array.isArray(body.rids) || body.rids.length < 1 || body.rids.length > BLE_MAX_RIDS) return err('bad_request');
+      if (!body.rids.every((r) => /^[0-9a-f]{8}$/.test(String(r)))) return err('bad_request');
+      if (!(await rateLimit(env, 'dev-blereg:' + who.did, 24, 3600))) return err('rate_limited', 429);
+      const m = await callDO(env.ROOMS, body.pid, '/ble/member', { did: who.did });
+      if (!m.ok) return err('not_found', 404);
+      const r = await callDO(env.BLEHUB, 'hub', '/reg', { pid: body.pid, did: who.did, rids: body.rids });
+      return json(r, r.ok ? 200 : 400);
+    }
+    if (path === '/ble/report') {
+      if (!/^[0-9a-f]{8}$/.test(String(body.rid || '')) || !okB64(body.b, 40)) return err('bad_request');
+      let raw; try { raw = b64d(body.b); } catch (e) { return err('bad_request'); }
+      if (raw.length !== 23 || raw[0] !== 1) return err('bad_request');
+      if (!(await rateLimit(env, 'ip-blerep:' + ipKey, 120, 600))) return err('rate_limited', 429);
+      if (!(await rateLimit(env, 'dev-blerep:' + who.did, 60, 600))) return err('rate_limited', 429);
+      const hit = await callDO(env.BLEHUB, 'hub', '/lookup', { rid: body.rid });
+      if (!hit.ok || !hit.pid) return json({ ok: true, known: false });          // unknown id: nothing stored, nothing revealed
+      const r = await callDO(env.ROOMS, hit.pid, '/ble/put', { did: hit.did, b: body.b });
+      return json({ ok: true, known: true, stored: !!(r && r.stored) });
     }
 
     // ---- v2.9.17: commands and photos between the two members of a pair
@@ -281,7 +310,34 @@ export class PairRoom {
     for (const ws of this.ctx.getWebSockets(did)) { try { ws.send(text); } catch (e) { /* closed */ } }
   }
 
-  async webSocketMessage(ws, msg) { /* the phones only send the auto-answered ping */ }
+  // v2.9.23: a phone may push its encrypted live fix up the socket instead of POST /loc/put. Same effect:
+  // the latest fix replaces the single slot and is forwarded to the other member. Anything else is ignored
+  // (the keep-alive ping is answered by the runtime before it gets here).
+  async webSocketMessage(ws, msg) {
+    try {
+      if (typeof msg !== 'string' || msg.length > 2200) return;
+      const tags = this.ctx.getTags(ws);
+      const did = tags && tags[0];
+      if (!did) return;
+      let o; try { o = JSON.parse(msg); } catch (e) { return; }
+      if (!o || o.t !== 'loc' || !okB64(o.ct, 2000)) return;
+      const nowMs = Date.now();
+      const att = ws.deserializeAttachment() || {};
+      if (att.last && nowMs - att.last < 900) return;          // at most about one fix per second per socket
+      ws.serializeAttachment({ last: nowMs });
+      const mem = await this.ctx.storage.get('m');
+      const peer = mem && mem.members.find((x) => x.did !== did);
+      if (!peer || !mem.members.some((x) => x.did === did)) return;
+      await this.storeLoc(peer.did, o.ct, nowMs);
+    } catch (e) { /* a bad message never harms the socket */ }
+  }
+
+  async storeLoc(peerDid, ct, now) {
+    await this.ctx.storage.put('l:' + peerDid, { ts: now, ct });
+    const cur = await this.ctx.storage.getAlarm();
+    if (!cur || cur > now + this.locTtl()) await this.ctx.storage.setAlarm(now + this.locTtl());
+    this.push(peerDid, { t: 'loc', ts: now, ct });
+  }
   async webSocketClose(ws, code) {
     try { ws.close(code && code !== 1005 ? code : 1000, 'bye'); } catch (e) { /* already closed */ }
     await this.notifyOffline(ws);
@@ -309,6 +365,7 @@ export class PairRoom {
   cmdTtl() { return Number(this.env.CMD_TTL_MS) || CMD_TTL_MS; }
   photoTtl() { return Number(this.env.PHOTO_TTL_MS) || PHOTO_TTL_MS; }
   locTtl() { return Number(this.env.LOC_TTL_MS) || LOC_TTL_MS; }
+  bleTtl() { return Number(this.env.BLE_TTL_MS) || BLE_TTL_MS; }
 
   async dropPhoto(id, n) {
     const keys = ['pm:' + id];
@@ -328,6 +385,10 @@ export class PairRoom {
     for (const [k, v] of await this.ctx.storage.list({ prefix: 'l:' })) {
       if (now - v.ts >= this.locTtl()) await this.ctx.storage.delete(k);
       else next = next ? Math.min(next, v.ts + this.locTtl()) : v.ts + this.locTtl();
+    }
+    for (const [k, v] of await this.ctx.storage.list({ prefix: 'b:' })) {
+      if (now - v.ts >= this.bleTtl()) await this.ctx.storage.delete(k);
+      else next = next ? Math.min(next, v.ts + this.bleTtl()) : v.ts + this.bleTtl();
     }
     const inb = await this.ctx.storage.list({ prefix: 'i:' });
     for (const [k, arr] of inb) {
@@ -374,6 +435,28 @@ export class PairRoom {
     const peer = m.members.find((x) => x.did !== b.did);
     const now = Date.now();
 
+    if (path === '/ble/member') return out({ ok: true });
+    // The newest offline beacon per recipient: ONE slot, ciphertext only, replaced only by a NEWER one
+    // (epoch counter, then sequence), expires after BLE_TTL. b.did is the beacon OWNER here.
+    if (path === '/ble/put') {
+      const owner = b.did;
+      const slot = 'b:' + peer.did;
+      const nb = b64d(b.b);
+      const key = nb[5] * 65536 + nb[6] * 256 + nb[7];        // 24-bit epoch counter ... below (+ sequence)
+      const seq = nb[8];
+      const cur = await this.ctx.storage.get(slot);
+      if (cur && (cur.key > key || (cur.key === key && cur.seq >= seq))) return out({ ok: true, stored: false });
+      await this.ctx.storage.put(slot, { ts: now, key, seq, b: b.b });
+      const al = await this.ctx.storage.getAlarm();
+      if (!al || al > now + this.bleTtl()) await this.ctx.storage.setAlarm(now + this.bleTtl());
+      this.push(peer.did, { t: 'ble', ts: now, b: b.b });
+      return out({ ok: true, stored: true });
+    }
+    if (path === '/ble/get') {
+      const rec = await this.ctx.storage.get('b:' + b.did);
+      if (!rec || now - rec.ts >= this.bleTtl()) return out({ ok: true, none: true });
+      return out({ ok: true, ts: rec.ts, b: rec.b });
+    }
     if (path === '/info') {
       return out({
         ok: true,
@@ -427,10 +510,7 @@ export class PairRoom {
     // Live location: ONE slot per recipient holding only the latest encrypted fix, overwritten by the next
     // one and never kept longer than LOC_TTL. The server therefore has no location history at all.
     if (path === '/loc/put') {
-      await this.ctx.storage.put('l:' + peer.did, { ts: now, ct: b.ct });
-      const cur = await this.ctx.storage.getAlarm();
-      if (!cur || cur > now + this.locTtl()) await this.ctx.storage.setAlarm(now + this.locTtl());
-      this.push(peer.did, { t: 'loc', ts: now, ct: b.ct });
+      await this.storeLoc(peer.did, b.ct, now);
       return out({ ok: true });
     }
     if (path === '/loc/get') {
@@ -448,6 +528,53 @@ export class PairRoom {
       return out({ ok: true });                                    // idempotent
     }
     return out({ ok: false, error: 'not_found' });
+  }
+}
+
+// v2.9.23: index of the rotating beacon ids registered by pair members: rid -> { pid, did }.
+// It holds no location and no key; ids expire on their own and each device keeps at most BLE_MAX_PER_DEVICE.
+const BLE_MAX_PER_DEVICE = 600;
+export class BleHub {
+  constructor(ctx, env) { this.ctx = ctx; this.env = env; }
+  ridTtl() { return Number(this.env.BLE_RID_TTL_MS) || BLE_RID_TTL_MS; }
+  async fetch(request) {
+    const path = new URL(request.url).pathname;
+    const b = await request.json();
+    const out = (o) => new Response(JSON.stringify(o));
+    const now = Date.now();
+    if (path === '/reg') {
+      const exp = now + this.ridTtl();
+      const idx = ((await this.ctx.storage.get('d:' + b.did)) || []).filter((e) => e[1] > now);
+      const have = new Set(idx.map((e) => e[0]));
+      for (const r of b.rids) if (!have.has(r)) idx.push([r, exp]);
+      const dropped = idx.length > BLE_MAX_PER_DEVICE ? idx.splice(0, idx.length - BLE_MAX_PER_DEVICE) : [];
+      if (dropped.length) await this.ctx.storage.delete(dropped.map((e) => 'r:' + e[0]).slice(0, 128));
+      const entries = {};
+      for (const r of b.rids) entries['r:' + r] = { pid: b.pid, did: b.did, exp };
+      const keys = Object.keys(entries);
+      for (let i = 0; i < keys.length; i += 100) {
+        const part = {}; for (const k of keys.slice(i, i + 100)) part[k] = entries[k];
+        await this.ctx.storage.put(part);
+      }
+      await this.ctx.storage.put('d:' + b.did, idx);
+      const cur = await this.ctx.storage.getAlarm();
+      if (!cur) await this.ctx.storage.setAlarm(now + 6 * 3600 * 1000);
+      return out({ ok: true, count: b.rids.length });
+    }
+    if (path === '/lookup') {
+      const v = await this.ctx.storage.get('r:' + b.rid);
+      if (!v || v.exp <= now) return out({ ok: true });
+      return out({ ok: true, pid: v.pid, did: v.did });
+    }
+    return out({ ok: false, error: 'not_found' });
+  }
+  async alarm() {
+    const now = Date.now();
+    const dead = [];
+    for (const [k, v] of await this.ctx.storage.list({ prefix: 'r:' })) if (v.exp <= now) dead.push(k);
+    for (let i = 0; i < dead.length; i += 128) await this.ctx.storage.delete(dead.slice(i, i + 128));
+    const left = (await this.ctx.storage.list({ prefix: 'r:', limit: 1 })).size;
+    if (left > 0) await this.ctx.storage.setAlarm(now + 6 * 3600 * 1000);
   }
 }
 

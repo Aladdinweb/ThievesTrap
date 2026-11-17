@@ -3,6 +3,10 @@ package com.thievestrap
 import android.app.*
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
+import android.graphics.SurfaceTexture
+import android.view.Surface
 import android.hardware.camera2.*
 import android.media.MediaRecorder
 import android.os.*
@@ -32,6 +36,9 @@ class VideoCaptureService : Service() {
     private val WIDTH = 480
     private val HEIGHT = 360
 
+    private var previewTexture: SurfaceTexture? = null     // v2.9.23: invisible preview target (see createSession)
+    private var previewSurface: Surface? = null
+    private var attempts = 0
     private var cameraDevice: CameraDevice? = null
     private var session: CameraCaptureSession? = null
     private var recorder: MediaRecorder? = null
@@ -46,9 +53,13 @@ class VideoCaptureService : Service() {
     override fun onBind(intent: Intent?) = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForeground(NOTIF_ID, buildNotif())
+        // v2.9.23: foreground service of type CAMERA, declared explicitly at runtime as well as in the manifest.
+        // Without the type (or without the CAMERA permission) Android 11+ hands the service no camera at all
+        // once the screen is off. startForeground() must come first, whatever happens next.
+        if (!goForeground()) { stopSelf(); return START_NOT_STICKY }
         if (cameraDevice != null || recording) { Log.i(TAG, "capture already in progress"); return START_NOT_STICKY }
         isStopping = false
+        attempts = 0
         acquireWakeLock()
         mainHandler.postDelayed({ if (!isStopping) safeStop() }, DURATION_MS + 15_000L)   // hard ceiling
         startBackgroundThread()
@@ -62,6 +73,26 @@ class VideoCaptureService : Service() {
         cleanup()
         stopBackgroundThread()
         releaseWakeLock()
+    }
+
+    private fun goForeground(): Boolean {
+        return try {
+            if (checkSelfPermission(android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                Log.w(TAG, "CAMERA permission missing")
+                startForeground(NOTIF_ID, buildNotif())            // satisfy the startForegroundService() contract, then give up
+                FamilyAudit.add(applicationContext, "video_failed", "-", "no_camera_permission")
+                false
+            } else {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                    startForeground(NOTIF_ID, buildNotif(), ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA)
+                else startForeground(NOTIF_ID, buildNotif())
+                true
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "startForeground failed: ${e.message}")
+            FamilyAudit.add(applicationContext, "video_failed", "-", "foreground_denied")
+            false
+        }
     }
 
     @Suppress("DEPRECATION")
@@ -115,30 +146,60 @@ class VideoCaptureService : Service() {
                     cameraDevice = camera
                     createSession(camera)
                 }
-                override fun onDisconnected(camera: CameraDevice) { camera.close(); cameraDevice = null; if (!isStopping) safeStop() }
-                override fun onError(camera: CameraDevice, error: Int) { Log.e(TAG, "camera error $error"); camera.close(); cameraDevice = null; safeStop() }
+                override fun onDisconnected(camera: CameraDevice) { camera.close(); cameraDevice = null; if (!isStopping) retryOrStop("disconnected") }
+                override fun onError(camera: CameraDevice, error: Int) {
+                    Log.e(TAG, "camera error $error"); camera.close(); cameraDevice = null
+                    // 1 = in use, 2 = max cameras, 3 = disabled (Android's background-camera block), 4/5 = device/service
+                    retryOrStop("camera_error_$error")
+                }
             }, backgroundHandler)
-        } catch (e: Exception) { Log.e(TAG, "openCamera: ${e.message}"); safeStop() }
+        } catch (e: Exception) { Log.e(TAG, "openCamera: ${e.message}"); retryOrStop("open_failed") }
+    }
+
+    /** The camera can be busy or briefly refused right after the screen turned off: try again a few times. */
+    private fun retryOrStop(why: String) {
+        if (isStopping) return
+        if (attempts >= 2) {
+            Log.w(TAG, "giving up: $why")
+            try { FamilyAudit.add(applicationContext, "video_failed", "-", why) } catch (e: Exception) {}
+            safeStop(); return
+        }
+        attempts++
+        Log.w(TAG, "retry $attempts after $why")
+        try { recorder?.reset(); recorder?.release() } catch (e: Exception) {}
+        recorder = null; recording = false
+        try { session?.close() } catch (e: Exception) {}
+        session = null
+        try { outFile?.delete() } catch (e: Exception) {}
+        outFile = null
+        backgroundHandler?.postDelayed({ openCamera() }, 1500L * attempts)
     }
 
     private fun createSession(camera: CameraDevice) {
         if (isStopping) return
         try {
             val surface = recorder?.surface ?: run { safeStop(); return }
-            camera.createCaptureSession(listOf(surface), object : CameraCaptureSession.StateCallback() {
+            // v2.9.23: a second, invisible SurfaceTexture target next to the recorder. Several devices (Samsung in
+            // particular) stop delivering frames to a recorder-only session once the display is off; with a
+            // preview-type stream attached the pipeline keeps running. Nothing is ever drawn on screen.
+            val tex = SurfaceTexture(10).apply { setDefaultBufferSize(WIDTH, HEIGHT) }
+            val prev = Surface(tex)
+            previewTexture = tex; previewSurface = prev
+            camera.createCaptureSession(listOf(surface, prev), object : CameraCaptureSession.StateCallback() {
                 override fun onConfigured(s: CameraCaptureSession) {
                     if (isStopping) { s.close(); return }
                     session = s
                     try {
                         val req = camera.createCaptureRequest(CameraDevice.TEMPLATE_RECORD)
                         req.addTarget(surface)
+                        previewSurface?.let { req.addTarget(it) }
                         s.setRepeatingRequest(req.build(), null, backgroundHandler)
                         recorder?.start()
                         recording = true
                         mainHandler.postDelayed({ if (!isStopping) safeStop() }, DURATION_MS)
                     } catch (e: Exception) { Log.e(TAG, "start recording failed: ${e.message}"); safeStop() }
                 }
-                override fun onConfigureFailed(s: CameraCaptureSession) { safeStop() }
+                override fun onConfigureFailed(s: CameraCaptureSession) { retryOrStop("configure_failed") }
             }, backgroundHandler)
         } catch (e: Exception) { Log.e(TAG, "createSession: ${e.message}"); safeStop() }
     }
@@ -164,6 +225,9 @@ class VideoCaptureService : Service() {
         session = null
         try { cameraDevice?.close() } catch (e: Exception) {}
         cameraDevice = null
+        try { previewSurface?.release() } catch (e: Exception) {}
+        try { previewTexture?.release() } catch (e: Exception) {}
+        previewSurface = null; previewTexture = null
     }
 
     private fun galleryDir(): File =

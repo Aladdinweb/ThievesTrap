@@ -35,11 +35,24 @@ object FamilySocket {
 
     /** Set by the Family screen: (pid, decrypted location JSON) for the pair being watched. */
     @Volatile var locListener: ((String, String) -> Unit)? = null
+    /** v2.9.23: set by the Family screen: (pid, base64 beacon) when a nearby phone relayed an offline beacon of the pair. */
+    @Volatile var bleListener: ((String, String) -> Unit)? = null
 
     // v2.9.22: whether the PEER of each pair currently has a live socket open (server-reported, real-time).
     // Unknown until the first presence_init/presence message for that pid arrives; treated as offline until then.
     private val presence = HashMap<String, Boolean>()
     @Volatile var presenceListener: (() -> Unit)? = null
+
+    /**
+     * v2.9.23: pushes one encrypted live-location fix up the open socket (the Worker stores it in the single
+     * location slot and forwards it to the peer, exactly like POST /loc/put). False = no open socket or the
+     * message could not be queued: the caller then falls back to HTTP.
+     */
+    @Synchronized
+    fun sendLoc(pid: String, ct: String): Boolean {
+        val ws = sockets[pid] ?: return false
+        return try { ws.send(JSONObject().put("t", "loc").put("ct", ct).toString()) } catch (e: Exception) { false }
+    }
 
     @Synchronized
     fun isOnline(pid: String): Boolean = presence[pid] == true
@@ -105,6 +118,7 @@ object FamilySocket {
                 "cmd" -> FamilyRelay.handleCommand(app, pr, key, o.optString("ct"))
                 "photo" -> FamilyRelay.pollOnce(app)                    // downloads, saves, acknowledges
                 "loc" -> FamilyBridge.open(key, "loc|$pid", o.optString("ct"))?.let { locListener?.invoke(pid, String(it)) }
+                "ble" -> bleListener?.invoke(pid, o.optString("b"))
                 "presence", "presence_init" -> { setOnline(pid, o.optBoolean("online", false)); presenceListener?.invoke() }
             }
         } catch (e: Exception) { Log.w(TAG, "bad push: ${e.message}") }

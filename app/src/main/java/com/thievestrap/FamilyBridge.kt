@@ -276,6 +276,27 @@ object FamilyBridge {
 
     fun clearLoc(pid: String): Boolean = post("/loc/clear", JSONObject().put("pid", pid)).ok
 
+    // v2.9.23: offline BLE mesh. Register my upcoming rotating beacon ids (owner), forward a beacon I overheard
+    // (any phone; opaque bytes only), fetch the newest beacon of a paired phone (watcher).
+    fun registerBle(pid: String, rids: List<String>): Boolean =
+        post("/ble/register", JSONObject().put("pid", pid).put("rids", org.json.JSONArray(rids))).ok
+
+    /** "ok" = delivered or unknown id (nothing to retry), "retry" = try again later, anything else = refused for good. */
+    fun reportBle(rid: String, b64: String): String {
+        val r = post("/ble/report", JSONObject().put("rid", rid).put("b", b64))
+        return when {
+            r.ok -> "ok"
+            r.http == 0 || r.http == 429 || r.http >= 500 -> "retry"
+            else -> "refused"
+        }
+    }
+
+    /** The newest offline beacon (base64, 23 bytes) the server holds for this phone from this pair, or null. */
+    fun getBle(pid: String): String? {
+        val r = post("/ble/get", JSONObject().put("pid", pid))
+        return if (r.ok && !r.json!!.optBoolean("none", false)) r.json.optString("b").ifEmpty { null } else null
+    }
+
     /** Tells the server the photo arrived safely: it is permanently deleted there right away. */
     fun ackPhoto(pid: String, id: String): Boolean = post("/photo/ack", JSONObject().put("pid", pid).put("id", id)).ok
 

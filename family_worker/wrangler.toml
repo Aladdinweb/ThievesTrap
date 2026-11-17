@@ -17,7 +17,17 @@ class_name = "PairRoom"
 name = "LIMITER"
 class_name = "Limiter"
 
+# v2.9.23: offline BLE mesh id index
+[[durable_objects.bindings]]
+name = "BLEHUB"
+class_name = "BleHub"
+
 # Free plan needs SQLite-backed classes.
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Rendezvous", "PairRoom", "Limiter"]
+
+# v2.9.23: new class for the offline BLE mesh (id index only, no locations)
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["BleHub"]

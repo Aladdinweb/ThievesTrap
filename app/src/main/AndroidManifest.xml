@@ -30,6 +30,9 @@
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN"/>
+    <!-- v2.9.23: offline BLE mesh broadcasts the encrypted beacon of an armed phone that lost its internet -->
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE"/>
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false"/>
 
     <!-- v2.7.9: OTA Update — required to launch the package installer -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
@@ -74,10 +77,19 @@
         <!-- v2.9.21: short silent front-camera clip, triggered by a paired family phone -->
         <service android:name=".VideoCaptureService" android:exported="false"
             android:foregroundServiceType="camera"/>
+        <!-- v2.9.23: dedicated live-tracking service (GPS + ongoing notification + wake lock), see LocationTrackingService -->
+        <service android:name=".LocationTrackingService" android:exported="false"
+            android:foregroundServiceType="location"/>
+        <!-- v2.9.23: offline BLE beacon broadcaster (armed phone without internet) -->
+        <service android:name=".BleBeaconService" android:exported="false"
+            android:foregroundServiceType="location"/>
         <service android:name=".SurvivalTimerService"   android:exported="false"/>
 
         <!-- Smartwatch Tether service (retained) -->
         <service android:name=".SmartwatchMonitorService" android:exported="false"/>
+
+        <!-- v2.9.23: results of the filtered background BLE scan (offline mesh helper role); system-delivered via PendingIntent -->
+        <receiver android:name=".BleScanReceiver" android:exported="false"/>
 
         <!-- I'm Safe — no PIN (retained) -->
         <receiver android:name=".SafeConfirmReceiver"   android:exported="false">

@@ -158,6 +158,15 @@
                     android:layout_marginTop="4dp"/>
             </LinearLayout>
 
+            <!-- v2.9.23: OFFLINE MESH switch / status -->
+            <TextView android:id="@+id/tv_family_mesh"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:background="#0D0D10" android:padding="16dp"
+                android:textSize="12sp" android:textColor="#8A8A94"
+                android:clickable="true" android:focusable="true"
+                android:foreground="?attr/selectableItemBackground"
+                android:layout_marginBottom="12dp"/>
+
             <!-- PRIVACY LOG (opens only with the security PIN) -->
             <TextView android:id="@+id/tv_family_privacy_log"
                 android:layout_width="match_parent" android:layout_height="wrap_content"

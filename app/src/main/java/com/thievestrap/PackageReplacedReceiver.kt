@@ -20,6 +20,7 @@ class PackageReplacedReceiver : BroadcastReceiver() {
         // An in-place update kills MonitorService. The static SMS receiver
         // survives (manifest-registered) but SMS_COMMAND needs the service
         // alive to be handled cleanly, so bring it back if protection was on.
+        try { BleMesh.syncScan(context); BleMesh.schedule(context) } catch (e: Exception) {}   // v2.9.23
         try {
             val p = context.getSharedPreferences("tt_prefs", Context.MODE_PRIVATE)
             if (p.getBoolean("running", false)) {

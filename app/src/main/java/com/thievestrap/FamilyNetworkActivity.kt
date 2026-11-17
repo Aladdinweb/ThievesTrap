@@ -178,6 +178,8 @@ class FamilyNetworkActivity : AppCompatActivity() {
         initMap()
         findViewById<TextView>(R.id.tv_family_notice).text = s("fam_notice_line")
         findViewById<TextView>(R.id.tv_family_privacy_log).apply { text = s("fam_log_row"); setOnClickListener { openPrivacyLog() } }
+        findViewById<TextView>(R.id.tv_family_mesh).setOnClickListener { showMeshDialog() }
+        meshRow()
         if (!getSharedPreferences("tt_family", MODE_PRIVATE).getBoolean("notice_ok", false)) showNotice()
 
         findViewById<Button>(R.id.btn_back_family).setOnClickListener { finish() }
@@ -218,6 +220,13 @@ class FamilyNetworkActivity : AppCompatActivity() {
             runOnUiThread { val pr = viewPair; if (pr != null && pr.pid == pid && processLoc(pr, plain)) refreshCaption() }
         }
         FamilySocket.presenceListener = { runOnUiThread { renderStatus() } }
+        // v2.9.23: offline mesh: a beacon relayed by a nearby phone shows the last known spot when there is no live fix
+        FamilySocket.bleListener = { pid, b -> runOnUiThread { showBeacon(pid, b) } }
+        BleMesh.syncScan(this); BleMesh.promptIfNeeded(this)
+        Thread {
+            try { BleMesh.registerIdsIfDue(this, false) } catch (e: Exception) {}
+            for (pr in FamilyBridge.pairs(this)) { val b = FamilyBridge.getBle(pr.pid) ?: continue; runOnUiThread { showBeacon(pr.pid, b) } }
+        }.start()
         startOwnLocation()
     }
 
@@ -228,6 +237,7 @@ class FamilyNetworkActivity : AppCompatActivity() {
         mapView?.onPause()
         FamilySocket.locListener = null
         FamilySocket.presenceListener = null
+        FamilySocket.bleListener = null
         FamilySocket.release()
         stopOwnLocation()
         super.onPause()
@@ -463,12 +473,65 @@ class FamilyNetworkActivity : AppCompatActivity() {
         FamilyHistory.add(this, pr.pid, FamilyHistory.Fix(o.optLong("ts"), gp.latitude, gp.longitude, o.optDouble("ac", 0.0).toFloat()))
     }
 
+    // ------------------------------------------------------------------ offline mesh (v2.9.23)
+
+    private fun bleCaption(o: JSONObject): String {
+        val mins = ((System.currentTimeMillis() / 1000 - o.optLong("ts")) / 60).coerceAtLeast(0)
+        val bt = o.optInt("bt", -1)
+        return String.format(s("fam_map_ble"), o.optString("nm"), mins, o.optInt("ac"), if (bt >= 0) "$bt%" else "?")
+    }
+
+    /** Opens a beacon relayed by a nearby phone and shows it on the map like a (slightly old) fix. */
+    private fun showBeacon(pid: String, b64: String) {
+        try {
+            val pr = FamilyBridge.pairs(this).firstOrNull { it.pid == pid } ?: return
+            val key = FamilyBridge.pairKey(this, pr) ?: return
+            val fix = BleCrypto.open(key, android.util.Base64.decode(b64, android.util.Base64.DEFAULT)) ?: return
+            if (System.currentTimeMillis() / 1000 - fix.timeSec > 36 * 3600L) return
+            val o = JSONObject().put("la", fix.lat).put("lo", fix.lon).put("ac", fix.accuracyM.toDouble()).put("ts", fix.timeSec)
+                .put("bt", fix.battery).put("mv", false).put("ble", true).put("nm", pr.name)
+            applyFix(pr, o)
+            refreshCaption()
+        } catch (e: Exception) { /* undecodable beacon: ignore */ }
+    }
+
+    private fun meshRow() {
+        findViewById<TextView>(R.id.tv_family_mesh).text =
+            s("fam_mesh_row") + "  [" + s(if (BleMesh.enabled(this)) "fam_mesh_on" else "fam_mesh_off") + "]"
+    }
+
+    private fun showMeshDialog() {
+        val on = BleMesh.enabled(this)
+        val missing = on && !BleMesh.permissionsOk(this)
+        val b = AlertDialog.Builder(this).setTitle(s("fam_mesh_title"))
+            .setMessage(s("fam_mesh_msg") + "\n\n" + s(if (on) "fam_mesh_state_on" else "fam_mesh_state_off") +
+                (if (missing) "\n" + s("fam_mesh_perm_missing") else ""))
+            .setPositiveButton(s(if (on) "fam_mesh_turn_off" else "fam_mesh_turn_on")) { _, _ ->
+                BleMesh.setEnabled(this, !on)
+                if (!on) BleMesh.promptIfNeeded(this, true)
+                meshRow()
+            }
+            .setNegativeButton(s("cancel"), null)
+        if (missing) b.setNeutralButton(s("fam_mesh_allow")) { _, _ -> BleMesh.promptIfNeeded(this, true) }
+        showDialog(b)
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == BleMesh.PERM_REQ) {
+            BleMesh.syncScan(this)
+            Thread { try { BleMesh.registerIdsIfDue(this, true) } catch (e: Exception) {} }.start()
+            meshRow()
+        }
+    }
+
     private fun refreshCaption() {
         val pr = viewPair
         val o = lastFix
         tvMapCaption.text = when {
-            pr == null -> s("fam_map_idle")
+            pr == null -> if (o != null && o.optBoolean("ble")) bleCaption(o) else s("fam_map_idle")
             o == null -> String.format(s("fam_map_waiting"), pr.name)
+            o.optBoolean("ble") -> bleCaption(o)
             System.currentTimeMillis() / 1000 - o.optLong("ts") > 90 -> s("fam_map_stale")
             else -> {
                 val ago = (System.currentTimeMillis() / 1000 - o.optLong("ts")).coerceAtLeast(0)
@@ -557,6 +620,7 @@ class FamilyNetworkActivity : AppCompatActivity() {
         "selfie_sent" -> String.format(s("fam_ev_selfie"), e.name)
         "video" -> String.format(s("fam_ev_video"), e.name)
         "video_refused" -> String.format(s("fam_ev_video_refused"), e.name, reasonText(e.x))
+        "video_failed" -> s("fam_ev_video_failed")
         "i_video" -> String.format(s("fam_ev_i_video"), e.name)
         "i_track" -> String.format(s("fam_ev_i_track"), e.name)
         "i_ring" -> String.format(s("fam_ev_i_ring"), e.name)
@@ -681,6 +745,7 @@ class FamilyNetworkActivity : AppCompatActivity() {
             .setPositiveButton(s("fam_save")) { _, _ ->
                 FamilyBridge.setGrants(this, pair.pid, checked[0], checked[1], checked[2])
                 if (checked[2]) BackgroundLocation.promptIfNeeded(this, true)      // "Allow all the time" is needed to keep sharing after restarts
+                Thread { try { BleMesh.registerIdsIfDue(this, false) } catch (e: Exception) {} }.start()   // v2.9.23: ids for the offline mesh
             }
             .show()
     }

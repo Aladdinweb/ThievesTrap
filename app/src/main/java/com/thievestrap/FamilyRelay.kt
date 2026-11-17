@@ -132,6 +132,9 @@ object FamilyRelay {
                 val file = File(galleryDir(ctx), "family_${safe}_${id.take(8)}.mp4")
                 if (!file.exists()) file.writeBytes(media)
                 if (!file.exists() || file.length() == 0L) return
+                // v2.9.23: copy into Movies/ThievesTrap and refresh the media store (MediaScannerConnection)
+                // so the clip shows up in the Gallery app straight away; a failure here never blocks the ack
+                MediaPublisher.publishVideo(ctx, file)
                 FamilyBridge.ackPhoto(pr.pid, id)
                 notifyPhoto(ctx, pr.name, id, isClip = true)
             } else {

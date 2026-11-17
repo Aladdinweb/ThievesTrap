@@ -89,6 +89,10 @@ class MonitorService : Service() {
         createSilentGraceChannel()
         cacheDeviceIdentifiers()
         FamilyTracker.resumeIfNeeded(this)     // v2.9.18: continue (or end) a location-sharing session
+        // v2.9.23: offline BLE mesh. While armed, watch the internet: when it is gone for a minute, broadcast the
+        // encrypted beacon; the helper-side background scan is kept alive here as well.
+        try { BleMesh.schedule(this); if (prefs().getBoolean("running", false)) BleMesh.startOfflineWatch(this) else BleMesh.syncScan(this) }
+        catch (e: Exception) { Log.w(TAG, "ble mesh start failed: ${e.message}") }
         // v2.9.17: while the phone is armed, look for family commands (ring) and photos every 20 s
         try { FamilySocket.acquire(this) } catch (e: Exception) { Log.w(TAG, "family socket failed: ${e.message}") }   // v2.9.19: instant push
         serviceScope.launch {
@@ -127,7 +131,7 @@ class MonitorService : Service() {
         }
 
         when (intent?.action) {
-            "FAMILY_TRACK_STOP" -> { FamilyTracker.stop(this, "stopped"); return START_STICKY }   // Stop button of the sharing notification
+            "FAMILY_TRACK_STOP" -> { FamilyTracker.stop(this, "stopped"); return START_STICKY }   // (legacy action; the Stop button now lives on LocationTrackingService)
             // FIX: static-receiver backup for SIM-change/silent-mode detection.
             // PersistentAlertReceiver (manifest-registered) forwards
             // SIM_STATE_CHANGED / RINGER_MODE_CHANGED here even if this
@@ -235,8 +239,11 @@ class MonitorService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        try { FamilyTracker.pause(this) } catch (e: Exception) {}
+        // v2.9.23: live tracking has its own foreground service now. Disarming ends the session (and tells the
+        // watcher); a mere restart of this service leaves it running.
+        try { if (!prefs().getBoolean("running", false)) FamilyTracker.stop(this, "disarmed") } catch (e: Exception) {}
         try { FamilySocket.release() } catch (e: Exception) {}
+        try { BleMesh.stopOfflineWatch(this) } catch (e: Exception) {}
         try { wakeLock?.release() } catch (e: Exception) {}
         fusedClient.removeLocationUpdates(locationCallback)
         pingRunnable?.let { handler.removeCallbacks(it) }
