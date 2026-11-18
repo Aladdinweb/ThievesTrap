@@ -145,10 +145,13 @@ class BleBeaconService : Service() {
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
             nm.createNotificationChannel(NotificationChannel(CHANNEL, "Offline mode", NotificationManager.IMPORTANCE_LOW))
+        // v2.9.24: this service also runs as an automatic fallback on a weak/dropping (but technically
+        // "connected") link, not only when fully offline -- say which one it is.
+        val weak = BleMesh.isUnstable(this)
         return NotificationCompat.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
-            .setContentTitle(Strings.get(this, "fam_ble_notif_title"))
-            .setContentText(Strings.get(this, "fam_ble_notif_text"))
+            .setContentTitle(Strings.get(this, if (weak) "fam_ble_notif_title_weak" else "fam_ble_notif_title"))
+            .setContentText(Strings.get(this, if (weak) "fam_ble_notif_text_weak" else "fam_ble_notif_text"))
             .setOngoing(true).setOnlyAlertOnce(true).setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setPriority(NotificationCompat.PRIORITY_LOW).build()
     }

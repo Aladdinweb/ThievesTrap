@@ -96,6 +96,16 @@ object FamilyRelay {
                     FamilyAudit.add(ctx, "video", pr.name)
                     try { VideoCaptureService.start(ctx) } catch (e: Exception) { Log.w(TAG, "video could not start: ${e.message}") }
                 }
+                // v2.9.24: remote front selfie, same permission and "armed only" rule as "video". The captured
+                // photo rejoins the normal pipeline (SELFIE_SAVED -> FamilyRelay.enqueueSelfie), so it is sent
+                // to every pair that was granted selfies, exactly like an intruder photo.
+                "selfie" -> {
+                    if (!pr.selfie) { FamilyAudit.add(ctx, "selfie_refused", pr.name, "not_allowed"); return }
+                    val armed = ctx.getSharedPreferences("tt_prefs", Context.MODE_PRIVATE).getBoolean("running", false)
+                    if (!armed) { FamilyAudit.add(ctx, "selfie_refused", pr.name, "not_armed"); return }
+                    FamilyAudit.add(ctx, "selfie", pr.name)
+                    try { SelfieService.takePhoto(ctx) } catch (e: Exception) { Log.w(TAG, "selfie could not start: ${e.message}") }
+                }
             }
         } catch (e: Exception) { Log.w(TAG, "bad command", e) }
     }
@@ -133,10 +143,11 @@ object FamilyRelay {
                 if (!file.exists()) file.writeBytes(media)
                 if (!file.exists() || file.length() == 0L) return
                 // v2.9.23: copy into Movies/ThievesTrap and refresh the media store (MediaScannerConnection)
-                // so the clip shows up in the Gallery app straight away; a failure here never blocks the ack
-                MediaPublisher.publishVideo(ctx, file)
+                // so the clip shows up in the Gallery app straight away; a failure here never blocks the ack.
+                // v2.9.24: the returned Uri lets the notification open the native player directly (see notifyPhoto).
+                val publishedUri = MediaPublisher.publishVideo(ctx, file)
                 FamilyBridge.ackPhoto(pr.pid, id)
-                notifyPhoto(ctx, pr.name, id, isClip = true)
+                notifyPhoto(ctx, pr.name, id, isClip = true, mediaUri = publishedUri)
             } else {
                 if (media.size < 4 || media[0] != 0xFF.toByte() || media[1] != 0xD8.toByte()) { FamilyBridge.ackPhoto(pr.pid, id); return }
                 val file = File(galleryDir(ctx), "family_${safe}_${id.take(8)}.jpg")
@@ -148,11 +159,20 @@ object FamilyRelay {
         } catch (e: Exception) { Log.w(TAG, "receive failed", e) }
     }
 
-    private fun notifyPhoto(ctx: Context, name: String, id: String, isClip: Boolean) {
+    private fun notifyPhoto(ctx: Context, name: String, id: String, isClip: Boolean, mediaUri: android.net.Uri? = null) {
         val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
             nm.createNotificationChannel(NotificationChannel(CHANNEL, "Family alerts", NotificationManager.IMPORTANCE_HIGH))
-        val pi = PendingIntent.getActivity(ctx, 0, Intent(ctx, SelfiesActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
+        // v2.9.24: tapping a video notification opens the system Gallery/player directly on the clip (when it
+        // was published successfully); photos and a publish failure still fall back to the in-app gallery.
+        val pi = if (isClip && mediaUri != null) {
+            PendingIntent.getActivity(ctx, 0, Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(mediaUri, "video/mp4")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }, PendingIntent.FLAG_IMMUTABLE)
+        } else {
+            PendingIntent.getActivity(ctx, 0, Intent(ctx, SelfiesActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
+        }
         val n = NotificationCompat.Builder(ctx, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentTitle(String.format(Strings.get(ctx, if (isClip) "fam_notif_video_title" else "fam_notif_photo_title"), name))

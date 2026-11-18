@@ -266,7 +266,10 @@ object FamilyBridge {
     }
 
     // v2.9.18: live location. The server keeps ONE encrypted slot per recipient (the latest fix), no history.
-    fun putLoc(pid: String, ct: String): Boolean = post("/loc/put", JSONObject().put("pid", pid).put("ct", ct)).ok
+    // v2.9.24: returns the Reply (not just a Boolean) so the caller can tell a genuine network failure
+    // (http == 0: timeout / no route / DNS) -- the signal for "weak or dropping internet" -- apart from a
+    // normal application-level refusal (pair revoked, etc).
+    fun putLoc(pid: String, ct: String): FamilyBridge.Reply = post("/loc/put", JSONObject().put("pid", pid).put("ct", ct))
 
     /** The latest encrypted fix or status for this phone, or null when there is none / on any failure. */
     fun getLoc(pid: String): String? {

@@ -132,8 +132,17 @@ object FamilyTracker {
                 val pr = FamilyBridge.pairs(app).firstOrNull { it.pid == pid } ?: return@execute
                 val key = FamilyBridge.pairKey(app, pr) ?: return@execute
                 val ct = FamilyBridge.seal(key, "loc|$pid", payload.toByteArray())
-                // v2.9.23: live WebSocket first (no new TLS handshake per fix, works on a flaky link); HTTP if it is down
-                if (!FamilySocket.sendLoc(pid, ct)) FamilyBridge.putLoc(pid, ct)
+                        // v2.9.23: live WebSocket first (no new TLS handshake per fix, works on a flaky link); HTTP if it is down
+                if (FamilySocket.sendLoc(pid, ct)) {
+                    BleMesh.markStable(app)                       // v2.9.24: a fix got through -> internet is good enough
+                } else {
+                    val r = FamilyBridge.putLoc(pid, ct)
+                    if (r.ok) BleMesh.markStable(app)
+                    else if (r.http == 0) BleMesh.markUnstable(app)  // v2.9.24: genuine network failure while ARMED and
+                                                                      // sharing location -> start the BLE fallback now,
+                                                                      // in parallel with the normal link, without waiting
+                                                                      // for a full "no internet" verdict
+                }
             } catch (e: Exception) { Log.w(TAG, "send failed: ${e.message}") }
         }
     }

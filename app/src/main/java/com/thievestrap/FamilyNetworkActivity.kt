@@ -200,6 +200,8 @@ class FamilyNetworkActivity : AppCompatActivity() {
         findViewById<View>(R.id.btn_family_alarm).setOnClickListener { chooseTarget { showRing(it) } }
         findViewById<Button>(R.id.btn_family_video).text = s("fam_video_btn")
         findViewById<View>(R.id.btn_family_video).setOnClickListener { chooseTarget { confirmVideo(it) } }
+        findViewById<Button>(R.id.btn_family_selfie).text = s("fam_selfie_btn")
+        findViewById<View>(R.id.btn_family_selfie).setOnClickListener { chooseTarget { confirmSelfie(it) } }
         renderStatus()
     }
 
@@ -621,6 +623,11 @@ class FamilyNetworkActivity : AppCompatActivity() {
         "video" -> String.format(s("fam_ev_video"), e.name)
         "video_refused" -> String.format(s("fam_ev_video_refused"), e.name, reasonText(e.x))
         "video_failed" -> s("fam_ev_video_failed")
+        "mesh_fallback_on" -> s("fam_ev_mesh_on")
+        "mesh_fallback_off" -> s("fam_ev_mesh_off")
+        "selfie" -> String.format(s("fam_ev_selfie"), e.name)
+        "selfie_refused" -> String.format(s("fam_ev_selfie_refused"), e.name, reasonText(e.x))
+        "i_selfie" -> String.format(s("fam_ev_i_selfie"), e.name)
         "i_video" -> String.format(s("fam_ev_i_video"), e.name)
         "i_track" -> String.format(s("fam_ev_i_track"), e.name)
         "i_ring" -> String.format(s("fam_ev_i_ring"), e.name)
@@ -821,6 +828,17 @@ class FamilyNetworkActivity : AppCompatActivity() {
                     val r = FamilyBridge.sendCommand(this, pair, "video")
                     if (r == "sent") FamilyAudit.add(this, "i_video", pair.name)
                     runOnUiThread { toast(if (r == "sent") s("fam_video_sent") else errText(r)) }
+                }.start()
+            }.setNegativeButton(s("cancel"), null).show()
+    }
+
+    private fun confirmSelfie(pair: FamilyBridge.FamilyPair) {
+        AlertDialog.Builder(this).setTitle(String.format(s("fam_selfie_title"), pair.name)).setMessage(s("fam_selfie_msg"))
+            .setPositiveButton(s("fam_selfie_now")) { _, _ ->
+                Thread {
+                    val r = FamilyBridge.sendCommand(this, pair, "selfie")
+                    if (r == "sent") FamilyAudit.add(this, "i_selfie", pair.name)
+                    runOnUiThread { toast(if (r == "sent") s("fam_selfie_sent") else errText(r)) }
                 }.start()
             }.setNegativeButton(s("cancel"), null).show()
     }

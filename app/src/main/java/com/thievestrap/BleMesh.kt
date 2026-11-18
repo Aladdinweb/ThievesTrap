@@ -53,11 +53,14 @@ object BleMesh {
     private const val REG_EVERY_MS = 6 * 3600_000L
     private const val REG_EPOCHS = 144            // 36 hours of 15-minute ids
     const val PERM_REQ = 7712
+    private const val UNSTABLE_WINDOW_MS = 45_000L   // v2.9.24: how long a single failed send keeps the fallback armed
 
     private val handler = Handler(Looper.getMainLooper())
     private var netCb: ConnectivityManager.NetworkCallback? = null
     @Volatile private var online = true
     private var pending: Runnable? = null
+    @Volatile private var unstableUntil = 0L          // v2.9.24: > now while a recent send failed on a "connected" network
+    private val unstableToken = Any()
 
     private fun sp(ctx: Context) = ctx.getSharedPreferences("tt_ble", Context.MODE_PRIVATE)
     private fun armed(ctx: Context) = ctx.getSharedPreferences("tt_prefs", Context.MODE_PRIVATE).getBoolean("running", false)
@@ -166,7 +169,7 @@ object BleMesh {
         online = now
         pending?.let { handler.removeCallbacks(it) }; pending = null
         if (now) {
-            BleBeaconService.stop(app)
+            if (!isUnstable(app)) BleBeaconService.stop(app)     // v2.9.24: a failed-send window can still be running; leave it be
             Thread { try { registerIdsIfDue(app, false) } catch (e: Exception) { Log.w(TAG, "register failed: ${e.message}") } }.start()
         } else {
             val r = Runnable { pending = null; if (!online && shouldBeacon(app)) BleBeaconService.start(app) }
@@ -178,6 +181,54 @@ object BleMesh {
     /** All conditions for broadcasting: armed, offline, Bluetooth on, permission, and a pair that may see my location. */
     fun shouldBeacon(ctx: Context): Boolean =
         enabled(ctx) && armed(ctx) && permissionsOk(ctx) && adapter(ctx)?.isEnabled == true && FamilyBridge.pairs(ctx).any { it.location }
+
+    // ------------------------------------------------------------------ v2.9.24: weak/unstable internet fallback
+    //
+    // The ConnectivityManager watch above only fires once Android decides a network is NOT "validated" at all;
+    // on a flaky connection that can lag well behind reality (a few bars of signal that keep timing out every
+    // real request still look "validated" to the OS for a while). So any ACTUAL network failure while a live
+    // location fix is being sent (see FamilyTracker.send) also arms the BLE beacon for a short window, in
+    // PARALLEL with the normal link -- it is cheap (beacons are a few bytes) and gives the nearest helper phone
+    // a chance to relay a fix immediately instead of waiting out the full offline debounce.
+
+    fun isUnstable(ctx: Context): Boolean = System.currentTimeMillis() < unstableUntil
+
+    @Synchronized
+    fun markUnstable(ctx: Context) {
+        val app = ctx.applicationContext
+        val wasActive = isUnstable(app)
+        unstableUntil = System.currentTimeMillis() + UNSTABLE_WINDOW_MS
+        handler.removeCallbacksAndMessages(unstableToken)
+        handler.postAtTime({ expireUnstable(app) }, unstableToken, android.os.SystemClock.uptimeMillis() + UNSTABLE_WINDOW_MS)
+        if (!wasActive && shouldBeacon(app)) {
+            Log.i(TAG, "weak/unstable internet detected: starting the BLE fallback")
+            try { FamilyAudit.add(app, "mesh_fallback_on", "-") } catch (e: Exception) {}
+            BleBeaconService.start(app)
+        }
+    }
+
+    @Synchronized
+    fun markStable(ctx: Context) {
+        if (unstableUntil == 0L) return
+        unstableUntil = 0L
+        handler.removeCallbacksAndMessages(unstableToken)
+        maybeStopFallback(ctx.applicationContext)
+    }
+
+    @Synchronized
+    private fun expireUnstable(app: Context) {
+        if (isUnstable(app)) return    // a newer failure re-armed the window after this callback was scheduled
+        unstableUntil = 0L
+        maybeStopFallback(app)
+    }
+
+    /** Stops the beacon only when NEITHER reason (genuine offline, or a recently failed send) still holds. */
+    private fun maybeStopFallback(app: Context) {
+        if (isUnstable(app)) return
+        if (!online) return             // the real connectivity watch still thinks we are offline: let it own the stop
+        try { FamilyAudit.add(app, "mesh_fallback_off", "-") } catch (e: Exception) {}
+        BleBeaconService.stop(app)
+    }
 
     // ------------------------------------------------------------------ rotating ids
 

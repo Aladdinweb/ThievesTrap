@@ -123,6 +123,13 @@
                     android:paddingTop="4dp" android:paddingBottom="4dp"/>
             </FrameLayout>
 
+            <!-- v2.9.24: remote front selfie (armed target only), right above Capture Short Video -->
+            <Button android:id="@+id/btn_family_selfie" style="?android:attr/buttonBarButtonStyle"
+                android:layout_width="match_parent" android:layout_height="52dp"
+                android:text="@string/fn_selfie_btn" android:textAllCaps="true" android:textStyle="bold"
+                android:textColor="#FFFFFF" android:background="#C2185B"
+                android:layout_marginBottom="12dp"/>
+
             <!-- v2.9.21: silent front video (armed target only) -->
             <Button android:id="@+id/btn_family_video" style="?android:attr/buttonBarButtonStyle"
                 android:layout_width="match_parent" android:layout_height="52dp"

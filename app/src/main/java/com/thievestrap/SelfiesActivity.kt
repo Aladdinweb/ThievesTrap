@@ -2,16 +2,25 @@ package com.thievestrap
 
 import android.content.Intent
 import android.graphics.BitmapFactory
-import android.net.Uri
+import android.media.ThumbnailUtils
 import android.os.Bundle
 import android.os.Environment
+import android.provider.MediaStore
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 
+/**
+ * v2.9.24 fix: this screen only ever listed `.jpg` files (two separate filters), so a video clip received
+ * from a family phone or captured remotely was saved correctly but never showed up here -- "received videos
+ * do not automatically appear in the app's internal gallery". Both filters now accept `.jpg` and `.mp4`.
+ */
 class SelfiesActivity : AppCompatActivity() {
+
+    private fun isVideo(f: File) = f.extension.lowercase() == "mp4"
+    private fun mimeOf(f: File) = if (isVideo(f)) "video/mp4" else "image/jpeg"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -19,33 +28,28 @@ class SelfiesActivity : AppCompatActivity() {
         setContentView(R.layout.activity_selfies)
         // Gallery: Delete All button
         try {
-            // FIX: switched to app-private external-files dir, matching the
-            // corrected SelfieService.savePhoto() location -- the old public
-            // directory silently failed to write under Scoped Storage on
-            // this app's targetSdk 33.
             val dir = java.io.File(
                 getExternalFilesDir(android.os.Environment.DIRECTORY_PICTURES), "ThievesTrap")
             dir.mkdirs()  // ensure it exists
             findViewById<Button>(R.id.btn_delete_all).setOnClickListener {
-                val files = dir.listFiles()?.filter { it.extension.lowercase() == "jpg" } ?: emptyList()
+                val files = dir.listFiles()?.filter { it.extension.lowercase() == "jpg" || it.extension.lowercase() == "mp4" } ?: emptyList()
                 if (files.isEmpty()) {
-                    android.widget.Toast.makeText(this, "No intruder photos found", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(this, "No photos or clips found", android.widget.Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
                 }
                 androidx.appcompat.app.AlertDialog.Builder(this)
-                    .setTitle("Delete All Intruder Photos")
-                    .setMessage("Permanently delete ${files.size} photo(s) from the gallery?")
+                    .setTitle("Delete All")
+                    .setMessage("Permanently delete ${files.size} item(s) from the gallery?")
                     .setPositiveButton("Delete All") { _, _ ->
                         var deleted = 0
                         files.forEach { if (it.delete()) deleted++ }
-                        // Also notify MediaStore
                         try {
                             val mediaScanIntent = android.content.Intent(
                                 android.content.Intent.ACTION_MEDIA_SCANNER_SCAN_FILE)
                             mediaScanIntent.data = android.net.Uri.fromFile(dir)
                             sendBroadcast(mediaScanIntent)
                         } catch (e: Exception) {}
-                        android.widget.Toast.makeText(this, "$deleted photo(s) deleted", android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(this, "$deleted item(s) deleted", android.widget.Toast.LENGTH_SHORT).show()
                         loadSelfies()
                     }
                     .setNegativeButton("Cancel", null)
@@ -70,7 +74,7 @@ class SelfiesActivity : AppCompatActivity() {
         }
 
         val files = dir.listFiles()
-            ?.filter { it.name.endsWith(".jpg") }
+            ?.filter { it.name.endsWith(".jpg") || it.name.endsWith(".mp4") }
             ?.sortedByDescending { it.lastModified() }
             ?: emptyList()
 
@@ -82,6 +86,7 @@ class SelfiesActivity : AppCompatActivity() {
         tvEmpty.visibility = android.view.View.GONE
 
         files.forEach { file ->
+            val video = isVideo(file)
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 setPadding(0, 0, 0, 16)
@@ -90,23 +95,27 @@ class SelfiesActivity : AppCompatActivity() {
                     LinearLayout.LayoutParams.WRAP_CONTENT)
             }
 
-            // Thumbnail
             val img = ImageView(this).apply {
                 layoutParams = LinearLayout.LayoutParams(120, 120).apply {
                     setMargins(0, 0, 16, 0)
                 }
                 scaleType = ImageView.ScaleType.CENTER_CROP
                 try {
-                    val opts = BitmapFactory.Options().apply { inSampleSize = 4 }
-                    val bmp = BitmapFactory.decodeFile(file.absolutePath, opts)
-                    setImageBitmap(bmp)
+                    if (video) {
+                        @Suppress("DEPRECATION")
+                        val bmp = ThumbnailUtils.createVideoThumbnail(file.absolutePath, MediaStore.Video.Thumbnails.MINI_KIND)
+                        if (bmp != null) setImageBitmap(bmp) else setImageResource(android.R.drawable.ic_media_play)
+                    } else {
+                        val opts = BitmapFactory.Options().apply { inSampleSize = 4 }
+                        val bmp = BitmapFactory.decodeFile(file.absolutePath, opts)
+                        setImageBitmap(bmp)
+                    }
                 } catch (e: Exception) {
-                    setImageResource(android.R.drawable.ic_menu_camera)
+                    setImageResource(if (video) android.R.drawable.ic_media_play else android.R.drawable.ic_menu_camera)
                 }
-                setOnClickListener { openImage(file) }
+                setOnClickListener { openMedia(file) }
             }
 
-            // Info
             val info = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 layoutParams = LinearLayout.LayoutParams(0,
@@ -117,7 +126,7 @@ class SelfiesActivity : AppCompatActivity() {
                 .format(Date(file.lastModified()))
 
             info.addView(TextView(this).apply {
-                text = "📸 Intruder photo"
+                text = if (video) "\uD83C\uDFA5 Video clip" else "\uD83D\uDCF8 Intruder photo"
                 textSize = 13f
                 setTextColor(0xFFFFFFFF.toInt())
                 setTypeface(null, android.graphics.Typeface.BOLD)
@@ -138,7 +147,7 @@ class SelfiesActivity : AppCompatActivity() {
                 textSize = 11f
                 setTextColor(0xFFFFFFFF.toInt())
                 backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF1A1A1A.toInt())
-                setOnClickListener { openImage(file) }
+                setOnClickListener { openMedia(file) }
             }
 
             val delBtn = Button(this).apply {
@@ -157,7 +166,7 @@ class SelfiesActivity : AppCompatActivity() {
                 textSize = 11f
                 setTextColor(0xFF4A90D9.toInt())
                 backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF001A2E.toInt())
-                setOnClickListener { shareImage(file) }
+                setOnClickListener { shareMedia(file) }
             }
 
             val btnRow = LinearLayout(this).apply {
@@ -171,7 +180,6 @@ class SelfiesActivity : AppCompatActivity() {
             row.addView(info)
             container.addView(row)
 
-            // Divider
             container.addView(android.view.View(this).apply {
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, 1).apply {
@@ -182,16 +190,17 @@ class SelfiesActivity : AppCompatActivity() {
         }
     }
 
-    private fun shareImage(file: File) {
+    private fun shareMedia(file: File) {
         try {
             val uri = androidx.core.content.FileProvider.getUriForFile(
                 this, "${packageName}.fileprovider", file)
+            val mime = mimeOf(file)
             val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                type = "image/jpeg"
+                type = mime
                 putExtra(android.content.Intent.EXTRA_STREAM, uri)
-                putExtra(android.content.Intent.EXTRA_SUBJECT, "Intruder Alert - Thieves Trap")
+                putExtra(android.content.Intent.EXTRA_SUBJECT, "Thieves Trap Alert")
                 putExtra(android.content.Intent.EXTRA_TEXT,
-                    "Intruder photo captured on ${file.name}")
+                    (if (isVideo(file)) "Video clip captured on " else "Intruder photo captured on ") + file.name)
                 addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             startActivity(android.content.Intent.createChooser(intent, "Share via"))
@@ -200,7 +209,8 @@ class SelfiesActivity : AppCompatActivity() {
         }
     }
 
-    private fun openImage(file: File) {
+    private fun openMedia(file: File) {
+        val mime = mimeOf(file)
         try {
             val uri = androidx.core.content.FileProvider.getUriForFile(
                 this,
@@ -208,20 +218,19 @@ class SelfiesActivity : AppCompatActivity() {
                 file
             )
             startActivity(Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "image/jpeg")
+                setDataAndType(uri, mime)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             })
         } catch (e: Exception) {
-            // Fallback: try gallery intent
             try {
                 val uri = android.net.Uri.parse(file.absolutePath)
                 startActivity(Intent(Intent.ACTION_VIEW, uri).apply {
-                    type = "image/*"
+                    type = if (isVideo(file)) "video/*" else "image/*"
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 })
             } catch (e2: Exception) {
-                Toast.makeText(this, "Photo saved at: ${file.name}", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Saved at: ${file.name}", Toast.LENGTH_LONG).show()
             }
         }
     }

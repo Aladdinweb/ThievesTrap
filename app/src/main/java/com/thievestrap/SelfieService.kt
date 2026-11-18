@@ -10,6 +10,8 @@ import android.app.*
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import android.media.ImageReader
+import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
 import android.os.*
 import android.util.Log
 import android.view.Surface
@@ -36,6 +38,7 @@ class SelfieService : Service() {
     private var isStopping = false
     private var sensorOrientation = 90
     private var wakeLock: PowerManager.WakeLock? = null
+    private var attempts = 0   // v2.9.24: camera can be briefly refused right after the screen turns off; retry a couple of times
 
     override fun onBind(intent: Intent?) = null
 
@@ -43,7 +46,10 @@ class SelfieService : Service() {
     private val CHANNEL_ID = "tt_selfie"
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForeground(NOTIF_ID, buildNotif())
+        // v2.9.24: explicit CAMERA foreground-service type (Android 11+ hands a background service no camera
+        // without it) plus a CAMERA-permission check, the same fix already applied to VideoCaptureService --
+        // this service is the one DeviceAdminReceiver calls straight from the LOCKED lock screen, every time.
+        if (!goForeground()) { stopSelf(); return START_NOT_STICKY }
 
         // FIX: a capture already actively in progress (camera open, not yet
         // stopped) was being torn down by cleanup() below every time a new
@@ -62,6 +68,7 @@ class SelfieService : Service() {
         }
 
         cleanup()
+        attempts = 0
         maxPhotos = (intent?.getIntExtra("count", 1) ?: 1).coerceAtMost(ABSOLUTE_MAX)
         // Fix 1: Absolute timeout — stop after 30 seconds no matter what
         mainHandler.postDelayed({ if (!isStopping) { Log.w(TAG, "Timeout stop"); safeStop() } }, 30_000)
@@ -76,6 +83,21 @@ class SelfieService : Service() {
         startBackgroundThread()
         backgroundHandler?.post { openCamera() }  // immediate - no delay
         return START_NOT_STICKY
+    }
+
+    private fun goForeground(): Boolean {
+        return try {
+            if (checkSelfPermission(android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                Log.w(TAG, "CAMERA permission missing")
+                startForeground(NOTIF_ID, buildNotif())           // satisfy the startForegroundService() contract, then give up
+                false
+            } else {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                    startForeground(NOTIF_ID, buildNotif(), ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA)
+                else startForeground(NOTIF_ID, buildNotif())
+                true
+            }
+        } catch (e: Exception) { Log.e(TAG, "startForeground failed: ${e.message}"); false }
     }
 
     @Suppress("DEPRECATION")
@@ -175,20 +197,30 @@ class SelfieService : Service() {
                 override fun onDisconnected(camera: CameraDevice) {
                     camera.close()
                     cameraDevice = null
-                    if (!isStopping) safeStop()
+                    if (!isStopping) retryOrStop("disconnected")
                 }
                 override fun onError(camera: CameraDevice, error: Int) {
                     Log.e(TAG, "Camera error $error")
                     camera.close()
                     cameraDevice = null
-                    safeStop()
+                    retryOrStop("camera_error_$error")
                 }
             }, backgroundHandler)
 
         } catch (e: Exception) {
             Log.e(TAG, "openCamera: ${e.message}")
-            safeStop()
+            retryOrStop("open_failed")
         }
+    }
+
+    /** v2.9.24: the camera can be briefly refused right after the screen turns off; try again once or twice. */
+    private fun retryOrStop(why: String) {
+        if (isStopping) return
+        if (attempts >= 2) { Log.w(TAG, "giving up: $why"); safeStop(); return }
+        attempts++
+        Log.w(TAG, "retry $attempts after $why")
+        cleanup()
+        backgroundHandler?.postDelayed({ if (!isStopping) openCamera() }, 1200L * attempts)
     }
 
     private fun createSession(camera: CameraDevice) {
@@ -204,7 +236,7 @@ class SelfieService : Service() {
                         backgroundHandler?.post { capturePhoto(session, camera) }  // zero delay - instant capture
                     }
                     override fun onConfigureFailed(session: CameraCaptureSession) {
-                        Log.e(TAG, "Session config failed"); safeStop()
+                        Log.e(TAG, "Session config failed"); retryOrStop("configure_failed")
                     }
                 }, backgroundHandler)
         } catch (e: Exception) { Log.e(TAG, "createSession: ${e.message}"); safeStop() }
