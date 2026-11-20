@@ -55,50 +55,7 @@
                 android:textColorHint="#333333" android:layout_marginBottom="8dp"/>
         </LinearLayout>
 
-        <!-- TELEGRAM ALERTS -->
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:orientation="horizontal" android:gravity="center_vertical"
-            android:background="#0D0D10" android:padding="10dp"
-            android:layout_marginTop="10dp" android:layout_marginBottom="2dp">
-            <TextView android:text="@string/telegram_section"
-                android:layout_width="0dp" android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:textSize="9sp" android:textColor="#CC0000" android:textStyle="bold"
-                android:letterSpacing="0.2"/>
-            <TextView android:id="@+id/tv_telegram_premium_badge"
-                android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:text="@string/premium_lock" android:textSize="9sp"
-                android:textColor="#555555" android:textStyle="bold"/>
-        </LinearLayout>
-        <LinearLayout android:id="@+id/layout_telegram_section"
-            android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:orientation="vertical" android:background="#0D0D10"
-            android:padding="14dp" android:layout_marginBottom="12dp">
-            <!-- Chat ID input -->
-            <TextView android:text="@string/paste_chat_id"
-                android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:textSize="10sp" android:textColor="#888888" android:layout_marginBottom="4dp"/>
-            <EditText android:id="@+id/et_telegram_ids"
-                android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:hint="123456789, 987654321"
-                android:inputType="text" android:textColor="#FFFFFF"
-                android:textColorHint="#333333" android:layout_marginBottom="10dp"
-                android:focusable="false" android:clickable="true"/>
-
-            <!-- BUTTON 1: Connect Bot (main action) -->
-            <Button android:id="@+id/btn_setup_bot"
-                android:layout_width="match_parent" android:layout_height="44dp"
-                android:text="@string/connect_bot"
-                android:backgroundTint="#1A1A2E" android:textColor="#4A90D9"
-                android:textSize="12sp" android:layout_marginBottom="8dp"/>
-
-            <!-- BUTTON 2: Share Bot Link with Contact -->
-            <Button android:id="@+id/btn_share_bot"
-                android:layout_width="match_parent" android:layout_height="44dp"
-                android:text="@string/tg_share_bot_btn"
-                android:backgroundTint="#1A1A1A" android:textColor="#888888"
-                android:textSize="12sp"/>
-        </LinearLayout>
+        <!-- v2.9.25: Telegram Alerts section removed entirely -->
 
         <!-- THEFT ALERTS -->
         <TextView android:text="@string/theft_alerts_section"
@@ -189,7 +146,7 @@
                     android:layout_weight="1" android:orientation="vertical">
                     <TextView android:text="@string/selfie_label" android:layout_width="wrap_content"
                         android:layout_height="wrap_content" android:textColor="#DDDDDD" android:textSize="13sp"/>
-                    <TextView android:text="@string/selfie_sub_tg" android:layout_width="wrap_content"
+                    <TextView android:text="@string/selfie_sub_desc" android:layout_width="wrap_content"
                         android:layout_height="wrap_content" android:textColor="#333333" android:textSize="10sp"/>
                 </LinearLayout>
                 <Switch android:id="@+id/sw_selfie"

@@ -254,9 +254,6 @@ class SmartwatchMonitorService : Service() {
                 } catch (e: Exception) { Log.e(TAG, "SMS fail to $target: ${e.message}") }
             }
         }.start()
-
-        if (LicenseManager.isPremium(this))
-            TelegramUploader.sendMessage(this, "\uD83D\uDEA8 WATCH TETHER EXPIRED\n$msg")
     }
 
     // ── Screen lock ───────────────────────────────────────────

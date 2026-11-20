@@ -26,16 +26,6 @@
     <string name="settings_title">Settings</string>
     <string name="back_btn">Back</string>
     <string name="save_btn">Save</string>
-    <string name="telegram_section">TELEGRAM ALERTS</string>
-    <string name="how_to_get_id">How to get your Chat ID:</string>
-    <string name="telegram_steps">1. Tap Open ID Bot below
-2. Press Start in Telegram
-3. Copy the ID number
-4. Paste it in the field below</string>
-    <string name="paste_chat_id">Paste your Chat ID(s) here (comma-separated):</string>
-    <string name="open_id_bot">Open ID Bot (@User_iinfobot)</string>
-    <string name="connect_bot">Connect Bot</string>
-    <string name="share_bot">Share Bot Link</string>
     <string name="theft_alerts_section">THEFT ALERTS</string>
     <string name="sms_failed_always">Always active</string>
     <string name="alert_after_n">Alert after N failed attempts:</string>
@@ -44,7 +34,7 @@
     <string name="grace_5s">5s</string>
     <string name="grace_60s">60s</string>
     <string name="device_status_section">DEVICE STATUS ALERTS — Premium</string>
-    <string name="selfie_sub_tg">Photo via Telegram</string>
+    <string name="selfie_sub_desc">Saved to gallery, sent to paired family phones</string>
     <string name="sim_premium_label">Premium</string>
     <string name="airplane_mode_label">Airplane mode</string>
     <string name="silent_mode_label">Silent mode change</string>
@@ -81,7 +71,7 @@
     <string name="about_copyright">Copyright 2026 iLine Tech by Ferak Aladdin</string>
     <string name="consent_title">Privacy Policy &amp; Legal Consent</string>
     <string name="consent_card1_title">Direct Transmission</string>
-    <string name="consent_card1_body">Photos and GPS location are sent instantly and exclusively to your private Telegram Bot or SMS contact.</string>
+    <string name="consent_card1_body">Photos and GPS location are sent instantly and exclusively to your paired family device or SMS contact.</string>
     <string name="consent_card2_title">Absolute Privacy</string>
     <string name="consent_card2_body">We do not own, store, or host any of your personal data on external servers.</string>
     <string name="consent_card3_title">Security Permissions</string>
@@ -173,11 +163,11 @@ Automatically sends your GPS location if you do not confirm your safety before t
     <string name="annual_plan">Annual — Renews yearly, cancel anytime</string>
     <string name="price_per_year_suffix">/yr</string>
     <string name="about_privacy_commitment_title">🔒 Privacy Commitment</string>
-    <string name="about_privacy_commitment_body">We value your privacy. Photos and location data are sent directly to your private Telegram bot or emergency SMS. We do not store any of your personal media on our servers.</string>
+    <string name="about_privacy_commitment_body">We value your privacy. Photos and location data are sent directly to your paired family device or emergency SMS. We do not store any of your personal media on our servers.</string>
     <string name="about_modern_efficiency_title">⚡ Modern Efficiency</string>
-    <string name="about_modern_efficiency_body">We upgraded our system to support Telegram Integration. Receive instant intruder selfies and security alerts faster and more reliably than traditional methods.</string>
+    <string name="about_modern_efficiency_body">Family Bridge delivers instant intruder selfies, video and live location straight to your paired family phone, faster and more reliably than traditional methods.</string>
     <string name="about_our_mission_title">🎯 Our Mission</string>
-    <string name="about_our_mission_body">Providing a dual-protection layer through SMS and Telegram to ensure you recover your phone and stay informed of its status in real-time.</string>
+    <string name="about_our_mission_body">Providing a dual-protection layer through SMS and your paired Family Bridge device to ensure you recover your phone and stay informed of its status in real-time.</string>
     <string name="free_vs_full_header">FREE vs FULL PROTECTION</string>
     <string name="free_included_header">FREE INCLUDED</string>
     <string name="free_features_list">✓ Emergency Contact 1
@@ -199,8 +189,8 @@ Automatically sends your GPS location if you do not confirm your safety before t
     <string name="revoke_license_btn">REVOKE LICENSE KEY</string>
     <string name="prem_feat1_title">Emergency Contact 2 + Recovery Options</string>
     <string name="prem_feat1_sub">Alert 2 people simultaneously</string>
-    <string name="prem_feat2_title">Auto-Telegram Intruder Photo</string>
-    <string name="prem_feat2_sub">Instant Telegram Bot delivery of intruder selfies</string>
+    <string name="prem_feat2_title">Auto Intruder Photo</string>
+    <string name="prem_feat2_sub">Instant delivery of intruder selfies to your paired family phone</string>
     <string name="prem_feat3_title">Full Remote SMS Commands</string>
     <string name="prem_feat3_sub">SELFIE, LOCK, ALARM, STATUS, HELP from any phone</string>
     <string name="prem_feat4_title">Survival Timer</string>
@@ -216,10 +206,7 @@ Automatically sends your GPS location if you do not confirm your safety before t
     <string name="free_feat2">✓ 15s fixed grace period</string>
     <string name="free_feat3">✓ Basic SMS Alerts &amp; Location</string>
     <string name="free_feat4">✓ Free Remote Command: WHERE</string>
-    <string name="tg_bot_share_text">Stay safe with Thieves Trap! Connect our security alert bot on Telegram: https://t.me/ThievesTrap_Alert_bot</string>
 
-    <string name="tg_share_bot_btn">🔗 Share Bot Link with Contact</string>
-    <string name="tg_poll_hint">Open the bot, press START, then return — your ID will auto-fill shortly.</string>
 
     <string name="bt_not_available">Bluetooth is not available on this device.</string>
     <string name="bt_enable_denied">Bluetooth is required for Watch Tether.</string>
@@ -275,7 +262,8 @@ Automatically sends your GPS location if you do not confirm your safety before t
     <string name="plan_annual">Annual</string>
     <string name="per_year_suffix2">/ year</string>
     <string name="badge_best_value">BEST VALUE</string>
-    <string name="badge_save16">Save 16%</string>
+    <string name="badge_save39">Save 39%</string>
+    <string name="badge_save65">Save 65%</string>
     <string name="badge_save50">Save 50%</string>
     <string name="price_placeholder_note">Prices shown are temporary and subject to change</string>
     <string name="unlocked_features_header">Full Protection Unlocks</string>

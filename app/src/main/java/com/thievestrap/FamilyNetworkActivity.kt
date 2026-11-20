@@ -625,7 +625,7 @@ class FamilyNetworkActivity : AppCompatActivity() {
         "video_failed" -> s("fam_ev_video_failed")
         "mesh_fallback_on" -> s("fam_ev_mesh_on")
         "mesh_fallback_off" -> s("fam_ev_mesh_off")
-        "selfie" -> String.format(s("fam_ev_selfie"), e.name)
+        "selfie" -> String.format(s("fam_ev_selfie_req"), e.name)
         "selfie_refused" -> String.format(s("fam_ev_selfie_refused"), e.name, reasonText(e.x))
         "i_selfie" -> String.format(s("fam_ev_i_selfie"), e.name)
         "i_video" -> String.format(s("fam_ev_i_video"), e.name)

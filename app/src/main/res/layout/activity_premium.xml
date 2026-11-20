@@ -103,7 +103,8 @@
                     <TextView android:id="@+id/tv_sub_3month" android:text="@string/per_3months_suffix"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textSize="9sp" android:textColor="#8E8E93" android:layout_marginTop="4dp"/>
-                    <TextView android:text="@string/badge_save16"
+                    <!-- v2.9.25: 10.99 EUR for 3 months vs 5.99 x 3 = 17.97 EUR is really ~39% off, not 16% -->
+                    <TextView android:text="@string/badge_save39"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textSize="9sp" android:textStyle="bold" android:textColor="#66BB6A"
                         android:background="@drawable/bg_badge_save"
@@ -130,6 +131,14 @@
                     <TextView android:id="@+id/tv_sub_annual" android:text="@string/per_year_suffix2"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:textSize="9sp" android:textColor="#8E8E93" android:layout_marginTop="4dp"/>
+                    <!-- v2.9.25: 24.99 EUR/year vs 5.99 x 12 = 71.88 EUR is ~65% off, and the best deal on the
+                         screen previously had no savings badge at all while the 3-month card (a worse deal) did -->
+                    <TextView android:text="@string/badge_save65"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:textSize="9sp" android:textStyle="bold" android:textColor="#66BB6A"
+                        android:background="@drawable/bg_badge_save"
+                        android:paddingStart="8dp" android:paddingEnd="8dp"
+                        android:paddingTop="2dp" android:paddingBottom="2dp" android:layout_marginTop="6dp"/>
                 </LinearLayout>
                 <!-- BEST VALUE ribbon: solid gold background, dark text, always visible -->
                 <TextView android:text="@string/badge_best_value"

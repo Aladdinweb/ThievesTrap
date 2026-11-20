@@ -30,7 +30,7 @@ class ConsentActivity : AppCompatActivity() {
                     .setMessage(
                         "PRIVACY POLICY\n\n" +
                         "1. DIRECT TRANSMISSION\n" +
-                        "Photos and GPS location captured by Thieves Trap are sent instantly and exclusively to your private Telegram Bot or SMS emergency contact. " +
+                        "Photos and GPS location captured by Thieves Trap are sent instantly and exclusively to your paired family device or SMS emergency contact. " +
                         "No data is routed through our servers.\n\n" +
                         "2. ABSOLUTE PRIVACY\n" +
                         "We do not own, store, or host any of your personal data on external servers. " +

@@ -26,13 +26,6 @@
     <string name="settings_title">الإعدادات</string>
     <string name="back_btn">رجوع</string>
     <string name="save_btn">حفظ</string>
-    <string name="telegram_section">تنبيهات تيليغرام</string>
-    <string name="how_to_get_id">كيفية الحصول على Chat ID:</string>
-    <string name="telegram_steps">1. اضغط على فتح بوت ID أدناه\n2. اضغط Start في تيليغرام\n3. انسخ رقم ID\n4. الصقه في الحقل أدناه</string>
-    <string name="paste_chat_id">الصق Chat ID(s) هنا (مفصولة بفاصلة):</string>
-    <string name="open_id_bot">فتح بوت ID (@User_iinfobot)</string>
-    <string name="connect_bot">ربط البوت</string>
-    <string name="share_bot">مشاركة رابط البوت</string>
     <string name="theft_alerts_section">تنبيهات السرقة</string>
     <string name="sms_failed_always">دائماً مفعّل</string>
     <string name="alert_after_n">التنبيه بعد N محاولة فاشلة:</string>
@@ -215,8 +208,6 @@
     <string name="free_feat4">✓ أمر مجاني عن بُعد: WHERE</string>
     <string name="tg_bot_share_text">ابقَ آمناً مع Thieves Trap! اتصل ببوت تنبيهات الأمان على تيليغرام: https://t.me/ThievesTrap_Alert_bot</string>
 
-    <string name="tg_share_bot_btn">🔗 مشاركة رابط البوت</string>
-    <string name="tg_poll_hint">افتح البوت واضغط START، ثم ارجع — سيتم جلب معرّفك تلقائياً.</string>
 
     <string name="bt_not_available">البلوتوث غير متاح على هذا الجهاز.</string>
     <string name="bt_enable_denied">البلوتوث مطلوب لميزة ربط الساعة.</string>
@@ -270,7 +261,8 @@
     <string name="plan_annual">سنوي</string>
     <string name="per_year_suffix2">/ سنة</string>
     <string name="badge_best_value">الأفضل قيمة ⭐</string>
-    <string name="badge_save16">وفر 16%</string>
+    <string name="badge_save39">وفر 39%</string>
+    <string name="badge_save65">وفر 65%</string>
     <string name="badge_save50">وفر 50%</string>
     <string name="price_placeholder_note">الأسعار المعروضة مؤقتة وقابلة للتغيير</string>
     <string name="unlocked_features_header">ميزات الحماية الكاملة المفتوحة</string>

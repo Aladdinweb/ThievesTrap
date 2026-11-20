@@ -178,12 +178,6 @@ class MonitorService : Service() {
                     recordAlert(label)
                     ActivityLog.selfie(this, label) // v2.9.12
                     prefs().edit().putString("last_selfie_path", path).apply()
-                    if (LicenseManager.isPremium(this) && photoFile.exists() &&
-                        photoFile.length() > 0) {
-                        val headline = "\uD83D\uDEA8 THIEVES TRAP \u2014 INTRUDER PHOTO #$count"
-                        val caption = "$headline\nTime: ${ts()} | Battery: ${bat()}%\n${locStr()}"
-                        TelegramUploader.enqueuePhoto(this, photoFile, caption)
-                    }
                     // v2.9.17: encrypted copy for paired family phones that were granted selfies
                     if (photoFile.exists() && photoFile.length() > 0) {
                         try { FamilyRelay.enqueueSelfie(this, photoFile) } catch (e: Exception) { Log.w(TAG, "family selfie queue failed", e) }
@@ -196,7 +190,7 @@ class MonitorService : Service() {
                 prefs().edit()
                     .putBoolean("theft_mode", true).putBoolean("selfie_enabled", true)
                     .putBoolean("alert_sim", true).putBoolean("alert_silent", true)
-                    .putBoolean("location_ping", true).putBoolean("telegram_enabled", true)
+                    .putBoolean("location_ping", true)
                     .apply()
                 updateNotif()
                 sendBroadcast(Intent("com.thievestrap.SETTINGS_REFRESH"))
@@ -206,7 +200,7 @@ class MonitorService : Service() {
                 prefs().edit()
                     .putBoolean("theft_mode", false).putBoolean("selfie_enabled", false)
                     .putBoolean("alert_sim", false).putBoolean("alert_silent", false)
-                    .putBoolean("location_ping", false).putBoolean("telegram_enabled", false)
+                    .putBoolean("location_ping", false)
                     .apply()
                 updateNotif()
                 sendBroadcast(Intent("com.thievestrap.SETTINGS_REFRESH"))
@@ -463,7 +457,6 @@ class MonitorService : Service() {
             val mins = RemotePin.LOCK_MS / 60000
             val msg = String.format(s("sms_pin_lockout"), RemotePin.MAX_FAILS, mins, sender)
             smsAll("\u26a0\ufe0f ${s("app_name")}: $msg")
-            TelegramUploader.sendMessage(this, "\u26a0\ufe0f ${s("app_name")}: $msg")
             recordAlert("Remote PIN lockout from $sender")
         }
         return false
@@ -510,10 +503,9 @@ class MonitorService : Service() {
         return sb.toString()
     }
 
-    /** SMS to the sender AND Telegram, so a command is acknowledged on the phone that sent it. */
+    /** SMS to the sender, so a command is acknowledged on the phone that sent it. */
     private fun reply(sender: String, msg: String) {
         sms(sender, msg)
-        TelegramUploader.sendMessage(this, msg)
     }
 
     /** lockNow() only when our device admin is really active; never throws. */
@@ -660,8 +652,6 @@ class MonitorService : Service() {
             if (GracePeriodManager.isActive()) return
             handler.postDelayed({
                 smsAll("SIM CHANGE DETECTED\n${locStr()}\n\n$PING_NOTE_RAW")
-                if (LicenseManager.isPremium(this))
-                    TelegramUploader.sendMessage(this, "SIM CHANGE DETECTED\n${locStr()}")
             }, 30_000L)
             registerSimTrapNetworkListener()
         } catch (e: Exception) { Log.e("TT", "simChange: ${e.message}") }
@@ -722,8 +712,6 @@ class MonitorService : Service() {
                     append("Sent automatically by Thieves Trap Security")
                 }
                 sendViaDefaultSmsManager(msg)
-                if (LicenseManager.isPremium(this@MonitorService))
-                    TelegramUploader.sendMessage(this@MonitorService, msg)
                 recordAlert("SIM swap alert sent (new carrier: $newCarrier)")
             } catch (e: Exception) {
                 Log.e(TAG, "onNewSimSignalDetected: ${e.message}")
@@ -867,15 +855,13 @@ class MonitorService : Service() {
         if (cmd == "ACTIVE" || cmd == "ACTIVATE") {
             if (!theftMode()) {
                 prefs().edit().putBoolean("theft_mode", true).putBoolean("selfie_enabled", true)
-                    .putBoolean("alert_sim", true).putBoolean("alert_silent", true)
-                    .putBoolean("telegram_enabled", true).apply()
+                    .putBoolean("alert_sim", true).putBoolean("alert_silent", true).apply()
                 updateNotif()
                 sendBroadcast(Intent("com.thievestrap.SETTINGS_REFRESH"))
                 val activationMsg = "\uD83D\uDEE1\ufe0f Thieves Trap ACTIVATED\nAll alerts ON.\n${locStr()}"
                 sms(sender, activationMsg)
-                TelegramUploader.sendMessage(this, "\u2705 THEFT MODE ON (remote)\n$activationMsg")
             } else {
-                TelegramUploader.sendMessage(this, "${s("app_name")}: Theft Mode already active.")
+                sms(sender, "${s("app_name")}: Theft Mode already active.")
             }
             return
         }
@@ -886,7 +872,6 @@ class MonitorService : Service() {
                 .putBoolean("theft_mode", false).putBoolean("selfie_enabled", false)
                 .putBoolean("alert_sim", false).putBoolean("alert_silent", false)
                 .putBoolean("alert_shutdown", false).putBoolean("location_ping", false)
-                .putBoolean("telegram_enabled", false)
                 .apply()
             pingRunnable?.let { handler.removeCallbacks(it) }
             updateNotif()
@@ -965,7 +950,7 @@ class MonitorService : Service() {
     /**
      * v2.9.14: remote "LIMIT <n>": n = 1..5 wrong screen-lock attempts before the alert fires; 0 = alert off
      * (stored as -1, exactly what the "None" choice of the Settings spinner stores). The counter restarts.
-     * The sender gets the result by SMS and Telegram. Anything else gets a one-line usage reply.
+     * The sender gets the result by SMS. Anything else gets a one-line usage reply.
      */
     private fun applyWrongPinLimit(arg: String, sender: String, via: String) {
         val n = if (arg.length == 1 && arg[0] in '0'..'5') arg.toInt() else -1

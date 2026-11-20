@@ -26,13 +26,6 @@
     <string name="settings_title">Parametres</string>
     <string name="back_btn">Retour</string>
     <string name="save_btn">Enregistrer</string>
-    <string name="telegram_section">ALERTES TELEGRAM</string>
-    <string name="how_to_get_id">Comment obtenir votre Chat ID :</string>
-    <string name="telegram_steps">1. Ouvrir ID Bot ci-dessous\n2. Appuyer sur Start dans Telegram\n3. Copier le numero ID\n4. Coller dans le champ ci-dessous</string>
-    <string name="paste_chat_id">Collez votre Chat ID ici (separes par virgule) :</string>
-    <string name="open_id_bot">Ouvrir ID Bot (@User_iinfobot)</string>
-    <string name="connect_bot">Connecter le Bot</string>
-    <string name="share_bot">Partager le lien Bot</string>
     <string name="theft_alerts_section">ALERTES DE VOL</string>
     <string name="sms_failed_always">Toujours actif</string>
     <string name="alert_after_n">Alerter apres N tentatives echouees :</string>
@@ -41,7 +34,7 @@
     <string name="grace_5s">5s</string>
     <string name="grace_60s">60s</string>
     <string name="device_status_section">ALERTES ETAT APPAREIL — Premium</string>
-    <string name="selfie_sub_tg">Photo via Telegram</string>
+    <string name="selfie_sub_desc">Enregistree dans la galerie, envoyee aux telephones familiaux associes</string>
     <string name="sim_premium_label">Premium</string>
     <string name="airplane_mode_label">Mode avion</string>
     <string name="silent_mode_label">Mode silencieux</string>
@@ -78,7 +71,7 @@
     <string name="about_copyright">Copyright 2026 iLine Tech par Ferak Aladdin</string>
     <string name="consent_title">Politique de confidentialite et consentement</string>
     <string name="consent_card1_title">Transmission directe</string>
-    <string name="consent_card1_body">Les photos et la localisation GPS sont envoyees instantanement a votre bot Telegram prive ou contact SMS.</string>
+    <string name="consent_card1_body">Les photos et la localisation GPS sont envoyees instantanement a votre appareil familial associe ou contact SMS.</string>
     <string name="consent_card2_title">Confidentialite absolue</string>
     <string name="consent_card2_body">Nous ne possedons ni ne stockons vos donnees sur des serveurs externes.</string>
     <string name="consent_card3_title">Permissions de securite</string>
@@ -170,11 +163,11 @@ Elle envoie une alerte automatique avec votre position GPS si vous ne confirmez 
     <string name="annual_plan">Annuel — Renouvelable, resiliable a tout moment</string>
     <string name="price_per_year_suffix">/an</string>
     <string name="about_privacy_commitment_title">🔒 Engagement de confidentialite</string>
-    <string name="about_privacy_commitment_body">Nous respectons votre vie privee. Les photos et les donnees de localisation sont envoyees directement a votre bot Telegram prive ou par SMS. Nous ne stockons aucune de vos donnees personnelles sur nos serveurs.</string>
+    <string name="about_privacy_commitment_body">Nous respectons votre vie privee. Les photos et les donnees de localisation sont envoyees directement a votre appareil familial associe ou par SMS. Nous ne stockons aucune de vos donnees personnelles sur nos serveurs.</string>
     <string name="about_modern_efficiency_title">⚡ Efficacite moderne</string>
-    <string name="about_modern_efficiency_body">Nous avons integre Telegram pour vous permettre de recevoir instantanement les selfies des intrus et les alertes de securite, de maniere plus rapide et fiable.</string>
+    <string name="about_modern_efficiency_body">Family Bridge envoie instantanement les selfies de l\'intrus, la video et la position en direct vers votre telephone familial associe, de maniere plus rapide et fiable.</string>
     <string name="about_our_mission_title">🎯 Notre mission</string>
-    <string name="about_our_mission_body">Offrir une double protection via SMS et Telegram pour vous aider a retrouver votre telephone et rester informe de son etat en temps reel.</string>
+    <string name="about_our_mission_body">Offrir une double protection via SMS et votre appareil Family Bridge associe pour vous aider a retrouver votre telephone et rester informe de son etat en temps reel.</string>
     <string name="free_vs_full_header">GRATUIT vs PROTECTION COMPLETE</string>
     <string name="free_included_header">INCLUS GRATUITEMENT</string>
     <string name="free_features_list">✓ Contact urgence 1
@@ -196,8 +189,8 @@ Elle envoie une alerte automatique avec votre position GPS si vous ne confirmez 
     <string name="revoke_license_btn">REVOQUER LA CLE DE LICENCE</string>
     <string name="prem_feat1_title">Contact urgence 2 + Options de récupération</string>
     <string name="prem_feat1_sub">Alerter 2 personnes simultanement</string>
-    <string name="prem_feat2_title">Photo de l\'intrus via Telegram automatique</string>
-    <string name="prem_feat2_sub">Livraison instantanée par le bot Telegram des selfies de l\'intrus</string>
+    <string name="prem_feat2_title">Photo automatique de l\'intrus</string>
+    <string name="prem_feat2_sub">Livraison instantanee des selfies de l\'intrus vers votre telephone familial associe</string>
     <string name="prem_feat3_title">Commandes SMS a distance completes</string>
     <string name="prem_feat3_sub">SELFIE, LOCK, ALARM, STATUS, HELP depuis nimporte quel telephone</string>
     <string name="prem_feat4_title">Minuterie de survie</string>
@@ -213,10 +206,7 @@ Elle envoie une alerte automatique avec votre position GPS si vous ne confirmez 
     <string name="free_feat2">✓ Délai de grâce fixe 15s</string>
     <string name="free_feat3">✓ Alertes SMS de base et localisation</string>
     <string name="free_feat4">✓ Commande gratuite à distance : WHERE</string>
-    <string name="tg_bot_share_text">Restez en sécurité avec Thieves Trap ! Connectez notre bot d\'alerte sur Telegram : https://t.me/ThievesTrap_Alert_bot</string>
 
-    <string name="tg_share_bot_btn">🔗 Partager le lien du bot</string>
-    <string name="tg_poll_hint">Ouvrez le bot, appuyez sur DEMARRER, puis revenez — votre ID sera recupere automatiquement.</string>
 
     <string name="bt_not_available">Le Bluetooth n\'est pas disponible sur cet appareil.</string>
     <string name="bt_enable_denied">Le Bluetooth est requis pour le Lien Montre.</string>
@@ -270,7 +260,8 @@ Elle envoie une alerte automatique avec votre position GPS si vous ne confirmez 
     <string name="plan_annual">Annuel</string>
     <string name="per_year_suffix2">/ an</string>
     <string name="badge_best_value">MEILLEURE OFFRE</string>
-    <string name="badge_save16">-16%</string>
+    <string name="badge_save39">-39%</string>
+    <string name="badge_save65">-65%</string>
     <string name="badge_save50">Economisez 50%</string>
     <string name="price_placeholder_note">Les prix affiches sont temporaires et sujets a modification</string>
     <string name="unlocked_features_header">La protection complete debloque</string>
