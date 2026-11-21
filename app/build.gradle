@@ -9,8 +9,8 @@ android {
         applicationId "com.thievestrap"
         minSdk 26
         targetSdk 33
-        versionCode 173
-        versionName "2.9.25"
+        versionCode 174
+        versionName "2.9.26"
     }
     buildFeatures {
         buildConfig true

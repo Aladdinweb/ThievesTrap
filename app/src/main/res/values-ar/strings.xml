@@ -34,7 +34,6 @@
     <string name="grace_5s">٥ث</string>
     <string name="grace_60s">٦٠ث</string>
     <string name="device_status_section">تنبيهات حالة الجهاز — مدفوع</string>
-    <string name="selfie_sub_tg">صورة عبر تيليغرام</string>
     <string name="sim_premium_label">للمدفوعين</string>
     <string name="airplane_mode_label">وضع الطيران</string>
     <string name="silent_mode_label">تغيير الوضع الصامت</string>
@@ -71,7 +70,7 @@
     <string name="about_copyright">حقوق النشر 2026 iLine Tech بواسطة فراق علاء الدين</string>
     <string name="consent_title">سياسة الخصوصية والموافقة القانونية</string>
     <string name="consent_card1_title">إرسال مباشر</string>
-    <string name="consent_card1_body">تُرسل الصور وموقع GPS فوراً وحصرياً إلى بوت تيليغرام الخاص بك أو جهة الاتصال عبر SMS.</string>
+    <string name="consent_card1_body">تُرسل الصور وموقع GPS فوراً وحصراً إلى جهازك العائلي المقترن أو جهة الاتصال عبر SMS.</string>
     <string name="consent_card2_title">خصوصية مطلقة</string>
     <string name="consent_card2_body">لا نمتلك أو نخزن أو نستضيف أياً من بياناتك الشخصية على خوادم خارجية.</string>
     <string name="consent_card3_title">أذونات الأمان</string>
@@ -163,11 +162,11 @@
     <string name="annual_plan">سنوي — يتجدد سنوياً، يمكن الإلغاء في أي وقت</string>
     <string name="price_per_year_suffix">/سنة</string>
     <string name="about_privacy_commitment_title">🔒 التزام الخصوصية</string>
-    <string name="about_privacy_commitment_body">نحن نحترم خصوصيتك. يتم إرسال الصور وبيانات الموقع مباشرةً إلى بوت تيليغرام الخاص بك أو عبر SMS. لا نخزن أي بيانات شخصية على خوادمنا.</string>
+    <string name="about_privacy_commitment_body">نحن نحترم خصوصيتك. يتم إرسال الصور وبيانات الموقع مباشرةً إلى جهازك العائلي المقترن أو عبر SMS. لا نخزن أي بيانات شخصية على خوادمنا.</string>
     <string name="about_modern_efficiency_title">⚡ الكفاءة الحديثة</string>
-    <string name="about_modern_efficiency_body">طورنا النظام ليدعم تيليغرام، لتستقبل صور المتسللين وتنبيهات الأمان فورياً بشكل أسرع وأكثر موثوقية من الطرق التقليدية.</string>
+    <string name="about_modern_efficiency_body">يرسل Family Bridge صور المتسللين والفيديو والموقع المباشر فورياً إلى هاتف عائلتك المقترن، بشكل أسرع وأكثر موثوقية من الطرق التقليدية.</string>
     <string name="about_our_mission_title">🎯 مهمتنا</string>
-    <string name="about_our_mission_body">توفير طبقة حماية مزدوجة عبر SMS وتيليغرام لضمان استعادة هاتفك والبقاء على اطلاع بحالته في الوقت الفعلي.</string>
+    <string name="about_our_mission_body">توفير طبقة حماية مزدوجة عبر SMS وجهاز Family Bridge المقترن لضمان استعادة هاتفك والبقاء على اطلاع بحالته في الوقت الفعلي.</string>
     <string name="free_vs_full_header">المجاني مقابل الحماية الكاملة</string>
     <string name="free_included_header">مشمول مجاناً</string>
     <string name="free_features_list">✓ جهة الاتصال الطارئة 1
@@ -189,8 +188,8 @@
     <string name="revoke_license_btn">إلغاء مفتاح الترخيص</string>
     <string name="prem_feat1_title">جهة الاتصال الطارئة 2 + خيارات الاسترداد</string>
     <string name="prem_feat1_sub">تنبيه شخصين في آنٍ واحد</string>
-    <string name="prem_feat2_title">صورة المتسلل تلقائياً عبر تيليجرام</string>
-    <string name="prem_feat2_sub">تسليم فوري عبر بوت تيليجرام لصور المتسلل</string>
+    <string name="prem_feat2_title">صورة تلقائية للمتسلل</string>
+    <string name="prem_feat2_sub">تسليم فوري لصور المتسلل إلى هاتف عائلتك المقترن</string>
     <string name="prem_feat3_title">أوامر SMS عن بُعد الكاملة</string>
     <string name="prem_feat3_sub">SELFIE، LOCK، ALARM، STATUS، HELP من أي هاتف</string>
     <string name="prem_feat4_title">مؤقت البقاء على قيد الحياة</string>
@@ -206,7 +205,6 @@
     <string name="free_feat2">✓ فترة سماح ثابتة 15 ثانية</string>
     <string name="free_feat3">✓ تنبيهات SMS أساسية والموقع</string>
     <string name="free_feat4">✓ أمر مجاني عن بُعد: WHERE</string>
-    <string name="tg_bot_share_text">ابقَ آمناً مع Thieves Trap! اتصل ببوت تنبيهات الأمان على تيليغرام: https://t.me/ThievesTrap_Alert_bot</string>
 
 
     <string name="bt_not_available">البلوتوث غير متاح على هذا الجهاز.</string>
